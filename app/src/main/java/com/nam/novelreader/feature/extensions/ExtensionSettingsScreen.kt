@@ -304,13 +304,6 @@ fun ExtensionSettingsScreen(
                         ) {
                             // Flag badge
                             BadgeContainer(text = "$flag TRUYỆN CHỮ", containerColor = Color(0xFF382D24), contentColor = accentGold)
-                            Image(
-                                painter = painterResource(id = com.nam.novelreader.R.mipmap.ic_launcher),
-                                contentDescription = "App Icon",
-                                modifier = Modifier
-                                    .size(18.dp)
-                                    .clip(RoundedCornerShape(4.dp))
-                            )
                             BadgeContainer(text = ext.version.toString(), containerColor = Color(0xFF2C2C2C), contentColor = Color.LightGray)
                         }
 
