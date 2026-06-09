@@ -205,7 +205,7 @@ fun ExtensionSettingsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Thông tin chi tiết", fontWeight = FontWeight.Bold) },
+                title = { Text(extension?.cleanName ?: "Thông tin chi tiết", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
