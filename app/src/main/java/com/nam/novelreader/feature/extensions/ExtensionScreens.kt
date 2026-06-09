@@ -713,11 +713,7 @@ fun ExtensionsTab(viewModel: ExtensionViewModel, navController: NavHostControlle
                                     } else {
                                         FilledTonalButton(
                                             onClick = { 
-                                                if (viewModel.appPrefs.supabaseIsLoggedIn) {
-                                                    viewModel.installExtension(info) 
-                                                } else {
-                                                    android.widget.Toast.makeText(context, "Vui lòng đăng nhập để cài đặt tiện ích mở rộng", android.widget.Toast.LENGTH_SHORT).show()
-                                                }
+                                                viewModel.installExtension(info) 
                                             },
                                             contentPadding = PaddingValues(horizontal = 16.dp),
                                         ) {
