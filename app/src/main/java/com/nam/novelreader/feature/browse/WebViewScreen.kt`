@@ -1,0 +1,76 @@
+package com.nam.novelreader.feature.browse
+
+import android.annotation.SuppressLint
+import android.graphics.Bitmap
+import android.view.ViewGroup
+import android.webkit.WebChromeClient
+import android.webkit.WebView
+import android.webkit.WebViewClient
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.navigation.NavHostController
+
+@SuppressLint("SetJavaScriptEnabled")
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun WebViewScreen(
+    url: String,
+    extensionId: String? = null,
+    navController: NavHostController
+) {
+    var webView by remember { mutableStateOf<WebView?>(null) }
+    var pageTitle by remember { mutableStateOf("Trình duyệt") }
+    var isLoading by remember { mutableStateOf(false) }
+    var progress by remember { mutableFloatStateOf(0f) }
+    val context = androidx.compose.ui.platform.LocalContext.current
+
+    BackHandler(enabled = webView?.canGoBack() == true) {
+        webView?.goBack()
+    }
+39
+<truncated 4802 bytes>
+                android.webkit.CookieManager.getInstance().flush()
+                                if (extensionId != null && url != null) {
+                                    val cookieStr = android.webkit.CookieManager.getInstance().getCookie(url)
+                                    if (!cookieStr.isNullOrBlank()) {
+                                        val prefs = ctx.getSharedPreferences("novel_reader_prefs", android.content.Context.MODE_PRIVATE)
+                                        prefs.edit().putString("ext_cookies_$extensionId", cookieStr).apply()
+                                    }
+                                }
+                            }
+                        }
+
+                        webChromeClient = object : WebChromeClient() {
+                            override fun onProgressChanged(view: WebView?, newProgress: Int) {
+                                progress = newProgress / 100f
+                            }
+                            override fun onReceivedTitle(view: WebView?, title: String?) {
+                                title?.let { pageTitle = it }
+                            }
+                        }
+                        
+                        val finalUrl = if (url.contains("sangtacviet.vip")) {
+                            url.replace("sangtacviet.vip", "sangtacviet.com")
+                        } else if (url.contains("sangtacviet.pro")) {
+                            url.replace("sangtacviet.pro", "sangtacviet.com")
+                        } else {
+                            url
+                        }
+                        loadUrl(finalUrl)
+                        webView = this
+                    }
+                },
+                modifier = Modifier.weight(1f)
+            )
+        }
+    }
+}

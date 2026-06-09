@@ -1,0 +1,82 @@
+package com.nam.novelreader.feature.settings
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavHostController
+import com.nam.novelreader.feature.components.*
+
+import com.nam.novelreader.data.preferences.AppPreferences
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
+import androidx.lifecycle.ViewModel
+
+@HiltViewModel
+class DisplaySettingsViewModel @Inject constructor(
+    val appPrefs: AppPreferences
+) : ViewModel()
+
+@OptIn(ExperimentalMaterial3Api
+<truncated 8626 bytes>
+            .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("Tỷ lệ mật độ", fontSize = 15.sp, color = VBookTheme.textColor())
+                        Text("${(densityScale * 100).toInt()}%", fontSize = 14.sp, color = VBookTheme.primaryColor())
+                    }
+                    Slider(
+                        value = densityScale,
+                        onValueChange = { densityScale = it },
+                        onValueChangeFinished = { prefs.densityScale = densityScale },
+                        valueRange = 0.8f..1.5f,
+                        steps = 6,
+                        colors = SliderDefaults.colors(
+                            thumbColor = VBookTheme.primaryColor(),
+                            activeTrackColor = VBookTheme.primaryColor(),
+                            inactiveTrackColor = VBookTheme.subTextColor().copy(alpha = 0.3f)
+                        )
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(32.dp))
+        }
+    }
+
+    // Dark mode dialog
+    if (showDarkModeDialog) {
+        RadioDialog(
+            title = "Chế độ tối",
+            options = listOf(
+                "system" to "Theo hệ thống",
+                "light" to "Sáng",
+                "dark" to "Tối"
+            ),
+            selected = darkMode,
+            onSelect = { darkMode = it; prefs.darkMode = it },
+            onDismiss = { showDarkModeDialog = false }
+        )
+    }
+}

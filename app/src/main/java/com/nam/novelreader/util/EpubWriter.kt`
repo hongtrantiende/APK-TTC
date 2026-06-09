@@ -1,0 +1,87 @@
+package com.nam.novelreader.util
+
+import com.nam.novelreader.domain.model.Chapter
+import com.nam.novelreader.domain.model.Novel
+import java.io.OutputStream
+import java.util.zip.ZipEntry
+import java.util.zip.ZipOutputStream
+
+/**
+ * Tiện ích hỗ trợ tạo tệp EPUB 2.0 / 3.0 cơ bản từ dữ liệu truyện chữ.
+ */
+object EpubWriter {
+
+    fun writeEpub(
+        outputStream: OutputStream,
+        novel: Novel,
+        chapters: List<Chapter>
+    ) {
+        ZipOutputStream(outputStream).use { zos ->
+            // 1. mimetype (Must be first, no compression)
+            val mimeEntry = ZipEntry("mimetype")
+            mimeEntry.method = ZipEntry.STORED
+            val mimeBytes = "application/epub+zip".toByteArray()
+            mimeEntry.size = mimeBytes.size.toLong()
+            val crc = java.util.zip.CRC32()
+            crc.update(mimeBytes)
+            mimeEntry.crc = crc.value
+            zos.putNextEntry(mimeEntry)
+            zos.write(mimeBytes)
+            zos.closeEntry()
+
+            // 2. META-INF/container.xml
+            val containerXml = """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
+                    <rootfiles>
+                        <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>
+                    </rootfiles>
+
+<truncated 5025 bytes>
+dtd">
+            <ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">
+                <head>
+                    <meta name="dtb:uid" content="${novel.url.hashCode()}"/>
+                    <meta name="dtb:depth" content="1"/>
+                    <meta name="dtb:totalPageCount" content="0"/>
+                    <meta name="dtb:maxPageNumber" content="0"/>
+                </head>
+                <docTitle>
+                    <text>${title}</text>
+                </docTitle>
+                <navMap>
+${navPoints.toString().trimEnd()}
+                </navMap>
+            </ncx>
+        """.trimIndent()
+    }
+
+    private fun buildChapterHtml(chapter: Chapter): String {
+        val title = escapeXml(chapter.title)
+        val paragraphs = chapter.content?.split("\n")?.map { it.trim() }?.filter { it.isNotEmpty() } ?: emptyList()
+        val contentHtml = paragraphs.joinToString("\n") { "<p>${escapeXml(it)}</p>" }
+
+        return """
+            <?xml version="1.0" encoding="utf-8"?>
+            <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+            <html xmlns="http://www.w3.org/1999/xhtml">
+            <head>
+                <title>${title}</title>
+                <link rel="stylesheet" type="text/css" href="css/style.css"/>
+            </head>
+            <body>
+                <h2>${title}</h2>
+                $contentHtml
+            </body>
+            </html>
+        """.trimIndent()
+    }
+
+    private fun escapeXml(input: String): String {
+        return input.replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+            .replace("\"", "&quot;")
+            .replace("'", "&apos;")
+    }
+}

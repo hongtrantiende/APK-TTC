@@ -1,0 +1,96 @@
+package com.nam.novelreader.util
+
+import android.content.Context
+import android.util.Log
+import java.io.File
+
+object QuickTranslateEngine {
+    private const val TAG = "QuickTranslateEngine"
+
+    @Volatile
+    private var isLoaded = false
+    @Volatile
+    private var isLoading = false
+
+    // HashMap chứa từ điển gộp: VietPhrase + Name + Pronouns
+    @Volatile
+    private var translationDict = HashMap<String, String>()
+    // HashMap chứa phiên âm Hán Việt
+    @Volatile
+    private var phienAmDict = HashMap<String, String>()
+
+    fun isDictLoaded(): Boolean = isLoaded
+    fun isDictLoading(): Boolean = isLoading
+
+    /**
+     * Khởi tạo và nạp từ điển vào RAM ngầm.
+     * @param force Nếu true, bỏ qua kiểm tra isLoaded để nạp lại từ điển mới.
+     */
+    fun init(context: Context, force: Boolean = false) {
+        if (!force && (isLoaded || isLoading)) return
+        isLoading = true
+
+        Thread {
+            try {
+                val dictDir = File(context.filesDir, "dict")
+                if (!dictDir.exists()) {
+                    Log.w(TAG, "Directory dict does not exist at ${dictDir.absolutePath}")
+                    isLoading = false
+                    return@Thread
+                }
+
+                Log.d(TAG, "Starting to load dictionaries into memory (force=$force)...")
+                val startT
+<truncated 9582 bytes>
+    result.append(hanViet)
+                    i++
+                }
+            }
+        }
+
+        var output = result.toString()
+        if (italicizeDialogue) {
+            output = italicizeDialogues(output)
+        }
+
+        return output
+    }
+
+    private fun isChineseChar(c: Char): Boolean {
+        val ub = Character.UnicodeBlock.of(c)
+        return ub === Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS ||
+                ub === Character.UnicodeBlock.CJK_COMPATIBILITY_IDEOGRAPHS ||
+                ub === Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS_EXTENSION_A ||
+                ub === Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS_EXTENSION_B
+    }
+
+    /**
+     * Tự động in nghiêng các câu thoại nằm giữa hai dấu nháy kép (ví dụ: "nói...")
+     * Dùng định dạng HTML <i> để hiển thị.
+     */
+    private fun italicizeDialogues(text: String): String {
+        val result = StringBuilder()
+        var inQuote = false
+        var lastIdx = 0
+        
+        for (idx in text.indices) {
+            val c = text[idx]
+            if (c == '"' || c == '“' || c == '”') {
+                if (inQuote) {
+                    // Đóng nháy
+                    result.append(text.substring(lastIdx, idx))
+                    result.append("</i>\"")
+                    inQuote = false
+                } else {
+                    // Mở nháy
+                    result.append(text.substring(lastIdx, idx))
+                    result.append("\"<i>")
+                    inQuote = true
+                }
+                lastIdx = idx + 1
+            }
+        }
+        result.append(text.substring(lastIdx))
+        return result.toString()
+    }
+}

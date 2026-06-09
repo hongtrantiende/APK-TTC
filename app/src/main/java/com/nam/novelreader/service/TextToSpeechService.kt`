@@ -1,0 +1,81 @@
+package com.nam.novelreader.service
+
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.app.Service
+import android.content.Context
+import android.content.Intent
+import android.os.Build
+import android.os.Bundle
+import android.os.IBinder
+import android.speech.tts.TextToSpeech
+import android.speech.tts.UtteranceProgressListener
+import androidx.core.app.NotificationCompat
+import com.nam.novelreader.MainActivity
+import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.*
+import java.util.*
+
+@AndroidEntryPoint
+class TextToSpeechService : Service(), TextToSpeech.OnInitListener {
+
+    companion object {
+        const val CHANNEL_ID = "tts_service_channel"
+        const val NOTIFICATION_ID = 1002
+
+        const val ACTION_START = "com.nam.novelreader.action.TTS_START"
+        const val ACTION_PLAY_PAUSE = "com.nam.novelreader.action.TTS_PLAY_PAUSE"
+        const val ACTION_STOP = "com.nam.novelreader.action.TTS_STOP"
+        const val ACTION_SET_SPEED = "com.nam.novelreader.action.TTS_SET_SPEED"
+        const val ACTION_REWIND_SENTENCE = "com.nam.novelreader.action.TTS_REWIND_SENTENCE"
+        const val ACTION_FORWARD_SENTENCE = "com.nam.novelreader.action.TTS_FORWARD_SENTENCE"
+        const val ACTION_SET_TIMER = "com.nam.novelreader.action.TTS_SET_TIMER"
+
+        const val EXTR
+<truncated 9974 bytes>
+endingIntent.getActivity(this, 0, openAppIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+
+        val actionIcon = if (isPlaying) android.R.drawable.ic_media_pause else android.R.drawable.ic_media_play
+        val actionText = if (isPlaying) "Tạm dừng" else "Tiếp tục"
+
+        val currentText = if (currentSentenceIndex < sentences.size) sentences[currentSentenceIndex] else "Đang đọc..."
+
+        return NotificationCompat.Builder(this, CHANNEL_ID)
+            .setContentTitle(chapterTitle)
+            .setContentText(currentText)
+            .setSmallIcon(android.R.drawable.ic_btn_speak_now)
+            .setContentIntent(piOpenApp)
+            .addAction(actionIcon, actionText, piPlayPause)
+            .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Dừng", piStop)
+            .build()
+    }
+
+    private fun updateNotification() {
+        val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        manager.notify(NOTIFICATION_ID, buildNotification())
+    }
+
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val serviceChannel = NotificationChannel(
+                CHANNEL_ID,
+                "Nghe đọc truyện (TTS)",
+                NotificationManager.IMPORTANCE_LOW
+            )
+            val manager = getSystemService(NotificationManager::class.java)
+            manager.createNotificationChannel(serviceChannel)
+        }
+    }
+
+    override fun onDestroy() {
+        timerJob?.cancel()
+        serviceJob.cancel()
+        tts?.stop()
+        tts?.shutdown()
+        isPlaying = false
+        sendUpdateBroadcast(isActive = false)
+        super.onDestroy()
+    }
+}

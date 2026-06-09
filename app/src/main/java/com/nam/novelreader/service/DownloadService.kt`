@@ -1,0 +1,85 @@
+package com.nam.novelreader.service
+
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.app.Service
+import android.content.Context
+import android.content.Intent
+import android.os.Build
+import android.os.IBinder
+import androidx.core.app.NotificationCompat
+import com.nam.novelreader.MainActivity
+import com.nam.novelreader.data.repository.NovelRepository
+import com.nam.novelreader.domain.model.Chapter
+import com.nam.novelreader.domain.model.Novel
+import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.*
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import javax.inject.Inject
+import com.nam.novelreader.data.local.dao.DownloadTaskDao
+import com.nam.novelreader.data.local.entity.DownloadTaskEntity
+
+@OptIn(ExperimentalCoroutinesApi::class)
+@AndroidEntryPoint
+class DownloadService : Service() {
+
+    companion object {
+        const val CHANNEL_ID = "download_service_channel"
+        const val NOTIFICATION_ID = 1001
+
+        const val ACTION_DOWNLOAD = "com.nam.novelreader.action.DOWNLOAD"
+        const val ACTION_RESUME = "com.nam.novelreader.action.RESUME"
+        const val EXTRA_EXTENSION_ID = "extra_extension_id"
+        const val EXTRA_CHAPTER_URLS = "extra_chapter_urls"
+        const val EXTRA_NOVEL_URL = "extra_novel_url"
+        const 
+<truncated 17954 bytes>
+tContentIntent(piOpenApp)
+                .build()
+            manager.notify(NOTIFICATION_ID, errorNotification)
+        }
+        
+        stopForeground(STOP_FOREGROUND_DETACH)
+        stopSelf()
+    }
+
+    // startDownloadInternal logic replaced the original startDownload body
+
+    private fun buildNotification(progress: Int, total: Int): Notification {
+        val openAppIntent = Intent(this, MainActivity::class.java)
+        val piOpenApp = PendingIntent.getActivity(this, 0, openAppIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+
+        return NotificationCompat.Builder(this, CHANNEL_ID)
+            .setContentTitle("Đang tải chương offline")
+            .setContentText("Đã tải $progress/$total chương")
+            .setSmallIcon(android.R.drawable.stat_sys_download)
+            .setProgress(total, progress, false)
+            .setContentIntent(piOpenApp)
+            .build()
+    }
+
+    private fun updateNotification(progress: Int, total: Int) {
+        val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        manager.notify(NOTIFICATION_ID, buildNotification(progress, total))
+    }
+
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val serviceChannel = NotificationChannel(
+                CHANNEL_ID,
+                "Tải truyện offline (Download)",
+                NotificationManager.IMPORTANCE_LOW
+            )
+            val manager = getSystemService(NotificationManager::class.java)
+            manager.createNotificationChannel(serviceChannel)
+        }
+    }
+
+    override fun onDestroy() {
+        serviceJob.cancel()
+        super.onDestroy()
+    }
+}

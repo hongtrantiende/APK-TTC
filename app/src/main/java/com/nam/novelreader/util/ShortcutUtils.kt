@@ -1,0 +1,87 @@
+package com.nam.novelreader.util
+
+import android.content.Context
+import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.drawable.BitmapDrawable
+import android.net.Uri
+import android.os.Build
+import android.widget.Toast
+import androidx.core.content.pm.ShortcutInfoCompat
+import androidx.core.content.pm.ShortcutManagerCompat
+import androidx.core.graphics.drawable.IconCompat
+import coil.ImageLoader
+import coil.request.ImageRequest
+import com.nam.novelreader.R
+import com.nam.novelreader.domain.model.Novel
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.net.URLEncoder
+
+object ShortcutUtils {
+
+    fun addNovelShortcut(context: Context, coroutineScope: CoroutineScope, novel: Novel) {
+        if (!ShortcutManagerCompat.isRequestPinShortcutSupported(context)) {
+            Toast.makeText(context, "Thiết bị không hỗ trợ tạo lối tắt", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        coroutineScope.launch {
+            val bitmap = loadCoverBitmap(context, novel.cover)
+            val icon = if (bitmap != null) {
+                IconCompat.createWithBitmap(bitmap)
+            } else {
+                // Fallback to app icon
+                IconCompat.createWithResource(context, R.mipmap.ic_launcher)
+            }
+
+            // Uri format matches deepLink in AppNavigation.kt
+            // novelreader://detail/{extensionId}?novelUrl={novelUrl}
+            val encodedUrl = URLEncoder.encode(novel.url, "UTF-8")
+            val shortcutIntent = Intent(
+                Intent.ACTION_VIEW,
+                Uri.parse("novelreader://detail/${novel.extensionId}?novelUrl=$encodedUrl")
+            ).apply {
+                `package` = context.packageName
+            }
+
+            val shortcutId = "novel_${novel.extensionId}_${novel.url.hashCode()}"
+            val shortcut = ShortcutInfoCompat.Builder(context, shortcutId)
+                .setShortLabel(novel.title)
+                .setLongLabel(novel.title)
+                .setIcon(icon)
+                .setIntent(shortcutIntent)
+                .build()
+
+            val success = ShortcutManagerCompat.requestPinShortcut(context, shortcut, null)
+            withContext(Dispatchers.Main) {
+                if (success) {
+                    Toast.makeText(context, "Đang gửi yêu cầu ghim lối tắt cho '${novel.title}'", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(context, "Yêu cầu ghim lối tắt thất bại", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    private suspend fun loadCoverBitmap(context: Context, coverUrl: String?): Bitmap? {
+        if (coverUrl.isNullOrEmpty()) return null
+        return withContext(Dispatchers.IO) {
+            try {
+                val loader = ImageLoader(context)
+                val request = ImageRequest.Builder(context)
+                    .data(coverUrl)
+                    .allowHardware(false) // CRITICAL: must be false to extract Bitmap for IconCompat
+                    .build()
+                val result = loader.execute(request)
+                val drawable = result.drawable
+                (drawable as? BitmapDrawable)?.bitmap
+            } catch (e: Exception) {
+                e.printStackTrace()
+                null
+            }
+        }
+    }
+}

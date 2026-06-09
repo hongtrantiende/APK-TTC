@@ -1,0 +1,118 @@
+package com.nam.novelreader.extension.runtime.api
+
+import org.jsoup.Jsoup
+import org.jsoup.nodes.Document
+import org.jsoup.nodes.Element
+import org.jsoup.safety.Safelist
+import org.jsoup.select.Elements
+import org.mozilla.javascript.Context as RhinoContext
+import org.mozilla.javascript.NativeArray
+import org.mozilla.javascript.ScriptableObject
+
+fun interface Consumer {
+    fun accept(obj: Any?)
+}
+
+fun interface MapFunction {
+    fun accept(obj: Any?): Any?
+}
+
+class JSList {
+    @JvmField
+    var length: Int = 0
+    private val list = ArrayList<Any?>()
+
+    fun add(obj: Any?): Boolean {
+        val added = list.add(obj)
+        length = list.size
+        return added
+    }
+
+    fun addAll(collection: Collection<Any?>): Boolean {
+        val added = list.addAll(collection)
+        length = list.size
+        return added
+    }
+
+    fun forEach(consumer: Consumer) {
+        for (i in 0 until list.size) {
+            consumer.accept(list[i])
+        }
+    }
+
+    fun get(i: Int): Any? {
+        return list.getOrNull(i)
+    }
+
+    fun join(obj: Any?): String {
+        if (list.isEmpty()) return ""
+        val delimiter = obj?.toString() ?: ""
+        return list.joinToString(delimiter) { it?.toString() ?: "" }
+    }
+
+    fun map(mapFunction: MapFunction): JSList {
+        val jsList = JSList()
+        for (i in 0 until l
+<truncated 5188 bytes>
+(Elements())
+        }
+    }
+
+    fun selectXpath(obj: Any?): JSElements {
+        return try {
+            JSElements(Elements(document?.selectXpath(obj?.toString() ?: "") ?: emptyList()))
+        } catch (e: Exception) {
+            JSElements(Elements())
+        }
+    }
+
+    fun tagName(str: String): JSElement {
+        if (document == null) return JSElement(null)
+        document.tagName(str)
+        return JSElement(document)
+    }
+
+    fun text(): String {
+        if (document == null) return ""
+        return wrapNonNull(document.text())
+    }
+
+    override fun toString(): String {
+        return document?.toString() ?: ""
+    }
+
+    fun tagName(): String {
+        return document?.tagName() ?: ""
+    }
+}
+
+class JSHtml {
+    fun clean(obj: Any?, obj2: Any?): String {
+        val html = obj?.toString() ?: ""
+        val safelist = Safelist.none()
+        if (obj2 is NativeArray) {
+            for (i in 0 until obj2.size.toInt()) {
+                safelist.addTags(obj2.get(i).toString())
+            }
+        } else {
+            val tags = obj2?.toString() ?: ""
+            if (tags.isNotBlank()) {
+                safelist.addTags(*tags.split(",").map { it.trim() }.toTypedArray())
+            }
+        }
+        return Jsoup.clean(html, safelist)
+    }
+
+    fun parse(obj: Any?): JSDocument {
+        val html = obj?.toString() ?: ""
+        return JSDocument(Jsoup.parse(html))
+    }
+}
+
+object JSHtmlBridge {
+    fun inject(ctx: RhinoContext, scope: ScriptableObject) {
+        val jsHtml = JSHtml()
+        val wrapped = RhinoContext.javaToJS(jsHtml, scope)
+        ScriptableObject.putProperty(scope, "Html", wrapped)
+    }
+}

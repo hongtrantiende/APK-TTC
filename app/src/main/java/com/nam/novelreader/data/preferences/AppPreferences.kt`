@@ -1,0 +1,82 @@
+package com.nam.novelreader.data.preferences
+
+import android.content.Context
+import android.content.SharedPreferences
+import dagger.hilt.android.qualifiers.ApplicationContext
+import javax.inject.Inject
+import javax.inject.Singleton
+
+/**
+ * AppPreferences — trung tâm quản lý cài đặt ứng dụng.
+ *
+ * Tất cả cài đặt lưu vào SharedPreferences "novel_reader_prefs".
+ * Mỗi nhóm có prefix riêng để dễ quản lý:
+ * - display_* : Hiển thị (theme, font, AMOLED...)
+ * - conn_*    : Kết nối (protocol, DNS, threads, delay...)
+ * - reader_*  : Đọc truyện (scroll mode, page turn, screen on...)
+ * - download_*: Tải truyện
+ * - notif_*   : Thông báo
+ * - ext_*     : Extension-scoped (per extension)
+ */
+@Singleton
+class AppPreferences @Inject constructor(
+    @ApplicationContext private val context: Context
+) {
+    val prefs: SharedPreferences =
+        context.getSharedPreferences("novel_reader_prefs", Context.MODE_PRIVATE)
+
+    // ========== DISPLAY ==========
+
+    /** Chế độ tối: "system" | "light" | "dark" */
+    var darkMode: String
+        get() = prefs.getString("display_dark_mode", "system") ?: "system"
+        set(value) = prefs.edit().putString("display_dark_mode", value).apply()
+
+    /** AMOLED mode — nền đen tuyệt đối */
+    var amoledMode: Boolean
+        get() = prefs.getBoolean("display_amoled_mode", false)
+   
+<truncated 9139 bytes>
+ 
+    /** Tự động thêm vào tủ sách khi tải */
+    var downloadAddToShelf: Boolean
+        get() = prefs.getBoolean("download_add_to_shelf", true)
+        set(value) = prefs.edit().putBoolean("download_add_to_shelf", value).apply()
+
+    // ========== NOTIFICATION ==========
+
+    /** Thông báo chương mới */
+    var notifNewChapter: Boolean
+        get() = prefs.getBoolean("notif_new_chapter", true)
+        set(value) = prefs.edit().putBoolean("notif_new_chapter", value).apply()
+
+    /** Khoảng thời gian kiểm tra (phút) */
+    var notifCheckInterval: Int
+        get() = prefs.getInt("notif_check_interval", 60)
+        set(value) = prefs.edit().putInt("notif_check_interval", value).apply()
+
+    // ========== DEVELOPER ==========
+
+    /** Chế độ nhà phát triển */
+    var developerMode: Boolean
+        get() = prefs.getBoolean("developer_mode", false)
+        set(value) = prefs.edit().putBoolean("developer_mode", value).apply()
+
+    // ========== EXTENSION-SCOPED HELPERS ==========
+
+    /** Lấy số luồng cho 1 extension cụ thể (fallback sang global) */
+    fun getExtParallelConnections(extId: String): Int =
+        prefs.getInt("ext_parallel_connections_$extId", connectionThreads)
+
+    /** Lấy giãn cách kết nối cho 1 extension (fallback sang global) */
+    fun getExtConnectionInterval(extId: String): Int =
+        prefs.getInt("ext_connection_interval_$extId", connectionDelay)
+
+    /** Chế độ ẩn danh cho 1 extension */
+    fun getExtIncognitoMode(extId: String): Boolean =
+        prefs.getBoolean("ext_incognito_mode_$extId", false)
+
+    /** Cookie cho 1 extension */
+    fun getExtCookies(extId: String): String =
+        prefs.getString("ext_cookies_$extId", "") ?: ""
+}

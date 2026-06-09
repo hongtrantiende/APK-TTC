@@ -1,0 +1,90 @@
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ExtensionStoreScreen(
+    navController: NavHostController,
+    viewModel: ExtensionViewModel = hiltViewModel(),
+) {
+    var selectedTab by remember { mutableIntStateOf(0) }
+    val tabs = listOf("Phần mở rộng", "Kho lưu trữ")
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Phần mở rộng") },
+                navigationIcon = {
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+            )
+        }
+    ) { padding ->
+        Column(modifier = Modifier.padding(padding)) {
+            // Tab bar
+            TabRow(selectedTabIndex = selectedTab) {
+                tabs.forEachIndexed { index, title ->
+                    Tab(
+                        selected = selectedTab == index,
+                        onClick = { selectedTab = index },
+                        text = { Text(title) },
+                    )
+                }
+            }
+
+            when (selectedTab) {
+                0 -> ExtensionsTab(viewModel = viewModel)
+                1 -> RepositoriesTab(viewModel = viewModel)
+            }
+        }
+    }
+}
+
+@Composable
+fun 
+<truncated 24971 bytes>
+s(type: String, locale: String) {
+    val flag = when (locale.lowercase(Locale.ROOT)) {
+        "vi_vn", "vi" -> "🇻🇳"
+        "zh_cn", "zh" -> "🇨🇳"
+        "en_us", "en" -> "🇺🇸"
+        else -> "🌐"
+    }
+    
+    val typeText = when (type.lowercase(Locale.ROOT)) {
+        "comic", "manga", "image" -> "Tranh"
+        "video", "anime", "movie" -> "Phim"
+        else -> "Chữ"
+    }
+    
+    val typeColor = when (type.lowercase(Locale.ROOT)) {
+        "comic", "manga", "image" -> Color(0xFF2E7D32) // Xanh lục
+        "video", "anime", "movie" -> Color(0xFFC62828) // Đỏ
+        else -> Color(0xFFD84315) // Cam/Nâu gỗ ấm
+    }
+
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        // Quốc gia Badge
+        Box(
+            modifier = Modifier
+                .background(Color.White.copy(alpha = 0.08f), RoundedCornerShape(4.dp))
+                .padding(horizontal = 4.dp, vertical = 2.dp)
+        ) {
+            Text(text = "$flag ${locale.uppercase(Locale.ROOT).take(2)}", fontSize = 10.sp, color = Color.White, fontWeight = FontWeight.Bold)
+        }
+        
+        // Loại nội dung Badge
+        Box(
+            modifier = Modifier
+                .background(typeColor.copy(alpha = 0.15f), RoundedCornerShape(4.dp))
+                .border(0.5.dp, typeColor.copy(alpha = 0.4f), RoundedCornerShape(4.dp))
+                .padding(horizontal = 4.dp, vertical = 2.dp)
+        ) {
+            Text(text = typeText, fontSize = 10.sp, color = typeColor, fontWeight = FontWeight.Bold)
+        }
+    }
+}
+

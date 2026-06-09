@@ -1,0 +1,79 @@
+package com.nam.novelreader.data.repository
+
+import android.content.Context
+import dagger.hilt.android.qualifiers.ApplicationContext
+import com.nam.novelreader.data.local.dao.*
+import com.nam.novelreader.data.local.entity.*
+import com.nam.novelreader.domain.model.*
+import com.nam.novelreader.extension.loader.ExtensionLoader
+import com.nam.novelreader.extension.model.*
+import com.nam.novelreader.extension.runtime.VBookJsExtensionRunner
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.JsonObject
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.serialization.serializer
+import org.json.JSONArray
+import org.json.JSONObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import org.jsoup.Jsoup
+import javax.inject.Inject
+import javax.inject.Singleton
+
+/**
+ * NovelRepository – trung tâm data access.
+ * Kết nối Extension Engine — Room Database — UI.
+ */
+@Singleton
+class NovelRepository @Inject constructor(
+    @ApplicationContext private val context: Context,
+    private va
+<truncated 38043 bytes>
+   android.util.Log.e("NovelRepo", "Failed to extract images from HTML content", e)
+                    }
+                }
+                
+                val rawTitle = cleanHtmlText(targetObj["title"]?.jsonPrimitive?.content ?: "")
+                val title = rawTitle
+
+                Chapter(
+                    url = chapterUrl,
+                    title = title,
+                    content = content,
+                    images = images,
+                )
+            } else if (element is JsonPrimitive) {
+                val content = element.content
+                Chapter(
+                    url = chapterUrl,
+                    title = "",
+                    content = content,
+                    images = null,
+                )
+            } else if (element is JsonArray) {
+                val images = element.mapNotNull { 
+                    if (it is JsonPrimitive) {
+                        it.content
+                    } else if (it is JsonObject) {
+                        val fallbackUrl = it["fallback"]?.jsonArray?.firstOrNull { f -> f is JsonPrimitive }?.jsonPrimitive?.content
+                        val mainUrl = it["link"]?.jsonPrimitive?.content 
+                            ?: it["url"]?.jsonPrimitive?.content 
+                            ?: it["src"]?.jsonPrimitive?.content
+                        if (!fallbackUrl.isNullOrBlank()) fallbackUrl else mainUrl
+                    } else {
+                        null
+                    }
+                }
+                Chapter(
+                    url = chapterUrl,
+                    title = "",
+                    content = null,
+                    images = images

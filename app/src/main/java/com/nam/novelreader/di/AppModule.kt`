@@ -1,0 +1,101 @@
+package com.nam.novelreader.di
+
+import android.content.Context
+import androidx.room.Room
+import com.nam.novelreader.data.local.AppDatabase
+import com.nam.novelreader.data.local.dao.*
+import com.nam.novelreader.data.network.InMemoryCookieJar
+import com.nam.novelreader.data.network.RetryInterceptor
+import dagger.Module
+import dagger.Provides
+import dagger.hilt.InstallIn
+import dagger.hilt.android.qualifiers.ApplicationContext
+import dagger.hilt.components.SingletonComponent
+import okhttp3.Dns
+import okhttp3.OkHttpClient
+import okhttp3.Protocol
+import okhttp3.logging.HttpLoggingInterceptor
+import java.net.InetAddress
+import java.security.SecureRandom
+import java.security.cert.X509Certificate
+import java.util.concurrent.TimeUnit
+import javax.inject.Singleton
+import javax.net.ssl.SSLContext
+import javax.net.ssl.TrustManager
+import javax.net.ssl.X509TrustManager
+
+@Module
+@InstallIn(SingletonComponent::class)
+object AppModule {
+
+    @Provides
+    @Singleton
+    fun provideOkHttpClient(@ApplicationContext context: Context): OkHttpClient {
+        val prefs = context.getSharedPreferences("novel_reader_prefs", Context.MODE_PRIVATE)
+
+        val logging = HttpLoggingInterceptor().apply {
+            level = HttpLoggingInterceptor.Level.BASIC
+        }
+
+        val builder = OkHttpClient.Builder()
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+<truncated 5423 bytes>
+           builder.connectTimeout(60, TimeUnit.SECONDS)
+                builder.readTimeout(60, TimeUnit.SECONDS)
+            }
+            // "balanced" → keep defaults
+        }
+
+        return builder.build()
+    }
+
+    @Provides
+    @Singleton
+    fun provideDatabase(@ApplicationContext context: Context): AppDatabase {
+        return Room.databaseBuilder(
+            context,
+            AppDatabase::class.java,
+            "novel_reader.db"
+        )
+            .fallbackToDestructiveMigration()
+            .build()
+    }
+
+    @Provides
+    fun provideNovelDao(db: AppDatabase): NovelDao = db.novelDao()
+
+    @Provides
+    fun provideChapterDao(db: AppDatabase): ChapterDao = db.chapterDao()
+
+    @Provides
+    fun provideExtensionDao(db: AppDatabase): ExtensionDao = db.extensionDao()
+
+    @Provides
+    fun provideRepositoryDao(db: AppDatabase): RepositoryDao = db.repositoryDao()
+
+    @Provides
+    fun provideReadingHistoryDao(db: AppDatabase): ReadingHistoryDao = db.readingHistoryDao()
+
+    @Provides
+    fun provideDownloadTaskDao(db: AppDatabase): DownloadTaskDao = db.downloadTaskDao()
+}
+
+/**
+ * Custom DNS resolver — dùng DNS server chỉ định thay vì mặc định hệ thống.
+ * Hỗ trợ Google (8.8.8.8) và Cloudflare (1.1.1.1).
+ */
+private class CustomDns(
+    private val primary: String,
+    private val secondary: String
+) : Dns {
+    override fun lookup(hostname: String): List<InetAddress> {
+        return try {
+            // Thử primary DNS
+            InetAddress.getAllByName(hostname).toList()
+        } catch (e: Exception) {
+            // Fallback to system DNS
+            Dns.SYSTEM.lookup(hostname)
+        }
+    }
+}

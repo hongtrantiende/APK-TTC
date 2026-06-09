@@ -1,0 +1,92 @@
+package com.nam.novelreader.data.local.preferences
+
+import android.content.Context
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.*
+import androidx.datastore.preferences.preferencesDataStore
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+import javax.inject.Inject
+import javax.inject.Singleton
+
+val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "reader_settings")
+
+@Singleton
+class ReaderPreferences @Inject constructor(
+    @ApplicationContext private val context: Context
+) {
+    companion object {
+        val KEY_FONT_SIZE = intPreferencesKey("font_size")
+        val KEY_LINE_HEIGHT = floatPreferencesKey("line_height")
+        val KEY_PARAGRAPH_SPACING = floatPreferencesKey("paragraph_spacing")
+        val KEY_CHAR_SPACING = floatPreferencesKey("char_spacing")
+        val KEY_THEME_INDEX = intPreferencesKey("theme_index")
+        val KEY_FONT_FAMILY = stringPreferencesKey("font_family")
+        val KEY_TEXT_JUSTIFY = booleanPreferencesKey("text_justify")
+        val KEY_TEXT_INDENT = booleanPreferencesKey("text_indent")
+        val KEY_KEEP_SCREEN_ON = booleanPreferencesKey("keep_screen_on")
+        val KEY_READING_MODE = intPreferencesKey("reading_mode") // 0: Scroll, 1: Page Flip
+        val KEY_AUTO_SCROLL_SPEED = intPreferencesKey("auto_scroll_speed") // 
+<truncated 3534 bytes>
+acing
+        }
+    }
+
+    suspend fun setThemeIndex(index: Int) {
+        context.dataStore.edit { preferences ->
+            preferences[KEY_THEME_INDEX] = index
+        }
+    }
+
+    suspend fun setFontFamily(font: String) {
+        context.dataStore.edit { preferences ->
+            preferences[KEY_FONT_FAMILY] = font
+        }
+    }
+
+    suspend fun setTextJustify(justify: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[KEY_TEXT_JUSTIFY] = justify
+        }
+    }
+
+    suspend fun setTextIndent(indent: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[KEY_TEXT_INDENT] = indent
+        }
+    }
+
+    suspend fun setKeepScreenOn(keep: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[KEY_KEEP_SCREEN_ON] = keep
+        }
+    }
+
+    suspend fun setReadingMode(mode: Int) {
+        context.dataStore.edit { preferences ->
+            preferences[KEY_READING_MODE] = mode
+        }
+    }
+
+    suspend fun setAutoScrollSpeed(speed: Int) {
+        context.dataStore.edit { preferences ->
+            preferences[KEY_AUTO_SCROLL_SPEED] = speed
+        }
+    }
+
+    suspend fun setMargins(left: Int, right: Int, top: Int, bottom: Int) {
+        context.dataStore.edit { preferences ->
+            preferences[KEY_MARGIN_LEFT] = left
+            preferences[KEY_MARGIN_RIGHT] = right
+            preferences[KEY_MARGIN_TOP] = top
+            preferences[KEY_MARGIN_BOTTOM] = bottom
+        }
+    }
+
+    suspend fun setBrightness(value: Float) {
+        context.dataStore.edit { preferences ->
+            preferences[KEY_BRIGHTNESS] = value
+        }
+    }
+}

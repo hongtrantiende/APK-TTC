@@ -1,0 +1,87 @@
+package com.nam.novelreader.feature.browse
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.nam.novelreader.data.repository.NovelRepository
+import com.nam.novelreader.domain.model.HomeTab
+import com.nam.novelreader.domain.model.Novel
+import com.nam.novelreader.extension.model.*
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.*
+import com.nam.novelreader.data.local.entity.ExtensionEntity
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+@HiltViewModel
+class BrowseViewModel @Inject constructor(
+    private val repository: NovelRepository,
+) : ViewModel() {
+
+    private val _homeTabs = MutableStateFlow<List<HomeTab>>(emptyList())
+    val homeTabs: StateFlow<List<HomeTab>> = _homeTabs
+
+    private val _genreTabs = MutableStateFlow<List<HomeTab>>(emptyList())
+    val genreTabs: StateFlow<List<HomeTab>> = _genreTabs
+
+    private val _selectedTab = MutableStateFlow<HomeTab?>(null)
+    val selectedTab: StateFlow<HomeTab?> = _selectedTab
+
+    private val _novels = MutableStateFlow<List<Novel>>(emptyList())
+    val novels: StateFlow<List<Novel>> = _novels
+
+    private val _isLoading = MutableStateFlow(false)
+    val isLoading: StateFlow<Boolean> = _isLoading
+
+    private val _isPagingLoading = MutableStateFlow(false)
+    val isPagingLoading: StateFlow<Boolean> = _isPagingLoading
+
+    private val _error = 
+<truncated 4385 bytes>
+   extensionId = currentExtensionIdStr,
+                    tabScript = tab.script,
+                    tabInput = tab.input,
+                    pageKey = currentKey
+                )
+                if (pageResult.novels.isNotEmpty()) {
+                    _novels.value = _novels.value + pageResult.novels
+                }
+                nextPageKey = pageResult.nextPageKey
+            } catch (e: Exception) {
+                android.util.Log.e("BrowseViewModel", "loadNextPage failed: ${e.message}")
+            } finally {
+                _isPagingLoading.value = false
+            }
+        }
+    }
+
+
+    private fun loadTabNovels(tab: HomeTab) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _error.value = null
+            try {
+                if (tab.novels.isNotEmpty()) {
+                    // Fallback tab đã có sẵn novels
+                    _novels.value = tab.novels
+                    nextPageKey = null
+                } else if (tab.script.isNotBlank()) {
+                    val pageResult = repository.getHomeTabNovels(
+                        extensionId = currentExtensionIdStr,
+                        tabScript = tab.script,
+                        tabInput = tab.input,
+                        pageKey = null
+                    )
+                    _novels.value = pageResult.novels
+                    nextPageKey = pageResult.nextPageKey
+                } else {
+                    _novels.value = emptyList()
+                    nextPageKey = null
+                }
+            } catch (e: Exception) {
+                _error.value = e.message
+                nextPageKey = null
+            }
+            _isLoading.value = false
+        }
+    }
+}

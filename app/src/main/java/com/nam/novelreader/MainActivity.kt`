@@ -1,0 +1,35 @@
+package com.nam.novelreader
+
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.ui.Modifier
+import com.nam.novelreader.navigation.NovelReaderNavHost
+import com.nam.novelreader.ui.theme.NovelReaderTheme
+import dagger.hilt.android.AndroidEntryPoint
+
+/**
+ * MainActivity — single Activity, Compose-based navigation.
+ * Tất cả screens được quản lý qua Navigation Compose.
+ */
+@AndroidEntryPoint
+class MainActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
+        setContent {
+            NovelReaderTheme {
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background
+                ) {
+                    NovelReaderNavHost()
+                }
+            }
+        }
+    }
+}

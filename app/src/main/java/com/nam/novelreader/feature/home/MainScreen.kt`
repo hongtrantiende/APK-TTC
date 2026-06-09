@@ -1,0 +1,87 @@
+package com.nam.novelreader.feature.home
+
+import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
+import androidx.navigation.NavHostController
+import com.nam.novelreader.feature.browse.BrowseScreen
+import com.nam.novelreader.feature.library.LibraryScreen
+import com.nam.novelreader.feature.settings.SettingsScreen
+
+import androidx.compose.runtime.saveable.rememberSaveable
+
+/**
+ * MainScreen — bottom navigation giống VBook:
+ * - Trang chủ (icon: LibraryBooks)
+ * - Khám phá (icon: Explore)
+ * - Cộng đồng (icon: Forum)
+ * - Thêm (icon: Tune)
+ */
+@Composable
+fun MainScreen(navController: NavHostController) {
+    var selectedTab by rememberSaveable { mutableIntStateOf(0) }
+
+    Scaffold(
+        bottomBar = {
+            NavigationBar(
+                containerColor = Color(0xFF16110D), // Nền đen giống VBook
+                tonalElevation = 0.dp
+
+<truncated 1727 bytes>
+               NavigationBarItem(
+                    selected = selectedTab == 2,
+                    onClick = { selectedTab = 2 },
+                    icon = {
+                        Icon(
+                            if (selectedTab == 2) Icons.Filled.Forum else Icons.Outlined.Forum,
+                            contentDescription = null
+                        )
+                    },
+                    label = { Text("Cộng đồng", fontSize = 11.sp) },
+                    colors = itemColors
+                )
+                // Thêm
+                NavigationBarItem(
+                    selected = selectedTab == 3,
+                    onClick = { selectedTab = 3 },
+                    icon = {
+                        Icon(
+                            if (selectedTab == 3) Icons.Filled.Tune else Icons.Outlined.Tune,
+                            contentDescription = null
+                        )
+                    },
+                    label = { Text("Thêm", fontSize = 11.sp) },
+                    colors = itemColors
+                )
+            }
+        }
+    ) { paddingValues ->
+        Box(modifier = Modifier.padding(paddingValues)) {
+            AnimatedContent(
+                targetState = selectedTab,
+                transitionSpec = {
+                    fadeIn() togetherWith fadeOut()
+                },
+                label = "BottomNavTransition"
+            ) { targetTab ->
+                when (targetTab) {
+                    0 -> HomeScreen(navController = navController)
+                    1 -> BrowseScreen(navController = navController)
+                    2 -> CommunityScreen()
+                    3 -> SettingsScreen(navController = navController)
+                }
+            }
+        }
+    }
+}

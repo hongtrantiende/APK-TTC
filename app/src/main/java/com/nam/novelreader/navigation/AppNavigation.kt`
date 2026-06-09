@@ -1,0 +1,80 @@
+package com.nam.novelreader.navigation
+
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.runtime.Composable
+import androidx.navigation.NavHostController
+import androidx.navigation.NavType
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
+import com.nam.novelreader.feature.browse.BrowseScreen
+import com.nam.novelreader.feature.detail.NovelDetailScreen
+import com.nam.novelreader.feature.extensions.ExtensionSettingsScreen
+import com.nam.novelreader.feature.extensions.ExtensionStoreScreen
+import com.nam.novelreader.feature.extensions.TranslationSettingsScreen
+import com.nam.novelreader.feature.extensions.QuickTranslateSettingsScreen
+import com.nam.novelreader.feature.home.MainScreen
+import com.nam.novelreader.feature.reader.TextReaderScreen
+import com.nam.novelreader.feature.reader.ComicReaderScreen
+import com.nam.novelreader.feature.reader.VideoReaderScreen
+import com.nam.novelreader.feature.search.SearchScreen
+import com.nam.novelreader.feature.browse.WebViewScreen
+import com.nam.novelreader.feature.settings.SettingsConnectionScreen
+import com.nam.novelreader.feature.settings.Settings
+<truncated 11087 bytes>
+ionId = extensionId,
+                novelUrl = novelUrl,
+                chapterUrl = chapterUrl,
+                navController = navController,
+            )
+        }
+
+        composable(
+            Routes.WEBVIEW,
+            arguments = listOf(
+                navArgument("url") {
+                    type = NavType.StringType
+                    defaultValue = ""
+                },
+                navArgument("extensionId") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                }
+            )
+        ) { backStackEntry ->
+            val url = backStackEntry.arguments?.getString("url") ?: ""
+            val extensionId = backStackEntry.arguments?.getString("extensionId")
+            WebViewScreen(url = url, extensionId = extensionId, navController = navController)
+        }
+
+        // Settings sub-screens
+        composable(Routes.SETTINGS_DISPLAY) {
+            SettingsDisplayScreen(navController = navController)
+        }
+        composable(Routes.SETTINGS_CONNECTION) {
+            SettingsConnectionScreen(navController = navController)
+        }
+        composable(Routes.SETTINGS_READER) {
+            SettingsReaderScreen(navController = navController)
+        }
+
+        // Download
+        composable(Routes.DOWNLOAD) {
+            DownloadScreen(navController = navController)
+        }
+
+        // Translation settings
+        composable(Routes.TRANSLATION_SETTINGS) {
+            TranslationSettingsScreen(navController = navController)
+        }
+        composable(Routes.QUICK_TRANSLATE_SETTINGS) {
+            QuickTranslateSettingsScreen(navController = navController)
+        }
+    }
+}

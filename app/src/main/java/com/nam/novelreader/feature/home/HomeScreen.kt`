@@ -1,0 +1,60 @@
+package com.nam.novelreader.feature.home
+
+import android.content.Context
+import android.widget.Toast
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphi
+<truncated 43261 bytes>
+                                ) {
+                                        Text(
+                                            "Lịch sử truyện chỉ lưu các truyện đã đọc gần nhất trong 30 ngày gần nhất.",
+                                            color = GreyText,
+                                            fontSize = 13.sp,
+                                            textAlign = TextAlign.Center,
+                                            modifier = Modifier.padding(bottom = 12.dp)
+                                        )
+                                        Button(
+                                            onClick = { viewModel.clearHistory() },
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = Color(0xFF3E271D),
+                                                contentColor = SecondaryAccent
+                                            ),
+                                            shape = RoundedCornerShape(8.dp)
+                                        ) {
+                                            Icon(Icons.Filled.Delete, contentDescription = null, modifier = Modifier.size(16.dp))
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Text("Xóa toàn bộ lịch sử", fontSize = 14.sp)
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Switch lưu lịch sử đọc
+                            item(span = { GridItemSpan(maxLineSpan) }) {
+                                Card(

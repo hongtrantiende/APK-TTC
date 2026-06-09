@@ -1,0 +1,68 @@
+package com.nam.novelreader.feature.browse
+
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.platform.LocalContext
+<truncated 45282 bytes>
+n provides LayoutDirection.Ltr) {
+            AnimatedVisibility(
+                visible = showExtensionSheet,
+                enter = slideInHorizontally(initialOffsetX = { it }),
+                exit = slideOutHorizontally(targetOffsetX = { it }),
+                modifier = Modifier
+                    .fillMaxWidth(0.6f)
+                    .fillMaxHeight()
+                    .align(Alignment.CenterEnd)
+            ) {
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background,
+                    shadowElevation = 8.dp
+                ) {
+                    ExtensionDetailSheetContent(
+                        name = extensionName.ifBlank { (currentExtensionId ?: "").replace("-", " ").replaceFirstChar { it.uppercase() } },
+                        source = extensionSource,
+                        iconPath = extensionIconPath,
+                        locale = extensionLocale,
+                        installedExtensions = installedExtensions,
+                        activeExtensionId = currentExtensionId ?: "",
+                        onSelectExtension = { id ->
+                            viewModel.selectExtension(id)
+                            showExtensionSheet = false
+                        },
+                        onConfigExtension = { id ->
+                            showExtensionSheet = false
+                            navController.navigate(Routes.extensionSettings(id))
+                        },
+                        onOpenSourceWebView = { url ->
+                            showExtensionSheet = false
+                            navController.navigate(Routes.webview(url, currentExtensionId))
+
+<truncated 1214 bytes>
+
+NOTE: The output was truncated because it was too long. Use a more targeted query or a smaller range to get the information you need.

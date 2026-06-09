@@ -1,0 +1,32 @@
+package com.nam.novelreader
+
+import android.app.Application
+import dagger.hilt.android.HiltAndroidApp
+
+import coil.ImageLoader
+import coil.ImageLoaderFactory
+import javax.inject.Inject
+import okhttp3.OkHttpClient
+
+/**
+ * Application class khởi tạo Hilt DI container.
+ * Entry point cho toàn bộ ứng dụng NovelReader.
+ */
+@HiltAndroidApp
+class NovelReaderApp : Application(), ImageLoaderFactory {
+    @Inject lateinit var okHttpClient: OkHttpClient
+
+    override fun onCreate() {
+        super.onCreate()
+        // Khởi tạo bộ chặn quảng cáo từ assets
+        com.nam.novelreader.data.network.AdBlocker.init(this)
+        // Khởi tạo và nạp từ điển Quick Translate ngầm
+        com.nam.novelreader.util.QuickTranslateEngine.init(this)
+    }
+
+    override fun newImageLoader(): ImageLoader {
+        return ImageLoader.Builder(this)
+            .okHttpClient(okHttpClient)
+            .build()
+    }
+}

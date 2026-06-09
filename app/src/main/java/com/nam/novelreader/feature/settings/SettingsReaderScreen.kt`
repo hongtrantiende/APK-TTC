@@ -1,0 +1,83 @@
+package com.nam.novelreader.feature.settings
+
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavHostController
+import com.nam.novelreader.feature.components.*
+import com.nam.novelreader.navigation.Routes
+
+import androidx.lifecycle.ViewModel
+import com.nam.novelreader.data.preferences.AppPreferences
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
+
+@HiltViewModel
+class ReaderSettingsViewModel @Inject constructor(
+    val appPrefs: AppPreferences
+) : ViewModel()
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SettingsReaderScreen(
+    navController: NavHostController,
+    viewModel: ReaderSettingsViewModel = hiltViewModel()
+) {
+    val prefs = viewModel.appPrefs
+
+    var autoOpenLastRead by remember { mutableStateOf(prefs.readerAutoOpenLastRead) }
+    var saveHistory by remember { mutableStateOf(prefs.readerSaveHistory) }
+    var screenOn by remember { mutableStateOf(prefs
+<truncated 5705 bytes>
+             VBookSettingsDivider()
+                VBookSettingsItem(
+                    title = "Tự động dịch truyện",
+                    subtitle = "Tự động dịch ngôn ngữ bằng các công cụ dịch có sẵn",
+                    showChevron = true,
+                    onClick = { navController.navigate(Routes.TRANSLATION_SETTINGS) }
+                )
+                VBookSettingsDivider()
+                VBookSettingsItem(
+                    title = "Tự động dịch Quick Translate",
+                    subtitle = "Tự động dịch nội dung chương truyện sang tiếng Việt bằng từ điển offline",
+                    content = {
+                        VBookSwitch(
+                            checked = autoTranslateQt,
+                            onCheckedChange = { 
+                                autoTranslateQt = it
+                                prefs.readerAutoTranslateQt = it 
+                            }
+                        )
+                    }
+                )
+                VBookSettingsDivider()
+                VBookSettingsItem(
+                    title = "Nhắc nhở thời gian đọc",
+                    subtitle = "Không",
+                    showChevron = true,
+                    onClick = { /* TODO Reminder */ }
+                )
+            }
+
+            // Nội dung & tải
+            VBookSettingsGroup("Nội dung & tải") {
+                VBookSettingsItem(
+                    title = "Định dạng tải về",
+                    subtitle = "EPUB",
+                    showChevron = true,
+                    onClick = { }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(32.dp))
+        }
+    }
+}

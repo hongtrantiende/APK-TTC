@@ -1,0 +1,39 @@
+*.iml
+.gradle
+/local.properties
+/.idea/caches
+/.idea/libraries
+/.idea/modules.xml
+/.idea/workspace.xml
+/.idea/nav/
+/.idea/assetWizardSettings.xml
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+/app/build
+/app/local.properties
+.idea
+.kotlin
+
+# Local configuration
+local.properties
+
+# Log files
+*.log
+
+# Project-specific temporary files
+/temp*/
+/stv*/
+/sayhentai/
+/mottruyen_test/
+/truyenqq/
+/scratch/
+*.zip
+*.rar
+*.tar
+compile_errors.txt
+repo_backup.txt
+tail.txt
+ic_launcher_broken.png

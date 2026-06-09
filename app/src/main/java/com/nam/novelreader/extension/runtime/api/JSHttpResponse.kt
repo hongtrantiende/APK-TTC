@@ -1,0 +1,102 @@
+package com.nam.novelreader.extension.runtime.api
+
+import android.util.Base64
+import org.jsoup.Jsoup
+import org.mozilla.javascript.Context as RhinoContext
+import org.mozilla.javascript.NativeJSON
+import org.mozilla.javascript.Scriptable
+import java.nio.charset.Charset
+
+/**
+ * JSHttpResponse — Bridge kết quả HTTP Response cho Rhino JS Engine.
+ * Tương ứng: com.vbook.app.extensions.js.module.http.JSHttpResponse
+ *
+ * Cache mảng byte bodyBytes để cho phép gọi .text(), .html() nhiều lần.
+ * Hỗ trợ chuyển đổi bảng mã (encoding) tùy chọn như GBK, GB2312, UTF-8.
+ */
+class JSHttpResponse(
+    private val ctx: RhinoContext,
+    private val scope: Scriptable,
+    private val bodyBytes: ByteArray?,
+    @JvmField val ok: Boolean,
+    @JvmField val status: Int,
+    @JvmField val statusText: String,
+    @JvmField val url: String,
+    @JvmField val headers: Any,
+    @JvmField val request: JSHttpRequest,
+    private val rawHeadersMap: Map<String, String>
+) {
+    fun text(): String? = text(null)
+
+    fun text(encoding: Any?): String? {
+        val bytes = bodyBytes ?: return null
+        return try {
+            val encStr = encoding?.toString()?.trim()
+            val charset = if (!encStr.isNullOrEmpty() && Charset.isSupported(encStr)) {
+                Charset.forName(encStr)
+            } else {
+                Charsets.UTF_8
+            }
+            String(bytes, charset)
+        } catch (e: Exception) {
+            String(bytes, Charsets.UTF_8)
+        }
+    }
+
+    fun html(): JSDocument? = html(null)
+
+    fun html(encoding: Any?): JSDocument? {
+        val htmlText = text(encoding) ?: return null
+        return JSDocument(Jsoup.parse(htmlText))
+    }
+
+    fun json(): Any? = json(null)
+
+    fun json(encoding: Any?): Any? {
+        val jsonText = text(encoding) ?: return null
+        return try {
+            NativeJSON.parse(ctx, scope, jsonText, org.mozilla.javascript.Callable { _, _, _, args ->
+                args?.getOrNull(1)
+            })
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+
+    fun base64(): String? {
+        val bytes = bodyBytes ?: return null
+        return try {
+            Base64.encodeToString(bytes, Base64.NO_WRAP)
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    fun blob(): Any? {
+        val bytes = bodyBytes ?: return null
+        val base64Str = Base64.encodeToString(bytes, Base64.NO_WRAP)
+        val contentType = rawHeadersMap["content-type"] ?: ""
+        return JSHttpBuilderBridge.createBlobObject(ctx, scope, base64Str, contentType)
+    }
+
+    fun header(name: Any?): String? {
+        val key = name?.toString()?.lowercase() ?: return null
+        return rawHeadersMap[key]
+    }
+}
+
+/**
+ * JSHttpRequest — Bridge thông tin request cho Rhino JS.
+ * Tương ứng: com.vbook.app.extensions.js.module.http.JSHttpRequest
+ */
+class JSHttpRequest(
+    @JvmField val url: String,
+    @JvmField val headers: Any,
+    private val rawHeadersMap: Map<String, String>
+) {
+    fun header(name: Any?): String? {
+        val key = name?.toString()?.lowercase() ?: return null
+        return rawHeadersMap[key]
+    }
+}

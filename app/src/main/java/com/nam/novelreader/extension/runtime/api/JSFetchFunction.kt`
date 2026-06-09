@@ -1,0 +1,94 @@
+package com.nam.novelreader.extension.runtime.api
+
+import android.util.Log
+import okhttp3.*
+import okhttp3.HttpUrl.Companion.toHttpUrl
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.toRequestBody
+import org.jsoup.Jsoup
+import org.mozilla.javascript.*
+import org.mozilla.javascript.Context as RhinoContext
+import android.content.Context
+import java.io.IOException
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.Semaphore
+import java.util.concurrent.TimeUnit
+
+/**
+ * JSFetchFunction — bridge cho fetch() global function.
+ *
+ * Tương ứng: com.vbook.app.extensions.js.module.http.JSFetchFunction
+ *
+ * Cú pháp trong extension JS:
+ * ```js
+ * let res = fetch(url, { method: "GET", headers: {...}, queries: {...}, body: "..." });
+ * let html = res.html();    // → JSDocument (Jsoup)
+ * let text = res.text();    // → raw string
+ * let json = res.json();    // → parsed JSON object
+ * let ok   = res.ok;        // → boolean
+ * ```
+ */
+object JSFetchFunction {
+
+    private const val TAG = "JSFetch"
+    private val semaphores = ConcurrentHashMap<String, Semaphore>()
+
+    fun inject(
+        ctx: RhinoContext,
+        scope: ScriptableObject,
+        httpClient: OkHttpClient,
+        extensionId: String,
+        context: Context
+    ) {
+        val fetchFn = object : BaseFunction() {
+        
+<truncated 8332 bytes>
+cope = scope,
+                bodyBytes = bodyBytes,
+                ok = response.isSuccessful,
+                status = response.code,
+                statusText = response.message,
+                url = response.request.url.toString(),
+                headers = jsRespHeaders ?: ctx.newObject(scope),
+                request = jsRequest,
+                rawHeadersMap = respHeadersMap
+            )
+            
+            return RhinoContext.javaToJS(jsResponse, scope) as Scriptable
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Fetch error: ${e.message}")
+            val jsRequest = JSHttpRequest(
+                url = url,
+                headers = ctx.newObject(scope),
+                rawHeadersMap = emptyMap()
+            )
+            val jsResponse = JSHttpResponse(
+                ctx = ctx,
+                scope = scope,
+                bodyBytes = null,
+                ok = false,
+                status = 0,
+                statusText = e.message ?: "Unknown",
+                url = url,
+                headers = ctx.newObject(scope),
+                request = jsRequest,
+                rawHeadersMap = emptyMap()
+            )
+            return RhinoContext.javaToJS(jsResponse, scope) as Scriptable
+        }
+    }
+
+
+    private fun getProperty(obj: Scriptable, name: String): String? {
+        val value = obj.get(name, obj)
+        if (value == Scriptable.NOT_FOUND || value == null) return null
+        return RhinoContext.toString(value)
+    }
+
+    private fun getScriptableProperty(obj: Scriptable, name: String): Scriptable? {
+        val value = obj.get(name, obj)
+        if (value == Scriptable.NOT_FOUND || value !is Scriptable) return null
+        return value
+    }
+}

@@ -1,0 +1,45 @@
+package com.nam.novelreader.feature.home
+
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+
+/**
+ * Cộng đồng — placeholder screen.
+ * Sẽ implement community features sau (chat, share, etc.).
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun CommunityScreen() {
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Cộng đồng") },
+            )
+        }
+    ) { padding ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding),
+            contentAlignment = Alignment.Center,
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("💬", style = MaterialTheme.typography.displayLarge)
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    "Tính năng đang phát triển",
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                Text(
+                    "Cộng đồng đọc truyện sẽ sớm ra mắt",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}

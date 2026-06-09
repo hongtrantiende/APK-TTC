@@ -1,0 +1,88 @@
+package com.nam.novelreader.extension.runtime.api
+
+import android.content.Context
+import android.util.Base64
+import android.util.Log
+import okhttp3.*
+import okhttp3.HttpUrl.Companion.toHttpUrl
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.toRequestBody
+import org.jsoup.Jsoup
+import org.mozilla.javascript.*
+import org.mozilla.javascript.Context as RhinoContext
+import java.util.concurrent.TimeUnit
+
+/**
+ * JSHttpBuilderBridge — implement `Http.get(url)` / `Http.post(url)` builder pattern.
+ *
+ * Tương ứng: core.js → Http object, _HttpGet(), _HttpPost()
+ *
+ * Cú pháp JS:
+ * ```js
+ * let html = Http.get(url).headers({...}).params({...}).html("utf-8");
+ * let text = Http.post(url).headers({...}).body("key=val").string();
+ * let blob = Http.get(url).blob();
+ * ```
+ */
+object JSHttpBuilderBridge {
+
+    private const val TAG = "JSHttp"
+
+    fun inject(
+        ctx: RhinoContext,
+        scope: ScriptableObject,
+        httpClient: OkHttpClient,
+        extensionId: String,
+        appContext: Context
+    ) {
+        val httpObj = ctx.newObject(scope)
+
+        // Http.get(url) → returns builder object
+        val getFn = object : BaseFunction() {
+            override fun call(cx: RhinoContext, s: Scriptable, t: Scriptable, args: Array<out Any?>): Any {
+                val url = RhinoContext.toString(args.getO
+<truncated 17054 bytes>
+ect
+ */
+object JSBlobBridge {
+    fun inject(ctx: RhinoContext, scope: ScriptableObject) {
+        val blobObj = ctx.newObject(scope)
+
+        val fromBase64Fn = object : BaseFunction() {
+            override fun call(cx: RhinoContext, s: Scriptable, t: Scriptable, args: Array<out Any?>): Any {
+                val base64 = RhinoContext.toString(args.getOrNull(0) ?: "")
+                val type = RhinoContext.toString(args.getOrNull(1) ?: "")
+                return JSHttpBuilderBridge.createBlobObject(cx, s, base64, type)
+            }
+        }
+        ScriptableObject.putProperty(blobObj, "fromBase64", fromBase64Fn)
+
+        ScriptableObject.putProperty(scope, "Blob", blobObj)
+    }
+}
+
+/**
+ * JSQtBridge — implement `Qt.translate()` stub.
+ * Tương ứng: core.js → Qt object
+ */
+object JSQtBridge {
+    fun inject(ctx: RhinoContext, scope: ScriptableObject, appContext: Context) {
+        val qtObj = ctx.newObject(scope)
+
+        val translateFn = object : BaseFunction() {
+            override fun call(cx: RhinoContext, s: Scriptable, t: Scriptable, args: Array<out Any?>): Any {
+                val text = RhinoContext.toString(args.getOrNull(0) ?: "")
+                val to = RhinoContext.toString(args.getOrNull(1) ?: "vi")
+                val translatedText = com.nam.novelreader.util.QuickTranslateEngine.translate(appContext, text, to)
+                val result = org.json.JSONObject()
+                result.put("text", translatedText)
+                result.put("from", "auto")
+                result.put("to", to)
+                return result.toString()
+            }
+        }
+        ScriptableObject.putProperty(qtObj, "translate", translateFn)
+
+        ScriptableObject.putProperty(scope, "Qt", qtObj)
+    }
+}

@@ -1,0 +1,75 @@
+package com.nam.novelreader.feature.reader
+
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.os.Build
+import android.view.ViewGroup
+import android.view.GestureDetector
+import android.view.MotionEvent
+import android.webkit.WebView
+import android.webkit.WebViewClient
+
+import androidx.compose.animation.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.u
+<truncated 41497 bytes>
+                                      }
+                                        )
+                                    }
+                                }
+                            }
+
+                            // Tắt nguồn
+                            IconButton(onClick = {
+                                val intent = Intent(context, com.nam.novelreader.service.TextToSpeechService::class.java).apply {
+                                    action = com.nam.novelreader.service.TextToSpeechService.ACTION_STOP
+                                }
+                                context.startService(intent)
+                            }) {
+                                Icon(Icons.Filled.PowerSettingsNew, "Tắt TTS", tint = uiTextColor)
+                            }
+                        }
+                    }
+                }
+            }
+
+            // === Quick Settings Dialog/BottomSheet ===
+            if (showSettingsSheet) {
+                ReaderSettingsDialog(
+                    viewModel = viewModel,
+                    fontSize = fontSize,
+                    lineHeight = lineHeight,
+                    paragraphSpacing = paragraphSpacing,
+                    themeIndex = themeIndex,
+                    fontFamily = fontFamily,
+                    textJustify = textJustify,
+                    textIndent = textIndent,
+                    keepScreenOn = keepScreenOn,
+                    marginLeft = marginLeft,
+                    marginRight = marginRight,
+                    marginTop = marginTop,
+                    marginBottom = marginBottom,
+                    brightness = brightness,
+                    uiBgColor = uiBgColor,

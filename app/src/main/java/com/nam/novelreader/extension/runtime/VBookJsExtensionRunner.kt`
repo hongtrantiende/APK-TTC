@@ -1,0 +1,83 @@
+package com.nam.novelreader.extension.runtime
+
+import android.content.Context
+import android.util.Log
+import com.nam.novelreader.extension.model.ExtensionException
+import com.nam.novelreader.extension.model.ExtensionResult
+import com.nam.novelreader.extension.model.LoadedExtension
+import com.nam.novelreader.extension.model.ScriptType
+import com.nam.novelreader.extension.runtime.api.*
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
+import org.mozilla.javascript.Context as RhinoContext
+import org.mozilla.javascript.ScriptableObject
+import javax.inject.Inject
+import javax.inject.Singleton
+
+/**
+ * VBookJsExtensionRunner — trung tâm thực thi JS extension.
+ *
+ * Tái tạo chính xác runtime API của VBook:
+ * - fetch() → OkHttp
+ * - Html.parse() / Html.clean() → Jsoup
+ * - Response.success() / Response.error()
+ * - Engine.newBrowser() → headless WebView
+ * - Console.log()
+ * - load() → load other JS files
+ * - sleep()
+ * - LocalStorage → extension-scoped SharedPreferences
+ *
+ * Dùng Mozilla Rhino (giống VBook gốc) để đảm bảo tương thích 100%.
+ */
+@Singleton
+class VBookJsExtensionRunner @Inject constructor(
+    @ApplicationContext private val appContext: Context,
+    private val httpClient: OkHttpClient,
+) {
+    companion objec
+<truncated 5690 bytes>
+ension.getScriptContent(scriptFileName)
+            rhinoCtx.evaluateString(scope, scriptContent, scriptFileName, 1, null)
+
+            // 4. Gọi hàm execute() với arguments
+            val executeCall = buildExecuteCall(args)
+            val evalResult = rhinoCtx.evaluateString(scope, executeCall, "invoke", 1, null)
+
+            if (evalResult == null || evalResult == org.mozilla.javascript.Undefined.instance) {
+                Log.w(TAG, "execute scriptFileName: $scriptFileName returned undefined or null")
+                ExtensionResult.Error("Extension returned no result (missing Response.success())")
+            } else {
+                val resStr = RhinoContext.toString(evalResult)
+                Log.d(TAG, "execute scriptFileName: $scriptFileName success, data length: ${resStr.length}")
+                ExtensionResult.Success(resStr)
+            }
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Extension execution failed: ${e.message}", e)
+            ExtensionResult.Error(e.message ?: "Unknown JS execution error")
+        } finally {
+            bridge?.release()
+            RhinoContext.exit()
+        }
+    }
+
+    /**
+     * Build JS call: execute("arg1", "arg2", ...)
+     * Escape đặc biệt cho chuỗi JS.
+     */
+    private fun buildExecuteCall(args: Array<out String>): String {
+        if (args.isEmpty()) return "execute()"
+        val escapedArgs = args.joinToString(",") { "\"${escapeJs(it)}\"" }
+        return "execute($escapedArgs)"
+    }
+
+    /** Escape chuỗi cho JS string literal */
+    private fun escapeJs(s: String): String = s
+        .replace("\\", "\\\\")
+        .replace("\"", "\\\"")
+        .replace("\n", "\\n")
+        .replace("\r", "\\r")
+        .replace("\t", "\\t")
+}

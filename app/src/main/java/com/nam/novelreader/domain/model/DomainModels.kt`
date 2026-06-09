@@ -1,0 +1,113 @@
+package com.nam.novelreader.domain.model
+
+import kotlinx.serialization.Serializable
+
+/**
+ * Domain models — clean, UI-ready data.
+ * Tách biệt hoàn toàn khỏi Room entities và extension response models.
+ */
+
+/** Thông tin truyện (novel hoặc comic) */
+data class Novel(
+    val url: String,
+    val title: String,
+    val author: String = "",
+    val cover: String = "",
+    val description: String = "",
+    val genres: List<Genre> = emptyList(),
+    val status: String = "",
+    val type: ContentType = ContentType.NOVEL,
+    val extensionId: String = "",
+    val latestChapter: String? = null,
+    val totalChapters: Int = 0,
+    val suggests: List<HomeTab> = emptyList(),
+    val lastReadChapterUrl: String? = null,
+    val lastReadAt: Long? = null,
+    val scrollPosition: Int = 0,
+)
+
+/** Chương truyện */
+data class Chapter(
+    val url: String,
+    val title: String,
+    val index: Int = 0,
+    val content: String? = null,
+    val images: List<String>? = null,
+    val isDownloaded: Boolean = false,
+)
+
+/** Thể loại */
+@Serializable
+data class Genre(
+    val name: String,
+    val url: String = "",
+    val input: String = "",
+    val script: String = "",
+)
+
+/** Kết quả tìm kiếm */
+data class SearchResult(
+    val novels: List<Novel>,
+    val hasNextPage: Boolean = false,
+    val currentPage: Int = 1,
+    val nextPageKey: String? = null,
+)
+
+/** Tab trang chủ extension */
+data class HomeTab(
+    val name: String,
+    val input: String = "",
+    val script: String = "",
+    val novels: List<Novel> = emptyList(),
+)
+
+/** Thông tin extension đã cài */
+data class Extension(
+    val id: String,
+    val name: String,
+    val author: String = "Unknown",
+    val version: Int = 1,
+    val source: String = "",
+    val type: ContentType = ContentType.NOVEL,
+    val locale: String = "vi_VN",
+    val description: String = "",
+    val iconPath: String? = null,
+    val isInstalled: Boolean = false,
+    val isEnabled: Boolean = true,
+)
+
+enum class ContentType {
+    NOVEL,
+    COMIC,
+    VIDEO;
+
+    companion object {
+        fun fromString(type: String): ContentType = when (type.lowercase()) {
+            "comic", "manga", "image" -> COMIC
+            "video", "anime", "movie" -> VIDEO
+            else -> NOVEL
+        }
+    }
+}
+
+/** Bình luận truyện */
+data class Comment(
+    val name: String,
+    val avatar: String = "",
+    val content: String,
+    val description: String = "",
+    val subComments: List<Comment> = emptyList(),
+)
+
+/** Trang bình luận */
+data class CommentPage(
+    val comments: List<Comment>,
+    val nextPage: String = "",
+)
+
+/** Trang danh sách truyện (dùng cho phân trang Khám phá & Thể loại giống VBook) */
+data class NovelPage(
+    val novels: List<Novel>,
+    val nextPageKey: String?
+)
+

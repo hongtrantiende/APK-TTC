@@ -1,0 +1,92 @@
+package com.nam.novelreader.extension.runtime.api
+
+import android.content.Context
+import android.util.Base64
+import android.util.Log
+import com.nam.novelreader.extension.model.LoadedExtension
+import okhttp3.*
+import okhttp3.HttpUrl.Companion.toHttpUrl
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.toRequestBody
+import org.mozilla.javascript.Context as RhinoContext
+import org.mozilla.javascript.NativeArray
+import org.mozilla.javascript.NativeJSON
+import org.mozilla.javascript.Scriptable
+import org.mozilla.javascript.ScriptableObject
+import org.mozilla.javascript.Undefined
+import org.mozilla.javascript.Wrapper
+import java.util.concurrent.TimeUnit
+
+/**
+ * JSBridge — Cầu nối trung tâm đón đầu cuộc gọi từ core.js __(data)
+ * và phân phối tới các logic native tương ứng của VBook.
+ */
+class JSBridge(
+    private val ctx: RhinoContext,
+    private val scope: Scriptable,
+    private val httpClient: OkHttpClient,
+    private val extensionId: String,
+    private val context: Context,
+    private val extension: LoadedExtension
+) {
+    private val activeWebSockets = mutableListOf<JSWebSocketWrapper>()
+
+    fun execFunction(data: Any?): Any? {
+        if (data is NativeArray) {
+            val size = data.length.toInt()
+            if (size == 0) return null
+            val cmd = data.get(0)?.toString() ?: ""
+           
+<truncated 31304 bytes>
+ket = httpClient.newWebSocket(request, object : WebSocketListener() {
+            override fun onOpen(webSocket: okhttp3.WebSocket, response: Response) {
+                openLatch.countDown()
+            }
+            
+            override fun onMessage(webSocket: okhttp3.WebSocket, text: String) {
+                messageQueue.put(Frame(1, text))
+            }
+            
+            override fun onMessage(webSocket: okhttp3.WebSocket, bytes: okio.ByteString) {
+                messageQueue.put(Frame(2, bytes.base64()))
+            }
+            
+            override fun onClosed(webSocket: okhttp3.WebSocket, code: Int, reason: String) {
+                openLatch.countDown()
+                messageQueue.put(Frame(0, reason))
+            }
+            
+            override fun onFailure(webSocket: okhttp3.WebSocket, t: Throwable, response: Response?) {
+                openLatch.countDown()
+                messageQueue.put(Frame(-1, t.message ?: "Unknown error"))
+            }
+        })
+        
+        openLatch.await(10, TimeUnit.SECONDS)
+    }
+    
+    fun takeMessage(): Frame? {
+        return try {
+            messageQueue.poll(30, TimeUnit.SECONDS)
+        } catch (e: InterruptedException) {
+            null
+        }
+    }
+    
+    fun sendText(text: String): Boolean {
+        return webSocket?.send(text) ?: false
+    }
+    
+    fun sendBuffer(base64Data: String): Boolean {
+        val bytes = try {
+            okio.ByteString.of(*Base64.decode(base64Data, Base64.DEFAULT))
+        } catch (e: Exception) {
+            return false
+        }
+        return webSocket?.send(bytes) ?: false
+    }
+    
+    fun close() {
+        webSocket?.close(1000, "Normal closure")
+    }
+}

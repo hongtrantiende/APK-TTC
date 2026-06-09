@@ -1,0 +1,90 @@
+package com.nam.novelreader.extension.loader
+
+import android.content.Context
+import android.util.Log
+import com.nam.novelreader.data.local.dao.ExtensionDao
+import com.nam.novelreader.data.local.dao.RepositoryDao
+import com.nam.novelreader.data.local.entity.ExtensionEntity
+import com.nam.novelreader.data.local.entity.RepositoryEntity
+import com.nam.novelreader.extension.model.*
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import java.io.File
+import java.io.FileOutputStream
+import java.util.zip.ZipInputStream
+import javax.inject.Inject
+import javax.inject.Singleton
+
+/**
+ * ExtensionLoader — download, cài đặt, và quản lý VBook extensions.
+ *
+ * Workflow:
+ * 1. fetchRepository(url) → danh sách ExtensionInfo từ repo
+ * 2. installExtension(info) → download ZIP, giải nén, parse plugin.json
+ * 3. loadExtension(id) → load extension đã cài vào memory
+ * 4. uninstallExtension(id) → xóa extension
+ */
+@Singleton
+class ExtensionLoader @Inject constructor(
+    @ApplicationContext private val appContext: Context,
+    private val httpClient: OkHttpClient,
+    private val extensionDao: ExtensionDao,
+    private val repositoryDao: RepositoryDao,
+) {
+    companion object {
+        private 
+<truncated 6852 bytes>
+emove(extensionId)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to uninstall extension: $extensionId", e)
+        }
+    }
+
+    /**
+     * Thêm repository mặc định nếu chưa có.
+     */
+    suspend fun ensureDefaultRepository() {
+        val repos = repositoryDao.getEnabledRepositories()
+        val hasLocal = repos.any { it.url == "file:///android_asset/plugin.json" }
+        val hasOnline = repos.any { it.url == DEFAULT_REPO_URL }
+
+        if (!hasLocal) {
+            repositoryDao.insert(
+                RepositoryEntity(
+                    url = "file:///android_asset/plugin.json",
+                    name = "Thư viện Tiện ích (Mặc định)",
+                )
+            )
+        }
+        if (!hasOnline) {
+            repositoryDao.insert(
+                RepositoryEntity(
+                    url = DEFAULT_REPO_URL,
+                    name = "VBook Community Extensions",
+                )
+            )
+        }
+
+        // Cập nhật các URL repo cũ của vBook nếu có
+        repos.firstOrNull { it.url.contains("vbook-f7b28d50") }?.let { oldRepo ->
+            repositoryDao.insert(oldRepo.copy(url = DEFAULT_REPO_URL))
+        }
+    }
+
+    private fun String.toSlug(): String {
+        // Normalize Unicode → strip diacritics → lowercase → slug
+        val normalized = java.text.Normalizer.normalize(this, java.text.Normalizer.Form.NFD)
+            .replace(Regex("[\\p{InCombiningDiacriticalMarks}]"), "")
+        return normalized
+            .lowercase()
+            .replace("đ", "d").replace("Đ", "d")
+            .replace(Regex("[^a-z0-9]"), "-")
+            .replace(Regex("-+"), "-")
+            .trim('-')
+    }
+}
