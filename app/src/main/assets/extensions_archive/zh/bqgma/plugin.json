@@ -1,0 +1,20 @@
+{
+  "metadata": {
+    "name": "bqgma",
+    "author": "Nahona",
+    "version": 1,
+    "source": "https://m.bqgma.com",
+    "regexp": "(m.)?bqgma.com/index/\\d+/?$",
+    "description": "",
+    "locale": "zh_CN",
+    "language": "javascript",
+    "type": "chinese_novel"
+  },
+  "script": {
+    "home": "home.js",
+    "detail": "detail.js",
+    "toc": "toc.js",
+    "search": "search.js",
+    "chap": "chap.js"
+  }
+}

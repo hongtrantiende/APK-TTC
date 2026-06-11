@@ -1,0 +1,20 @@
+{
+  "metadata": {
+    "name": "Viblo",
+    "author": "Đường đen",
+    "version": 4,
+    "source": "https://viblo.asia",
+    "regexp": "^https?:\\/\\/viblo\\.asia\\/p\\/[a-z0-9-]+-[A-Za-z0-9]+$",
+    "description": "Đọc viblo trên vbook",
+    "locale": "vi_VN",
+    "language": "javascript",
+    "type": "novel",
+    "encrypt": true
+  },
+  "script": {
+    "home": "home.js",
+    "detail": "detail.js",
+    "toc": "toc.js",
+    "chap": "chap.js"
+  }
+}

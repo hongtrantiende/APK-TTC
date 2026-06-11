@@ -1,0 +1,20 @@
+{
+  "metadata": {
+    "name": "4ksw",
+    "author": "Nahona",
+    "version": 1,
+    "source": "http://www.4ksw.com/",
+    "regexp": "(www.)?4ksw.com/\\d+/\\d+",
+    "description": "",
+    "locale": "zh_CN",
+    "language": "javascript",
+    "type": "chinese_novel"
+  },
+  "script": {
+    "home": "home.js",
+    "detail": "detail.js",
+    "toc": "toc.js",
+    "genre": "genre.js",
+    "chap": "chap.js"
+  }
+}

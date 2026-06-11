@@ -1,0 +1,23 @@
+{
+  "metadata": {
+    "name": "MeTruyenCV",
+    "author": "ivanzzz",
+    "version": 3,
+    "source": "https://metruyencv.com.vn/",
+    "regexp": "(www\\.)?metruyencv\\.com\\.vn/[^/]+(?:/chuong-[^/?#]+)?/?$",
+    "description": "Doc truyen tren MeTruyenCV",
+    "locale": "vi_VN",
+    "language": "javascript",
+    "type": "novel",
+    "encrypt": false
+  },
+  "script": {
+    "home": "home.js",
+    "detail": "detail.js",
+    "page": "page.js",
+    "toc": "toc.js",
+    "search": "search.js",
+    "genre": "genre.js",
+    "chap": "chap.js"
+  }
+}

@@ -526,14 +526,26 @@ class JSBridge(
                 if (opts.has("body")) {
                     val bodyVal = opts.get("body")
                     val finalContentType = contentType ?: "application/x-www-form-urlencoded"
-                    if (finalContentType.contains("application/x-www-form-urlencoded") && bodyVal is org.json.JSONObject) {
-                        val formBuilder = FormBody.Builder()
-                        bodyVal.keys().forEach { key ->
-                            formBuilder.add(key, bodyVal.get(key).toString())
+                    if (finalContentType.contains("application/x-www-form-urlencoded")) {
+                        // Form-encoded: nếu body là JSONObject thì convert sang form fields
+                        if (bodyVal is org.json.JSONObject) {
+                            val formBuilder = FormBody.Builder()
+                            bodyVal.keys().forEach { key ->
+                                formBuilder.add(key, bodyVal.get(key).toString())
+                            }
+                            body = formBuilder.build()
+                        } else {
+                            body = bodyVal.toString().toRequestBody(finalContentType.toMediaType())
                         }
-                        body = formBuilder.build()
                     } else {
-                        body = bodyVal.toString().toRequestBody(finalContentType.toMediaType())
+                        // JSON hoặc content-type khác: gửi nguyên body string
+                        // Nếu org.json đã auto-parse body thành JSONObject, phải stringify lại
+                        val bodyStr = when (bodyVal) {
+                            is org.json.JSONObject -> bodyVal.toString()
+                            is org.json.JSONArray -> bodyVal.toString()
+                            else -> bodyVal.toString()
+                        }
+                        body = bodyStr.toRequestBody(finalContentType.toMediaType())
                     }
                 }
                 if (opts.has("json")) {
@@ -549,12 +561,8 @@ class JSBridge(
                 body = "".toRequestBody(contentType.toMediaType())
             }
 
-            if (body != null) {
-                val contentLength = body.contentLength()
-                if (contentLength >= 0 && headersBuilder["Content-Length"] == null && headersBuilder["content-length"] == null) {
-                    headersBuilder.add("Content-Length", contentLength.toString())
-                }
-            }
+            // Không tự thêm Content-Length — để OkHttp tự quản lý
+            // VBook gốc cũng không thêm thủ công, tránh duplicate/sai giá trị
 
 
             val prefs = context.getSharedPreferences("novel_reader_prefs", Context.MODE_PRIVATE)
@@ -576,7 +584,8 @@ class JSBridge(
                 headersBuilder.add("User-Agent", defaultUa)
             }
 
-            headersBuilder.add("X-Extension-Id", extensionId)
+            // Không thêm X-Extension-Id — VBook gốc không thêm header này
+            // Một số API (như SiTruyenCV) reject request có header lạ → 422
 
             val request = Request.Builder()
                 .url(urlBuilder.build())

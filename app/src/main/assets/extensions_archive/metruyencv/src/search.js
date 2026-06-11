@@ -1,0 +1,52 @@
+load("config.js");
+
+function execute(key, page) {
+    var url = page ? normalizeUrl(page) : BASE_URL + "/search?q=" + encodeURIComponent(key || "");
+    var response = fetch(url);
+    if (!response.ok) return null;
+
+    var doc = response.html();
+    var data = [];
+
+    doc.select(".truyen-list .item").forEach(function (item) {
+        var titleNode = item.select("h3 a").first();
+        var coverNode = item.select("a.cover img").first();
+        var authorNode = item.select("p.line").first();
+
+        data.push({
+            name: cleanText(titleNode.text()),
+            link: absoluteUrl(titleNode.attr("href")),
+            cover: absoluteUrl(coverNode.attr("src")),
+            description: cleanText(authorNode.text()),
+            host: BASE_URL
+        });
+    });
+
+    return Response.success(data, findNextPage(doc));
+}
+
+function findNextPage(doc) {
+    var next = null;
+    var currentPage = 1;
+    var maxPage = 1;
+    var arrowLinks = [];
+
+    doc.select(".phan-trang a.btn-page").forEach(function (item) {
+        var text = cleanText(item.text());
+        var href = item.attr("href");
+        var cls = item.attr("class") || "";
+
+        if (/^\d+$/.test(text)) {
+            maxPage = Math.max(maxPage, parseInt(text, 10));
+            if (cls.indexOf("active") >= 0) currentPage = parseInt(text, 10);
+        } else if (href && href.indexOf("javascript:") !== 0) {
+            arrowLinks.push(absoluteUrl(href));
+        }
+    });
+
+    if (currentPage < maxPage && arrowLinks.length > 0) {
+        next = arrowLinks[arrowLinks.length - 1];
+    }
+
+    return next;
+}

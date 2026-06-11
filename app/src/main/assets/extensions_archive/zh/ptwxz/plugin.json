@@ -1,0 +1,20 @@
+{
+  "metadata": {
+    "name": "ptwxz",
+    "author": "hajljnopera",
+    "version": 4,
+    "source": "https://www.piaotia.com",
+    "regexp": "www\\.(ptwxz|piaotian|piaotia)\\.com/bookinfo/\\d+/\\d+\\.html$",
+    "description": "Đọc truyện trên trang ptwxz",
+    "locale": "zh_CN",
+    "language": "javascript",
+    "type": "chinese_novel"
+  },
+  "script": {
+    "detail": "detail.js",
+    "home": "home.js",
+    "toc": "toc.js",
+    "chap": "chap.js",
+    "search": "search.js"
+  }
+}

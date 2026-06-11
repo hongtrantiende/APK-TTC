@@ -10,6 +10,29 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
 object QuickTranslateEngine {
+    @Volatile
+    private var tsDict = HashMap<Char, Char>()
+
+    private fun loadTraditionalSimplifiedDict(context: Context) {
+        if (tsDict.isNotEmpty()) return
+        try {
+            context.assets.open("opencc/TSCharacters.txt").bufferedReader().useLines { lines ->
+                lines.forEach { line ->
+                    val parts = line.split('\t')
+                    if (parts.size >= 2) {
+                        val traditional = parts[0].firstOrNull()
+                        val simplified = parts[1].firstOrNull()
+                        if (traditional != null && simplified != null) {
+                            tsDict[traditional] = simplified
+                        }
+                    }
+                }
+            }
+            Log.d(TAG, "Loaded Traditional-Simplified map: ${tsDict.size} chars")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to load Traditional-Simplified dict: ${e.message}", e)
+        }
+    }
     private const val TAG = "QuickTranslateEngine"
 
     @Volatile
@@ -53,11 +76,9 @@ object QuickTranslateEngine {
                 Log.d(TAG, "Starting to load dictionaries into memory (force=$force)...")
                 val startTime = System.currentTimeMillis()
 
-                // Sử dụng map tạm thời trong quá trình nạp để tránh ảnh hưởng đến luồng dịch đang chạy
                 val tempTranslationDict = HashMap<String, String>(1500000)
                 val tempPhienAmDict = HashMap<String, String>(25000)
 
-                // String pool tạm thời để khử trùng lặp các chuỗi nghĩa dịch tiếng Việt trong RAM
                 val stringPool = HashMap<String, String>(100000)
                 fun dedup(str: String): String {
                     return stringPool.getOrPut(str) { str }
@@ -81,44 +102,57 @@ object QuickTranslateEngine {
                 }
                 Log.d(TAG, "Loaded PhienAm: ${tempPhienAmDict.size} entries")
 
-                // Quyết định thứ tự nạp để ưu tiên: VietPhrase -> Name -> Pronouns
-                // 2. Nạp VietPhrase.txt
+                val prefs = context.getSharedPreferences("novel_reader_prefs", Context.MODE_PRIVATE)
+                val priorityNameVp = prefs.getString("qt_dict_priority_name_vp", "Name > VP") ?: "Name > VP"
+                val luatNhanSetting = prefs.getString("qt_luat_nhan", "Không nhân") ?: "Không nhân"
+
                 val vpFile = File(dictDir, "VietPhrase.txt")
-                if (vpFile.exists()) {
-                    vpFile.bufferedReader().useLines { lines ->
-                        lines.forEach { line ->
-                            val parts = line.split('=', limit = 2)
-                            if (parts.size == 2) {
-                                val key = parts[0].trim()
-                                val valPart = parts[1].split('/', limit = 2)[0].trim()
-                                if (key.isNotEmpty() && valPart.isNotEmpty()) {
-                                    tempTranslationDict[key] = dedup(valPart)
-                                }
-                            }
-                        }
-                    }
-                }
-                Log.d(TAG, "Loaded VietPhrase. Current dict size: ${tempTranslationDict.size}")
-
-                // 3. Nạp Name.txt (Ghi đè nghĩa chung của VietPhrase nếu trùng key)
                 val nameFile = File(dictDir, "Name.txt")
-                if (nameFile.exists()) {
-                    nameFile.bufferedReader().useLines { lines ->
-                        lines.forEach { line ->
-                            val parts = line.split('=', limit = 2)
-                            if (parts.size == 2) {
-                                val key = parts[0].trim()
-                                val valPart = parts[1].split('/', limit = 2)[0].trim()
-                                if (key.isNotEmpty() && valPart.isNotEmpty()) {
-                                    tempTranslationDict[key] = dedup(valPart)
+
+                fun loadVpFile() {
+                    if (vpFile.exists()) {
+                        vpFile.bufferedReader().useLines { lines ->
+                            lines.forEach { line ->
+                                val parts = line.split('=', limit = 2)
+                                if (parts.size == 2) {
+                                    val key = parts[0].trim()
+                                    val valPart = parts[1].split('/', limit = 2)[0].trim()
+                                    if (key.isNotEmpty() && valPart.isNotEmpty()) {
+                                        tempTranslationDict[key] = dedup(valPart)
+                                    }
                                 }
                             }
                         }
                     }
                 }
-                Log.d(TAG, "Loaded Name. Current dict size: ${tempTranslationDict.size}")
 
-                // 4. Nạp Pronouns.txt (Đại từ nhân xưng có độ ưu tiên cao nhất)
+                fun loadNameFile() {
+                    if (nameFile.exists()) {
+                        nameFile.bufferedReader().useLines { lines ->
+                            lines.forEach { line ->
+                                val parts = line.split('=', limit = 2)
+                                if (parts.size == 2) {
+                                    val key = parts[0].trim()
+                                    val valPart = parts[1].split('/', limit = 2)[0].trim()
+                                    if (key.isNotEmpty() && valPart.isNotEmpty()) {
+                                        tempTranslationDict[key] = dedup(valPart)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Nạp từ điển dựa trên độ ưu tiên Name / VP
+                if (priorityNameVp == "Name > VP") {
+                    loadVpFile()
+                    loadNameFile()
+                } else {
+                    loadNameFile()
+                    loadVpFile()
+                }
+
+                // Nạp Pronouns.txt
                 val pronounsFile = File(dictDir, "Pronouns.txt")
                 if (pronounsFile.exists()) {
                     pronounsFile.bufferedReader().useLines { lines ->
@@ -134,12 +168,29 @@ object QuickTranslateEngine {
                         }
                     }
                 }
-                Log.d(TAG, "Loaded Pronouns. Current dict size: ${tempTranslationDict.size}")
 
-                // Giải phóng String pool tạm thời để thu hồi bộ nhớ RAM
+                // Nạp Luật nhân nếu được cấu hình bật
+                if (luatNhanSetting != "Không nhân") {
+                    val luatNhanFile = File(dictDir, "LuatNhan.txt")
+                    if (luatNhanFile.exists()) {
+                        luatNhanFile.bufferedReader().useLines { lines ->
+                            lines.forEach { line ->
+                                val parts = line.split('=', limit = 2)
+                                if (parts.size == 2) {
+                                    val key = parts[0].trim()
+                                    val valPart = parts[1].split('/', limit = 2)[0].trim()
+                                    if (key.isNotEmpty() && valPart.isNotEmpty()) {
+                                        tempTranslationDict[key] = dedup(valPart)
+                                    }
+                                }
+                            }
+                        }
+                        Log.d(TAG, "Loaded LuatNhan.txt successfully.")
+                    }
+                }
+
                 stringPool.clear()
 
-                // Hoán đổi map tạm sang map chính một cách an toàn (Atomic Swap)
                 translationDict = tempTranslationDict
                 phienAmDict = tempPhienAmDict
 
@@ -163,7 +214,6 @@ object QuickTranslateEngine {
 
         if (!isLoaded) {
             init(context)
-            // Chờ tối đa 3 giây nếu đang trong quá trình nạp
             var waitCount = 0
             while (isLoading && !isLoaded && waitCount < 30) {
                 try { Thread.sleep(100) } catch (_: Exception) {}
@@ -178,22 +228,34 @@ object QuickTranslateEngine {
         val prefs = context.getSharedPreferences("novel_reader_prefs", Context.MODE_PRIVATE)
         val maxLen = prefs.getInt("qt_max_phrase_length", 12)
         val italicizeDialogue = prefs.getBoolean("qt_italicize_dialogue", true)
+        val convertTraditional = prefs.getBoolean("qt_convert_traditional_simplified", true)
+        val vpLengthPriority = prefs.getString("qt_vp_length_priority", "Dài > Ngắn") ?: "Dài > Ngắn"
 
-        val result = StringBuilder(text.length * 2)
+        // Chuyển phồn thể sang giản thể nếu được bật cấu hình
+        var processedText = text
+        if (convertTraditional) {
+            loadTraditionalSimplifiedDict(context)
+            if (tsDict.isNotEmpty()) {
+                val converted = java.lang.StringBuilder(text.length)
+                for (char in text) {
+                    converted.append(tsDict[char] ?: char)
+                }
+                processedText = converted.toString()
+            }
+        }
+
+        val result = java.lang.StringBuilder(processedText.length * 2)
         var i = 0
-        val len = text.length
+        val len = processedText.length
 
-        // Phân biệt chế độ dịch: Hán Việt toàn bộ hay VietPhrase
         val isHanVietOnly = targetMode.contains("hv") || targetMode.contains("hanviet") || targetMode.contains("hán")
 
-        // Sao lưu tham chiếu thread-safe của map chính
         val currentDict = translationDict
         val currentPhienAm = phienAmDict
 
         while (i < len) {
-            val char = text[i]
+            val char = processedText[i]
 
-            // Giữ nguyên các ký tự không phải tiếng Trung (khoảng trắng, dấu câu, số, ký tự latin)
             if (!isChineseChar(char)) {
                 result.append(char)
                 i++
@@ -201,8 +263,7 @@ object QuickTranslateEngine {
             }
 
             if (isHanVietOnly) {
-                // Dịch âm Hán Việt từng chữ
-                val singleChar = text.substring(i, i + 1)
+                val singleChar = processedText.substring(i, i + 1)
                 val hanViet = currentPhienAm[singleChar] ?: singleChar
                 
                 if (result.isNotEmpty() && result.last() != ' ' && result.last() != '\n') {
@@ -211,31 +272,41 @@ object QuickTranslateEngine {
                 result.append(hanViet)
                 i++
             } else {
-                // Dịch VietPhrase (Maximum Matching)
                 var matchedLength = 0
                 var matchedTranslation = ""
                 val limit = minOf(len - i, maxLen)
 
-                for (l in limit downTo 1) {
-                    val phrase = text.substring(i, i + l)
-                    val translation = currentDict[phrase]
-                    if (translation != null) {
-                        matchedLength = l
-                        matchedTranslation = translation
-                        break
+                // Loop tra cụm từ theo cấu hình độ dài (Dài > Ngắn hoặc Ngắn > Dài)
+                if (vpLengthPriority == "Dài > Ngắn") {
+                    for (l in limit downTo 1) {
+                        val phrase = processedText.substring(i, i + l)
+                        val translation = currentDict[phrase]
+                        if (translation != null) {
+                            matchedLength = l
+                            matchedTranslation = translation
+                            break
+                        }
+                    }
+                } else {
+                    for (l in 1..limit) {
+                        val phrase = processedText.substring(i, i + l)
+                        val translation = currentDict[phrase]
+                        if (translation != null) {
+                            matchedLength = l
+                            matchedTranslation = translation
+                            break
+                        }
                     }
                 }
 
                 if (matchedLength > 0) {
-                    // Khớp được cụm từ
                     if (result.isNotEmpty() && result.last() != ' ' && result.last() != '\n') {
                         result.append(' ')
                     }
                     result.append(matchedTranslation)
                     i += matchedLength
                 } else {
-                    // Không khớp, fallback về Hán Việt từng từ
-                    val singleChar = text.substring(i, i + 1)
+                    val singleChar = processedText.substring(i, i + 1)
                     val hanViet = currentPhienAm[singleChar] ?: singleChar
                     
                     if (result.isNotEmpty() && result.last() != ' ' && result.last() != '\n') {

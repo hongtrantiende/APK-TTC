@@ -1,0 +1,23 @@
+{
+  "metadata": {
+    "name": "Bixiange",
+    "author": "Meo",
+    "version": 10,
+    "source": "https://m.bixiange.me",
+    "regexp": "m\\.bixiange\\.me\\/(dsyq|wxxz|xhqh|cyjk|khjj|ghxy|jsls|guanchang|xtfq|dmtr|trxs|jqxs)\\/\\d+(\\.html)?/?$",
+    "description": "笔仙阁 - Truyện chữ Tiếng Trung online",
+    "locale": "zh_CN",
+    "type": "chinese_novel"
+  },
+  "script": {
+    "home": "home.js",
+    "homecontent": "homecontent.js",
+    "genre": "genre.js",
+    "genrecontent": "genrecontent.js",
+    "detail": "detail.js",
+    "search": "search.js",
+    "toc": "toc.js",
+    "chap": "chap.js",
+    "suggest": "suggest.js"
+  }
+}

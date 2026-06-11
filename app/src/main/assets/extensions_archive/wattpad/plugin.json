@@ -1,0 +1,23 @@
+{
+    "metadata": {
+        "name": "Wattpad",
+        "author": "ivanzzz",
+        "version": 3,
+        "source": "https:\/\/wattpad.com.vn\/",
+        "regexp": "(www\\.)?wattpad\\.com\\.vn\/[^\/]+(?:\/chuong-[^\/?#]+)?\/?$",
+        "description": "Đọc truyện trên Wattpad",
+        "locale": "vi_VN",
+        "language": "javascript",
+        "type": "novel",
+        "encrypt": false
+    },
+    "script": {
+        "home": "home.js",
+        "detail": "detail.js",
+        "page": "page.js",
+        "toc": "toc.js",
+        "search": "search.js",
+        "genre": "genre.js",
+        "chap": "chap.js"
+    }
+}

@@ -132,12 +132,7 @@ object JSFetchFunction {
                 body = "".toRequestBody(contentType.toMediaType())
             }
 
-            if (body != null) {
-                val contentLength = body.contentLength()
-                if (contentLength >= 0 && headersBuilder.get("Content-Length") == null && headersBuilder.get("content-length") == null) {
-                    headersBuilder.add("Content-Length", contentLength.toString())
-                }
-            }
+            // Không tự thêm Content-Length — để OkHttp tự quản lý (VBook gốc)
 
 
             // Inject & merge extension cookies with real-time CookieManager cookies
@@ -161,7 +156,7 @@ object JSFetchFunction {
                 headersBuilder.add("User-Agent", defaultUa)
             }
 
-            headersBuilder.add("X-Extension-Id", extensionId)
+            // Không thêm X-Extension-Id — VBook gốc không thêm (API reject header lạ → 422)
 
             val request = Request.Builder()
                 .url(urlBuilder.build())

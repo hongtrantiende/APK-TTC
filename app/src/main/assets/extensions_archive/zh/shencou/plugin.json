@@ -1,0 +1,19 @@
+{
+  "metadata": {
+    "name": "shencou 📖",
+    "author": "Vearn",
+    "version": 1.1,
+    "source": "https://m.shencou.com",
+    "regexp": "(www.|m.)?shencou.com/(books/read_\\d+.html|info.php(.)aid=\\d+)",
+    "description": "Đọc truyện trên trang https://m.shencou.com, cập nhật từ ext của Moleys",
+    "locale": "zh_CN",
+    "language": "javascript",
+    "type": "chinese_novel"
+  },
+  "script": {
+    "home": "home.js",
+    "detail": "detail.js",
+    "toc": "toc.js",
+    "chap": "chap.js"
+  }
+}

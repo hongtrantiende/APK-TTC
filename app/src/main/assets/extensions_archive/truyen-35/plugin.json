@@ -1,0 +1,22 @@
+{
+  "metadata": {
+    "name": "Truyện 35",
+    "author": "Nahona",
+    "version": 2,
+    "source": "https://truyen35.vn",
+    "regexp": "(www.)?truyen35.vn/(.*?)",
+    "description": "Truyện 35 Việt Nam",
+    "locale": "vi_VN",
+    "language": "javascript",
+    "type": "novel"
+  },
+  "script": {
+    "home": "home.js",
+    "detail": "detail.js",
+    "toc": "toc.js",
+    "genre": "genre.js",
+    "page": "page.js",
+    "search": "search.js",
+    "chap": "chap.js"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "metadata": {
+    "name": "nhieutruyen (qidian-vp)",
+    "author": "B",
+    "version": 12,
+    "source": "https://nhieutruyen.com/",
+    "regexp": "nhieutruyen.com/truyen/.*?",
+    "description": "Đọc truyện trên trang qidian-vp, nhieutruyen.com ",
+    "locale": "vi_VN",
+    "type": "novel",
+    "language": "javascript"
+  },
+  "script": {
+    "home": "home.js",
+    "detail": "detail.js",
+    "search": "search.js",
+    "toc": "toc.js",
+    "chap": "chap.js"
+  }
+}

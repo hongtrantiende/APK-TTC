@@ -1,0 +1,22 @@
+{
+  "metadata": {
+    "name": "qmbook",
+    "author": "Đường đen",
+    "version": 3,
+    "source": "https://m.bqg647.xyz/#/",
+    "regexp": "(m\\.)?bqg647\\.xyz/(#/)?book/\\d+/?|m\\.bqg647\\.xyz/book/\\d+/\\d+\\.html",
+    "description": "Đọc truyện trên trang m.bqg647.xyz. Sửa tên miền mobile bằng Mã bổ sung",
+    "locale": "zh_CN",
+    "language": "javascript",
+    "type": "chinese_novel",
+    "encrypt": true
+  },
+  "script": {
+    "home": "home.js",
+    "genre": "genre.js",
+    "detail": "detail.js",
+    "toc": "toc.js",
+    "search": "search.js",
+    "chap": "chap.js"
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "metadata": {
+    "name": "Wattpad - Tiếng Việt",
+    "author": "Meo",
+    "version": 21,
+    "source": "https://www.wattpad.com",
+    "regexp": "(www\\.|m\\.)?wattpad\\.com/(story/)?\\d+",
+    "description": "Đọc truyện tiếng Việt trên Wattpad",
+    "locale": "vi",
+    "type": "novel"
+  },
+  "script": {
+    "home": "home.js",
+    "homecontent": "homecontent.js",
+    "genre": "genre.js",
+    "genrecontent": "genrecontent.js",
+    "search": "search.js",
+    "detail": "detail.js",
+    "suggest": "suggest.js",
+    "toc": "toc.js",
+    "chap": "chap.js"
+  }
+}

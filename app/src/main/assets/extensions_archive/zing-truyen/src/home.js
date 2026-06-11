@@ -1,0 +1,1 @@
+function execute() {    return Response.success([        {title: "Cập Nhật", input: "/", script: "up1.js"},        {title: "Tiểu Thuyết", input: "/", script: "up2.js"},        {title: "FANFICTION", input: "/", script: "up2.js"},        {title: "Top Truyện Hay", input: "/", script: "up1.js"},        {title: "Truyện Mới Đăng", input: "/", script: "up1.js"},    ]);}

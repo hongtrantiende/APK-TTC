@@ -1,0 +1,20 @@
+{
+  "metadata": {
+    "name": "masiro 📖🔑",
+    "author": "Moleys",
+    "version": 2,
+    "source": "https://masiro.me",
+    "regexp": "masiro.me/admin/novelView(.*?)",
+    "description": "Đọc truyện trên trang https://masiro.me",
+    "locale": "zh_CN",
+    "language": "javascript",
+    "type": "chinese_novel"
+  },
+  "script": {
+    "home": "home.js",
+    "detail": "detail.js",
+    "search": "search.js",
+    "toc": "toc.js",
+    "chap": "chap.js"
+  }
+}

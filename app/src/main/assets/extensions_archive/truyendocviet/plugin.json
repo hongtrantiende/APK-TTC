@@ -1,0 +1,21 @@
+{
+  "metadata": {
+    "name": "truyendocviet",
+    "author": "B",
+    "version": 2,
+    "source": "https://truyendocviet.vn/",
+    "regexp": "https://truyendocviet.vn/doc-truyen/.*?\\.html",
+    "description": "Đọc truyện trên trang tienhiep.net",
+    "locale": "vi_VN",
+    "type": "novel",
+    "language": "javascript"
+  },
+  "script": {
+    "home": "home.js",
+    "search": "search.js",
+    "detail": "detail.js",
+    "page": "page.js",
+    "toc": "toc.js",
+    "chap": "chap.js"
+  }
+}

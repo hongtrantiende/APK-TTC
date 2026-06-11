@@ -1,0 +1,30 @@
+{
+    "metadata": {
+        "name": "Navy Team Novel",
+        "author": "QuocBao",
+        "version": 6,
+        "source": "https://navyteamz.com/",
+        "regexp": "https://navyteam(n|z).com/truyen/[^/]+(/[^/]+)?/?$",
+        "description": "Đọc tiểu thuyết và truyện chữ trên Navy Team",
+        "locale": "vi_VN",
+        "language": "javascript",
+        "type": "novel",
+        "encrypt": true
+    },
+    "script": {
+        "home": "home.js",
+        "genre": "genre.js",
+        "detail": "detail.js",
+        "search": "search.js",
+        "toc": "toc.js",
+        "chap": "chap.js"
+    },
+    "config": {
+        "CONFIG_URL": {
+            "title": "Navy Team domain",
+            "mode": "input",
+            "format": "text",
+            "default": "https://navyteamz.com"
+        }
+    }
+}

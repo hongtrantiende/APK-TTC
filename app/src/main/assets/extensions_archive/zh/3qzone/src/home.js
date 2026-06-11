@@ -1,0 +1,1 @@
+function execute() {    return Response.success([        {title: "最新更新小说", input: "/", script: "update.js"},    ]);}

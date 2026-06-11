@@ -27,6 +27,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
 import com.nam.novelreader.domain.model.Novel
+import java.util.Locale
 
 @Composable
 fun AudioPlayerScreen(
@@ -39,6 +40,8 @@ fun AudioPlayerScreen(
     speed: Float,
     themeIndex: Int,
     bgMusic: String,
+    elapsedSeconds: Int = 0,
+    totalSeconds: Int = 0,
     onPlayPause: () -> Unit,
     onRewind: () -> Unit,
     onForward: () -> Unit,
@@ -47,6 +50,7 @@ fun AudioPlayerScreen(
     onSetTimer: (Long) -> Unit,
     onSetSpeed: (Float) -> Unit,
     onSetBgMusic: (String) -> Unit,
+    onSeekToSentence: (Int) -> Unit,
     onDismiss: () -> Unit,
     onShowToc: () -> Unit,
     onNavigateToExtensionSettings: (String) -> Unit,
@@ -168,22 +172,46 @@ fun AudioPlayerScreen(
 
                 // 3. Progress Slider (Tiến trình câu)
                 val safeTotal = if (totalSentences > 0) totalSentences else 100
-                val safeIndex = currentSentenceIndex.coerceIn(0, safeTotal)
+                var localSentenceIndex by remember(currentSentenceIndex) { mutableFloatStateOf(currentSentenceIndex.toFloat()) }
                 
                 Slider(
-                    value = safeIndex.toFloat(),
-                    onValueChange = {},
+                    value = localSentenceIndex,
+                    onValueChange = { localSentenceIndex = it },
+                    onValueChangeFinished = {
+                        onSeekToSentence(localSentenceIndex.toInt().coerceIn(0, safeTotal))
+                    },
                     valueRange = 0f..safeTotal.toFloat(),
-                    enabled = false, // Chỉ hiển thị tiến trình của TTS
                     colors = SliderDefaults.colors(
-                        disabledThumbColor = primaryColor,
-                        disabledActiveTrackColor = primaryColor,
-                        disabledInactiveTrackColor = textColor.copy(alpha = 0.12f)
+                        thumbColor = primaryColor,
+                        activeTrackColor = primaryColor,
+                        inactiveTrackColor = textColor.copy(alpha = 0.12f)
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 32.dp)
                 )
+
+                // Hiển thị thời gian đọc của chương
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 32.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = formatTime(elapsedSeconds),
+                        fontSize = 12.sp,
+                        color = textColor.copy(alpha = 0.6f)
+                    )
+                    Text(
+                        text = formatTime(totalSeconds),
+                        fontSize = 12.sp,
+                        color = textColor.copy(alpha = 0.6f)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
                 
                 // Chương hiện tại
                 Text(
@@ -197,7 +225,58 @@ fun AudioPlayerScreen(
                     modifier = Modifier.padding(horizontal = 32.dp)
                 )
 
-                Spacer(modifier = Modifier.height(32.dp))
+                Spacer(modifier = Modifier.height(20.dp))
+
+                // Thanh chỉnh tốc độ đọc trực tiếp
+                var localSpeed by remember { mutableFloatStateOf(speed) }
+                LaunchedEffect(speed) {
+                    localSpeed = speed
+                }
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 32.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Tốc độ đọc: ${String.format(Locale.US, "%.2fx", localSpeed)}",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = textColor
+                        )
+                        
+                        if (localSpeed != 1.0f) {
+                            Text(
+                                text = "Đặt lại",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = primaryColor,
+                                modifier = Modifier.clickable {
+                                    localSpeed = 1.0f
+                                    onSetSpeed(1.0f)
+                                }
+                            )
+                        }
+                    }
+                    Slider(
+                        value = localSpeed,
+                        onValueChange = { localSpeed = it },
+                        onValueChangeFinished = { onSetSpeed(localSpeed) },
+                        valueRange = 0.5f..3.0f,
+                        colors = SliderDefaults.colors(
+                            thumbColor = primaryColor,
+                            activeTrackColor = primaryColor,
+                            inactiveTrackColor = textColor.copy(alpha = 0.12f)
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
 
                 // 4. Control Buttons (Tua lùi, chương trước, PLAY/PAUSE, chương sau, tua tiến)
                 Row(
@@ -338,61 +417,32 @@ fun AudioPlayerScreen(
                                 color = if (timerRemainingSeconds > 0) primaryColor else textColor
                             )
                         }
-                        DropdownMenu(
-                            expanded = showTimerMenu,
-                            onDismissRequest = { showTimerMenu = false }
-                        ) {
-                            listOf(
-                                "Tắt hẹn giờ" to 0L,
-                                "15 phút" to 15L,
-                                "30 phút" to 30L,
-                                "45 phút" to 45L,
-                                "60 phút" to 60L
-                            ).forEach { (label, duration) ->
-                                DropdownMenuItem(
-                                    text = { Text(label) },
-                                    onClick = {
-                                        showTimerMenu = false
-                                        onSetTimer(duration)
-                                    }
-                                )
-                            }
-                        }
-                    }
-
-                    // 3. Tốc độ
-                    Box {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            modifier = Modifier
-                                .clickable { showSpeedMenu = true }
-                                .padding(4.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Speed,
-                                contentDescription = "Tốc độ",
-                                tint = textColor,
-                                modifier = Modifier.size(24.dp)
+                        MaterialTheme(
+                            colorScheme = MaterialTheme.colorScheme.copy(
+                                surface = cardColor,
+                                onSurface = textColor
                             )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = String.format("%.1fx", speed),
-                                fontSize = 11.sp,
-                                color = textColor
-                            )
-                        }
-                        DropdownMenu(
-                            expanded = showSpeedMenu,
-                            onDismissRequest = { showSpeedMenu = false }
                         ) {
-                            listOf(0.8f, 1.0f, 1.2f, 1.5f, 1.8f, 2.0f, 2.5f).forEach { rate ->
-                                DropdownMenuItem(
-                                    text = { Text("${rate}x") },
-                                    onClick = {
-                                        showSpeedMenu = false
-                                        onSetSpeed(rate)
-                                    }
-                                )
+                            DropdownMenu(
+                                expanded = showTimerMenu,
+                                onDismissRequest = { showTimerMenu = false },
+                                modifier = Modifier.background(cardColor)
+                            ) {
+                                listOf(
+                                    "Tắt hẹn giờ" to 0L,
+                                    "15 phút" to 15L,
+                                    "30 phút" to 30L,
+                                    "45 phút" to 45L,
+                                    "60 phút" to 60L
+                                ).forEach { (label, duration) ->
+                                    DropdownMenuItem(
+                                        text = { Text(label, color = textColor) },
+                                        onClick = {
+                                            showTimerMenu = false
+                                            onSetTimer(duration)
+                                        }
+                                    )
+                                }
                             }
                         }
                     }
@@ -414,91 +464,46 @@ fun AudioPlayerScreen(
                             Spacer(modifier = Modifier.height(4.dp))
                             Text("Nhạc nền", fontSize = 11.sp, color = textColor)
                         }
-                        DropdownMenu(
-                            expanded = showBgMusicMenu,
-                            onDismissRequest = { showBgMusicMenu = false }
+                        MaterialTheme(
+                            colorScheme = MaterialTheme.colorScheme.copy(
+                                surface = cardColor,
+                                onSurface = textColor
+                            )
                         ) {
-                            listOf("Không có", "Mưa rơi nhẹ", "Nhạc thiền thư giãn", "Tiếng sóng biển").forEach { music ->
-                                DropdownMenuItem(
-                                    text = { Text(music) },
-                                    onClick = {
-                                        showBgMusicMenu = false
-                                        selectedBgMusic = music
-                                        onSetBgMusic(music)
-                                    }
-                                )
+                            DropdownMenu(
+                                expanded = showBgMusicMenu,
+                                onDismissRequest = { showBgMusicMenu = false },
+                                modifier = Modifier.background(cardColor)
+                            ) {
+                                listOf("Không có", "Mưa rơi nhẹ", "Nhạc thiền thư giãn", "Tiếng sóng biển").forEach { music ->
+                                    DropdownMenuItem(
+                                        text = { Text(music, color = textColor) },
+                                        onClick = {
+                                            showBgMusicMenu = false
+                                            selectedBgMusic = music
+                                            onSetBgMusic(music)
+                                        }
+                                    )
+                                }
                             }
                         }
                     }
 
                     // 5. Cài đặt
-                    val context = LocalContext.current
-                    val prefs = remember { context.getSharedPreferences("novel_reader_prefs", Context.MODE_PRIVATE) }
-                    var ttsAutoNext by remember { mutableStateOf(prefs.getBoolean("tts_auto_next_chapter", true)) }
-
-                    val currentEngine = remember { prefs.getString("reader_tts_engine", "system") ?: "system" }
-                    val sysEnginePkg = remember { prefs.getString("reader_tts_system_engine", "com.google.android.tts") ?: "com.google.android.tts" }
-                    val engineLabel = when (currentEngine) {
-                        "system" -> {
-                            if (sysEnginePkg.contains("google")) "Google TTS" else "Hệ thống"
-                        }
-                        "ai" -> "AI TTS"
-                        else -> {
-                            currentEngine.split("-").joinToString(" ") { it.replaceFirstChar { c -> c.uppercase() } }
-                        }
-                    }
-
-                    Box {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            modifier = Modifier
-                                .clickable { showSettingsMenu = true }
-                                .padding(4.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Settings,
-                                contentDescription = "Cài đặt",
-                                tint = textColor,
-                                modifier = Modifier.size(24.dp)
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text("Cài đặt", fontSize = 11.sp, color = textColor)
-                        }
-                        DropdownMenu(
-                            expanded = showSettingsMenu,
-                            onDismissRequest = { showSettingsMenu = false }
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text("Đổi giọng đọc ($engineLabel)") },
-                                onClick = {
-                                    showSettingsMenu = false
-                                    showTtsSettingsSheet = true
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Text("Tự động chuyển chương")
-                                        Checkbox(
-                                            checked = ttsAutoNext,
-                                            onCheckedChange = { checked ->
-                                                ttsAutoNext = checked
-                                                prefs.edit().putBoolean("tts_auto_next_chapter", checked).apply()
-                                            },
-                                            colors = CheckboxDefaults.colors(checkedColor = primaryColor)
-                                        )
-                                    }
-                                },
-                                onClick = {
-                                    ttsAutoNext = !ttsAutoNext
-                                    prefs.edit().putBoolean("tts_auto_next_chapter", ttsAutoNext).apply()
-                                }
-                            )
-                        }
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier
+                            .clickable { showTtsSettingsSheet = true }
+                            .padding(4.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Settings,
+                            contentDescription = "Cài đặt",
+                            tint = textColor,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text("Cài đặt", fontSize = 11.sp, color = textColor)
                     }
                 }
             }
@@ -519,3 +524,14 @@ data class Quadruple<out A, out B, out C, out D>(
     val third: C,
     val fourth: D
 )
+
+fun formatTime(seconds: Int): String {
+    val h = seconds / 3600
+    val m = (seconds % 3600) / 60
+    val s = seconds % 60
+    return if (h > 0) {
+        String.format(Locale.US, "%d:%02d:%02d", h, m, s)
+    } else {
+        String.format(Locale.US, "%02d:%02d", m, s)
+    }
+}

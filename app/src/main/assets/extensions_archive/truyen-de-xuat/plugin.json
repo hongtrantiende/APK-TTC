@@ -1,0 +1,23 @@
+{
+  "metadata": {
+    "name": "Truyện đề xuất",
+    "author": "Đường đen",
+    "version": 1,
+    "source": "https://truyendexuat.com",
+    "regexp": "^https?:\\/\\/truyendexuat\\.com\\/truyen\\/[0-9a-zA-Z-]+\\/?$",
+    "description": "Đọc truyện trên trang Truyện đề xuất",
+    "locale": "vi_VN",
+    "type": "novel",
+    "language": "javascript",
+    "encrypt": true
+  },
+  "script": {
+    "home": "home.js",
+    "gen": "gen.js",
+    "genre": "genre.js",
+    "detail": "detail.js",
+    "search": "search.js",
+    "toc": "toc.js",
+    "chap": "chap.js"
+  }
+}

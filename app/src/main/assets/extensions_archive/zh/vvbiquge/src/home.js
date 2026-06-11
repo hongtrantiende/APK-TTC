@@ -1,0 +1,1 @@
+function execute() {    return Response.success([        {title: "最新小说", input: "/", script: "up.js"},        {title: "阅读排行榜", input: "/", script: "up1.js"},        {title: "最近更新", input: "/", script: "up1.js"},    ]);}

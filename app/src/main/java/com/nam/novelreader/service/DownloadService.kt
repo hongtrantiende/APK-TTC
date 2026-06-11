@@ -329,8 +329,8 @@ class DownloadService : Service() {
     ) {
         val total = urls.size
         var downloadedCount = 0
+        var consecutiveErrors = 0
         val mutex = Mutex()
-        var hasError = false
         
         val existingTask = downloadTaskDao.getTask(novelUrl)
         if (existingTask == null) {
@@ -363,6 +363,7 @@ class DownloadService : Service() {
         updateDetailNotification(novelUrl, novelTitle, initialDownloadedCount, totalChaptersCount)
  
         var lastErrorMessage: String? = null
+        var shouldStop = false
         
         try {
             withContext(Dispatchers.IO) {
@@ -375,7 +376,7 @@ class DownloadService : Service() {
                         launch {
                             semaphore.withPermit {
                                 val currentStatus = downloadTaskDao.getTask(novelUrl)?.status
-                                if (currentStatus != "downloading" || hasError) return@withPermit
+                                if (currentStatus != "downloading" || shouldStop) return@withPermit
                                 
                                 // Áp dụng giãn cách kết nối tải truyện để tránh bị chặn IP
                                 if (connectionInterval > 0) {
@@ -384,40 +385,53 @@ class DownloadService : Service() {
                                     } catch (_: Exception) {}
                                 }
                                 
-                                var retryCount = 0
                                 var success = false
                                 var chapter: Chapter? = null
+                                var longRetryCount = 0
                                 
-                                while (isActive && !success && retryCount < 5) {
-                                    val statusCheck = downloadTaskDao.getTask(novelUrl)?.status
-                                    if (statusCheck != "downloading" || hasError) break
+                                // Vòng ngoài: retry dài hạn (đợi 30s mỗi lần)
+                                while (isActive && !success && !shouldStop) {
+                                    val statusOuter = downloadTaskDao.getTask(novelUrl)?.status
+                                    if (statusOuter != "downloading") break
                                     
-                                    if (retryCount > 0) {
-                                        try {
-                                            delay(3000)
-                                        } catch (_: Exception) {}
-                                    }
-                                    
-                                    // Kiểm tra lại trạng thái sau khi delay
-                                    val statusCheckAfterDelay = downloadTaskDao.getTask(novelUrl)?.status
-                                    if (statusCheckAfterDelay != "downloading" || hasError) break
-                                    
-                                    try {
-                                        chapter = repository.getChapterContent(extensionId, url, isOfflineDownload = true)
-                                        if (chapter == null || (chapter.content.isNullOrBlank() && chapter.images.isNullOrEmpty())) {
-                                            throw Exception("Nội dung tải về rỗng hoặc không tải được")
-                                        }
-                                        success = true
-                                    } catch (e: Exception) {
-                                        retryCount++
-                                        mutex.withLock {
-                                            lastErrorMessage = e.message
+                                    // Vòng trong: 3 lần retry nhanh (2-4s)
+                                    var quickRetry = 0
+                                    while (isActive && !success && quickRetry < 3) {
+                                        val statusCheck = downloadTaskDao.getTask(novelUrl)?.status
+                                        if (statusCheck != "downloading") break
+                                        
+                                        if (quickRetry > 0) {
+                                            try { delay(2000L + quickRetry * 1000L) } catch (_: Exception) {}
                                         }
                                         
-                                        // Nếu đã thử quá nhiều lần mà vẫn lỗi, đánh dấu task lỗi để dừng các luồng khác
-                                        if (retryCount >= 5) {
-                                            hasError = true
+                                        try {
+                                            chapter = repository.getChapterContent(extensionId, url, isOfflineDownload = true)
+                                            if (chapter == null || (chapter.content.isNullOrBlank() && chapter.images.isNullOrEmpty())) {
+                                                throw Exception("Nội dung tải về rỗng")
+                                            }
+                                            success = true
+                                            mutex.withLock { consecutiveErrors = 0 }
+                                        } catch (e: Exception) {
+                                            quickRetry++
+                                            mutex.withLock { lastErrorMessage = e.message }
                                         }
+                                    }
+                                    
+                                    if (!success) {
+                                        longRetryCount++
+                                        val consec = mutex.withLock {
+                                            consecutiveErrors++
+                                            consecutiveErrors
+                                        }
+                                        // Nếu 10 chương liên tiếp đều lỗi sau 30s retry → nguồn thực sự block
+                                        if (consec >= 10) {
+                                            shouldStop = true
+                                            android.util.Log.e("DownloadService", "10 consecutive errors, stopping: $novelTitle")
+                                            break
+                                        }
+                                        android.util.Log.w("DownloadService", "Chapter failed, waiting 30s to retry: $url (attempt $longRetryCount)")
+                                        // Đợi 30s rồi thử lại
+                                        try { delay(30_000L) } catch (_: Exception) { break }
                                     }
                                 }
                                 
@@ -431,8 +445,11 @@ class DownloadService : Service() {
                                         updateDetailNotification(novelUrl, novelTitle, newProgress, totalChaptersCount)
                                     }
                                 } else {
-                                    // Bị hủy hoặc tạm dừng bởi người dùng (status != "downloading")
-                                    this@coroutineScope.cancel()
+                                    val currentStatus2 = downloadTaskDao.getTask(novelUrl)?.status
+                                    if (currentStatus2 != "downloading") {
+                                        this@coroutineScope.cancel()
+                                    }
+                                    // shouldStop = true đã xử lý ở trên
                                 }
                             }
                         }
@@ -441,30 +458,52 @@ class DownloadService : Service() {
                 }
             }
         } catch (e: CancellationException) {
-            // Expected
+            // Expected — user paused/cancelled
         }
         
         val finalStatus = downloadTaskDao.getTask(novelUrl)?.status
-        if (finalStatus == "downloading" && !hasError) {
-            downloadTaskDao.updateStatus(novelUrl, "completed")
-            downloadTaskDao.updateProgress(novelUrl, totalChaptersCount)
-            updateDetailNotification(novelUrl, novelTitle, totalChaptersCount, totalChaptersCount)
-            handleTaskFinished(novelUrl)
-        } else {
-            // Trường hợp lỗi (hasError == true hoặc finalStatus là failed) hoặc người dùng chủ động bấm Tạm dừng/Hủy
-            if (hasError || finalStatus == "failed") {
+        if (finalStatus == "downloading") {
+            if (shouldStop && downloadedCount == 0) {
+                // Nguồn bị block hoàn toàn, không tải được chương nào
+                downloadTaskDao.updateStatus(novelUrl, "failed")
                 val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
                 val openAppIntent = Intent(this, MainActivity::class.java)
                 val piOpenApp = PendingIntent.getActivity(this, 0, openAppIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
                 val errorNotification = NotificationCompat.Builder(this, CHANNEL_ID)
                     .setContentTitle("Tải truyện lỗi: $novelTitle")
-                    .setContentText("Tải chương thất bại sau nhiều lần thử lại (Lỗi mạng/Nguồn chặn)")
+                    .setContentText("Nguồn chặn IP liên tục — thử lại sau hoặc đổi mạng")
                     .setSmallIcon(android.R.drawable.stat_notify_error)
                     .setContentIntent(piOpenApp)
                     .setAutoCancel(true)
                     .build()
                 manager.notify(novelUrl.hashCode(), errorNotification)
+            } else {
+                // Tải thành công (hoặc bị dừng giữa chừng do shouldStop nhưng đã tải được 1 phần)
+                val finalProgress = initialDownloadedCount + downloadedCount
+                downloadTaskDao.updateProgress(novelUrl, finalProgress)
+                if (downloadedCount >= total) {
+                    downloadTaskDao.updateStatus(novelUrl, "completed")
+                    updateDetailNotification(novelUrl, novelTitle, totalChaptersCount, totalChaptersCount)
+                } else {
+                    // Bị dừng do 10 lỗi liên tiếp nhưng đã tải được 1 phần
+                    downloadTaskDao.updateStatus(novelUrl, "failed")
+                    val remaining = total - downloadedCount
+                    val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                    val openAppIntent = Intent(this, MainActivity::class.java)
+                    val piOpenApp = PendingIntent.getActivity(this, 0, openAppIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+                    val notification = NotificationCompat.Builder(this, CHANNEL_ID)
+                        .setContentTitle("Tải dở: $novelTitle")
+                        .setContentText("Đã tải $downloadedCount/$total chương — còn $remaining chương lỗi, thử lại sau")
+                        .setSmallIcon(android.R.drawable.stat_notify_error)
+                        .setContentIntent(piOpenApp)
+                        .setAutoCancel(true)
+                        .build()
+                    manager.notify(novelUrl.hashCode(), notification)
+                }
             }
+            handleTaskFinished(novelUrl)
+        } else {
+            // User paused/cancelled
             handleTaskFinished(novelUrl)
         }
     }

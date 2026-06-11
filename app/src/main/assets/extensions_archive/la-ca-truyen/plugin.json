@@ -1,0 +1,33 @@
+{
+    "metadata": {
+        "name": "La cà truyện",
+        "author": "QuocBao",
+        "version": 18,
+        "source": "https://lacatruyen.casa",
+        "regexp": "lacatruyen\\.(casa|bar|shop|pro|net|me|club|store|online|com)/story/[^/]+/?$",
+        "description": "Đọc truyện trên La cà truyện.",
+        "language": "javascript",
+        "type": "novel",
+        "locale": "vi_VN",
+        "encrypt": true
+    },
+    "script": {
+        "home": "home.js",
+        "genre": "genre.js",
+        "detail": "detail.js",
+        "search": "search.js",
+        "page": "page.js",
+        "toc": "toc.js",
+        "chap": "chap.js"
+    },
+    "config": {
+        "thread_num": 1,
+        "delay": 10000,
+        "token": {
+            "title": "Lacatruyen token",
+            "mode": "input",
+            "format": "text",
+            "default": ""
+        }
+    }
+}

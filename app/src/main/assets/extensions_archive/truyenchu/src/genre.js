@@ -1,0 +1,40 @@
+load("config.js");
+
+function execute() {
+    return Response.success([
+        { title: "Cổ Đại",      input: "co-dai",      script: "genrecontent.js" },
+        { title: "Cung Đấu",    input: "cung-dau",    script: "genrecontent.js" },
+        { title: "Đam Mỹ",      input: "dam-my",      script: "genrecontent.js" },
+        { title: "Dị Giới",     input: "di-gioi",     script: "genrecontent.js" },
+        { title: "Dị Năng",     input: "di-nang",     script: "genrecontent.js" },
+        { title: "Điền Văn",    input: "dien-van",    script: "genrecontent.js" },
+        { title: "Đô Thị",      input: "do-thi",      script: "genrecontent.js" },
+        { title: "Đoản Văn",    input: "doan-van",    script: "genrecontent.js" },
+        { title: "Đông Phương", input: "dong-phuong", script: "genrecontent.js" },
+        { title: "Gia Đấu",     input: "gia-dau",     script: "genrecontent.js" },
+        { title: "Hài Hước",    input: "hai-huoc",    script: "genrecontent.js" },
+        { title: "Hệ Thống",    input: "he-thong",    script: "genrecontent.js" },
+        { title: "Huyền Huyễn", input: "huyen-huyen", script: "genrecontent.js" },
+        { title: "Khác",        input: "khac",        script: "genrecontent.js" },
+        { title: "Khoa Huyễn",  input: "khoa-huyen",  script: "genrecontent.js" },
+        { title: "Kiếm Hiệp",   input: "kiem-hiep",   script: "genrecontent.js" },
+        { title: "Lịch Sử",     input: "lich-su",     script: "genrecontent.js" },
+        { title: "Linh Dị",     input: "linh-di",     script: "genrecontent.js" },
+        { title: "Mạt Thế",     input: "mat-the",     script: "genrecontent.js" },
+        { title: "Ngôn Tình",   input: "ngon-tinh",   script: "genrecontent.js" },
+        { title: "Ngược",       input: "nguoc",       script: "genrecontent.js" },
+        { title: "Nữ Cường",    input: "nu-cuong",    script: "genrecontent.js" },
+        { title: "Quân Sự",     input: "quan-su",     script: "genrecontent.js" },
+        { title: "Sắc",         input: "sac",         script: "genrecontent.js" },
+        { title: "Sắc Hiệp",    input: "sac-hiep",    script: "genrecontent.js" },
+        { title: "Sủng",        input: "sung",        script: "genrecontent.js" },
+        { title: "Tiên Hiệp",   input: "tien-hiep",   script: "genrecontent.js" },
+        { title: "Trinh Thám",  input: "trinh-tham",  script: "genrecontent.js" },
+        { title: "Trọng Sinh",  input: "trong-sinh",  script: "genrecontent.js" },
+        { title: "Truyện Teen", input: "truyen-teen", script: "genrecontent.js" },
+        { title: "Võ Hiệp",     input: "vo-hiep",     script: "genrecontent.js" },
+        { title: "Võng Du",     input: "vong-du",     script: "genrecontent.js" },
+        { title: "Xuyên Không", input: "xuyen-khong", script: "genrecontent.js" },
+        { title: "Xuyên Nhanh", input: "xuyen-nhanh", script: "genrecontent.js" }
+    ]);
+}

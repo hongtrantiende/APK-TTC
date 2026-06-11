@@ -1,0 +1,32 @@
+{
+  "metadata": {
+    "name": "Trang Truyện",
+    "author": "QuocBao",
+    "version": 5,
+    "source": "https://trangtruyen.site",
+    "regexp": "trangtruyen\\.site/stories/[^/?#]+/?$",
+    "description": "Đọc truyện trên Trang Truyện ~. App thường dùng mã bổ sung cookie hiện có (`let AUTH_COOKIE = '...';`); bản beta chỉ cần nhập `cookie` trong cấu hình. Fingerprint ext tự sinh, không cần nhập thêm.",
+    "language": "javascript",
+    "type": "novel",
+    "locale": "vi_VN",
+    "encrypt": true
+  },
+  "script": {
+    "home": "home.bundle.js",
+    "genre": "genre.bundle.js",
+    "detail": "detail.bundle.js",
+    "search": "search.bundle.js",
+    "toc": "toc.bundle.js",
+    "chap": "chap.bundle.js"
+  },
+  "config": {
+    "thread_num": 1,
+    "delay": 1000,
+    "cookie": {
+      "title": "TrangTruyen cookie",
+      "mode": "input",
+      "format": "text",
+      "default": ""
+    }
+  }
+}

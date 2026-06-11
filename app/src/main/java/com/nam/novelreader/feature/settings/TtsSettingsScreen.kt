@@ -2,6 +2,8 @@ package com.nam.novelreader.feature.settings
 
 import android.content.Context
 import android.util.Log
+import android.speech.tts.TextToSpeech
+import java.util.Locale
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -39,6 +41,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
+import kotlin.coroutines.resume
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
@@ -63,7 +69,8 @@ class TtsSettingsViewModel @Inject constructor(
     val appPrefs: AppPreferences,
     private val extensionDao: ExtensionDao,
     private val extensionLoader: ExtensionLoader,
-    private val jsExtensionRunner: VBookJsExtensionRunner
+    private val jsExtensionRunner: VBookJsExtensionRunner,
+    @dagger.hilt.android.qualifiers.ApplicationContext private val context: Context
 ) : ViewModel() {
 
     private val _installedTtsExtensions = MutableStateFlow<List<ExtensionEntity>>(emptyList())
@@ -121,10 +128,133 @@ class TtsSettingsViewModel @Inject constructor(
         }
     }
 
+    private suspend fun initTtsAsync(context: Context, enginePkg: String?): TextToSpeech? = 
+        suspendCancellableCoroutine { continuation ->
+            var tts: TextToSpeech? = null
+            var hasResumed = false
+            val listener = TextToSpeech.OnInitListener { status ->
+                if (!hasResumed) {
+                    hasResumed = true
+                    if (status == TextToSpeech.SUCCESS) {
+                        continuation.resume(tts)
+                    } else {
+                        tts?.shutdown()
+                        continuation.resume(null)
+                    }
+                }
+            }
+            try {
+                tts = if (!enginePkg.isNullOrEmpty()) {
+                    TextToSpeech(context, listener, enginePkg)
+                } else {
+                    TextToSpeech(context, listener)
+                }
+            } catch (e: Exception) {
+                if (!hasResumed) {
+                    hasResumed = true
+                    continuation.resume(null)
+                }
+            }
+            continuation.invokeOnCancellation {
+                if (!hasResumed) {
+                    tts?.shutdown()
+                }
+            }
+        }
+
+    private fun loadSystemVoices() {
+        viewModelScope.launch {
+            _isLoadingVoices.value = true
+            val list = mutableListOf<TtsVoice>()
+            try {
+                val enginePkg = appPrefs.ttsSystemEngine
+                val tempTts = withContext(Dispatchers.IO) {
+                    initTtsAsync(context, enginePkg)
+                }
+                if (tempTts != null) {
+                    val langParts = appPrefs.ttsSystemLanguage.split("-")
+                    val locale = if (langParts.size >= 2) Locale(langParts[0], langParts[1]) else Locale(appPrefs.ttsSystemLanguage)
+                    
+                    tempTts.setLanguage(locale)
+                    
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+                        val voices = tempTts.voices
+                        if (voices != null) {
+                            var index = 1
+                            for (v in voices) {
+                                if (v.locale.language == locale.language) {
+                                    val label = if (v.isNetworkConnectionRequired) "Online" else "Local"
+                                    list.add(TtsVoice(
+                                        id = v.name,
+                                        name = "Giọng đọc $index (${label})",
+                                        language = v.locale.displayName
+                                    ))
+                                    index++
+                                }
+                            }
+                        }
+                    }
+                    tempTts.shutdown()
+                }
+            } catch (e: Exception) {
+                Log.e("TtsSettingsVM", "Error getting system voices", e)
+            }
+            
+            val defaultVoices = listOf(
+                TtsVoice("vi-vn-x-vif-local", "Giọng đọc 1 (Miền Nam - Nữ)", "Tiếng Việt (Việt Nam)"),
+                TtsVoice("vi-vn-x-vic-local", "Giọng đọc 2 (Miền Bắc - Nam)", "Tiếng Việt (Việt Nam)"),
+                TtsVoice("vi-vn-x-vid-local", "Giọng đọc 3 (Miền Bắc - Nữ)", "Tiếng Việt (Việt Nam)"),
+                TtsVoice("vi-vn-x-vie-local", "Giọng đọc 4 (Miền Nam - Nam)", "Tiếng Việt (Việt Nam)"),
+                TtsVoice("vi-vn-x-vfg-local", "Giọng đọc 5 (Địa phương - Nữ)", "Tiếng Việt (Việt Nam)"),
+                TtsVoice("vi-vn-x-vfa-local", "Giọng đọc 6 (Địa phương - Nam trầm)", "Tiếng Việt (Việt Nam)")
+            )
+            
+            val combinedList = mutableListOf<TtsVoice>()
+            combinedList.addAll(list)
+            
+            val langParts = appPrefs.ttsSystemLanguage.split("-")
+            val isVietnamese = langParts.firstOrNull()?.lowercase() == "vi"
+            
+            if (isVietnamese) {
+                for (defVoice in defaultVoices) {
+                    if (combinedList.none { it.id == defVoice.id }) {
+                        combinedList.add(defVoice)
+                    }
+                }
+            }
+            
+            if (combinedList.isEmpty()) {
+                combinedList.addAll(defaultVoices)
+            }
+            
+            _voices.value = combinedList
+            _isLoadingVoices.value = false
+            
+            val currentVoice = appPrefs.ttsSelectedVoice
+            if (currentVoice.isBlank() || combinedList.none { it.id == currentVoice }) {
+                combinedList.firstOrNull()?.let {
+                    appPrefs.ttsSelectedVoice = it.id
+                }
+            }
+        }
+    }
+
     fun loadVoicesForSelectedEngine() {
         val engine = appPrefs.ttsSelectedEngine
         if (engine == "system" || engine.isBlank()) {
-            _voices.value = emptyList()
+            loadSystemVoices()
+            return
+        }
+        if (engine == "azure_edge") {
+            val list = listOf(
+                TtsVoice("vi-VN-NamMinhNeural", "Giọng nam trầm (NamMinh)", "vi-VN"),
+                TtsVoice("vi-VN-HoaiMyNeural", "Giọng nữ miền Nam (HoaiMy)", "vi-VN")
+            )
+            _voices.value = list
+            val currentVoice = appPrefs.ttsSelectedVoice
+            if (currentVoice.isBlank() || list.none { it.id == currentVoice }) {
+                appPrefs.ttsSelectedVoice = "vi-VN-NamMinhNeural"
+            }
             return
         }
         viewModelScope.launch {
@@ -164,12 +294,8 @@ class TtsSettingsViewModel @Inject constructor(
 
     fun selectEngine(engineId: String) {
         appPrefs.ttsSelectedEngine = engineId
-        if (engineId == "system") {
-            appPrefs.ttsSelectedVoice = ""
-            _voices.value = emptyList()
-        } else {
-            loadVoicesForSelectedEngine()
-        }
+        appPrefs.ttsSelectedVoice = ""
+        loadVoicesForSelectedEngine()
     }
 
     fun selectVoice(voiceId: String) {
@@ -267,10 +393,10 @@ fun TtsSettingsScreen(
 
             // 1. Công cụ đọc
             VBookSettingsGroup("Công cụ đọc") {
-                val selectedEngineName = if (ttsEngine == "system") {
-                    "Hệ thống"
-                } else {
-                    installedExtensions.find { it.id == ttsEngine }?.name ?: ttsEngine
+                val selectedEngineName = when (ttsEngine) {
+                    "system" -> "Hệ thống"
+                    "azure_edge" -> "Microsoft Azure Edge (Trudio)"
+                    else -> installedExtensions.find { it.id == ttsEngine }?.name ?: ttsEngine
                 }
 
                 Row(
@@ -288,8 +414,8 @@ fun TtsSettingsScreen(
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Medium
                         )
-                        if (ttsEngine != "system") {
-                            val activeVoiceName = availableVoices.find { it.id == ttsVoice }?.name ?: "Mặc định"
+                        val activeVoiceName = availableVoices.find { it.id == ttsVoice }?.name ?: "Mặc định"
+                        if (ttsEngine != "system" || (ttsEngine == "system" && availableVoices.isNotEmpty() && ttsVoice.isNotEmpty())) {
                             Text(
                                 text = "Giọng đọc: $activeVoiceName",
                                 color = VBookTheme.subTextColor(),
@@ -305,7 +431,7 @@ fun TtsSettingsScreen(
                     }
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        if (ttsEngine != "system") {
+                        if (ttsEngine != "system" && ttsEngine != "azure_edge") {
                             IconButton(
                                 onClick = {
                                     navController.navigate(Routes.extensionSettings(ttsEngine))
@@ -326,8 +452,8 @@ fun TtsSettingsScreen(
                     }
                 }
 
-                // Chọn giọng đọc (chỉ khi sử dụng AI TTS và có giọng đọc)
-                if (ttsEngine != "system" && availableVoices.isNotEmpty()) {
+                // Chọn giọng đọc (khi có giọng đọc khả dụng)
+                if (availableVoices.isNotEmpty()) {
                     VBookSettingsDivider()
                     val activeVoiceName = availableVoices.find { it.id == ttsVoice }?.name ?: "Chọn giọng đọc"
                     VBookSettingsItem(
@@ -491,6 +617,22 @@ fun TtsSettingsScreen(
                         RadioButton(selected = ttsEngine == "system", onClick = null)
                         Spacer(modifier = Modifier.width(12.dp))
                         Text("Hệ thống (Android TTS)", color = VBookTheme.textColor())
+                    }
+
+                    // Azure Edge engine option
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                ttsEngine = "azure_edge"
+                                showEngineDialog = false
+                            }
+                            .padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(selected = ttsEngine == "azure_edge", onClick = null)
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text("Microsoft Azure Edge (Trudio)", color = VBookTheme.textColor())
                     }
 
                     // Installed AI TTS engines options

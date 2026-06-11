@@ -1,0 +1,238 @@
+{
+  "metadata": {
+    "name": "po18",
+    "author": "QuocBao",
+    "version": 10,
+    "source": "https://www.po18.tw",
+    "regexp": "www.po18.tw/books/(\\d+)/?$",
+    "description": "Đọc truyện trên trang www.po18.tw",
+    "locale": "zh_CN",
+    "language": "javascript",
+    "type": "chinese_novel",
+    "encrypt": true
+  },
+  "config": {
+    "search_filters": {
+      "default_mode": "filter",
+      "query_placeholder": "Nhập tên truyện",
+      "groups": [
+        {
+          "key": "new",
+          "label": "Phân loại",
+          "default": "new",
+          "options": [
+            { "value": "all", "label": "Tất cả" },
+            { "value": "new", "label": "Sách mới", "default": true }
+          ]
+        },
+        {
+          "key": "words",
+          "label": "Số chữ",
+          "default": "all",
+          "options": [
+            { "value": "all", "label": "Không giới hạn", "default": true },
+            { "value": "1", "label": "Dưới 5 vạn chữ" },
+            { "value": "2", "label": "5 - 10 vạn chữ" },
+            { "value": "3", "label": "10 - 30 vạn chữ" },
+            { "value": "4", "label": "30 - 50 vạn chữ" },
+            { "value": "5", "label": "50 - 100 vạn chữ" },
+            { "value": "6", "label": "Trên 100 vạn chữ" }
+          ]
+        },
+        {
+          "key": "sort_metric",
+          "label": "Sắp xếp theo",
+          "default": "time",
+          "options": [
+            { "value": "time", "label": "Thời gian cập nhật", "default": true },
+            {
+              "value": "pearl",
+              "label": "Số ngọc trai",
+              "children": [
+                {
+                  "key": "sort_window",
+                  "label": "Chu kỳ",
+                  "default": "month",
+                  "options": [
+                    { "value": "week", "label": "Tuần" },
+                    { "value": "month", "label": "Tháng", "default": true },
+                    { "value": "total", "label": "Tổng" }
+                  ]
+                }
+              ]
+            },
+            {
+              "value": "popular",
+              "label": "Lượt xem",
+              "children": [
+                {
+                  "key": "sort_window",
+                  "label": "Chu kỳ",
+                  "default": "month",
+                  "options": [
+                    { "value": "week", "label": "Tuần" },
+                    { "value": "month", "label": "Tháng", "default": true },
+                    { "value": "total", "label": "Tổng" }
+                  ]
+                }
+              ]
+            },
+            {
+              "value": "order",
+              "label": "Lượt đặt mua",
+              "children": [
+                {
+                  "key": "sort_window",
+                  "label": "Chu kỳ",
+                  "default": "month",
+                  "options": [
+                    { "value": "week", "label": "Tuần" },
+                    { "value": "month", "label": "Tháng", "default": true },
+                    { "value": "total", "label": "Tổng" }
+                  ]
+                }
+              ]
+            },
+            {
+              "value": "favorite",
+              "label": "Lượt lưu",
+              "children": [
+                {
+                  "key": "sort_window",
+                  "label": "Chu kỳ",
+                  "default": "month",
+                  "options": [
+                    { "value": "week", "label": "Tuần" },
+                    { "value": "month", "label": "Tháng", "default": true },
+                    { "value": "total", "label": "Tổng" }
+                  ]
+                }
+              ]
+            },
+            {
+              "value": "comment",
+              "label": "Lượt bình luận",
+              "children": [
+                {
+                  "key": "sort_window",
+                  "label": "Chu kỳ",
+                  "default": "month",
+                  "options": [
+                    { "value": "week", "label": "Tuần" },
+                    { "value": "month", "label": "Tháng", "default": true },
+                    { "value": "total", "label": "Tổng" }
+                  ]
+                }
+              ]
+            },
+            {
+              "value": "reward",
+              "label": "Lượt thưởng",
+              "children": [
+                {
+                  "key": "sort_window",
+                  "label": "Chu kỳ",
+                  "default": "month",
+                  "options": [
+                    { "value": "week", "label": "Tuần" },
+                    { "value": "month", "label": "Tháng", "default": true },
+                    { "value": "total", "label": "Tổng" }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "key": "status",
+          "label": "Trạng thái",
+          "default": "all",
+          "options": [
+            { "value": "all", "label": "Không giới hạn", "default": true },
+            { "value": "1", "label": "Đang ra" },
+            { "value": "2", "label": "Hoàn thành" }
+          ]
+        },
+        {
+          "key": "tid",
+          "label": "Thẻ truyện",
+          "default": "",
+          "options": [
+            { "value": "", "label": "Chưa chọn", "default": true },
+            { "value": "30", "label": "Bản giản thể" },
+            { "value": "68", "label": "Cốt nhục (骨科)" },
+            { "value": "31", "label": "Bản phồn thể" },
+            { "value": "33", "label": "H nặng" },
+            { "value": "35", "label": "1V1" },
+            { "value": "32", "label": "H" },
+            { "value": "36", "label": "NPH" },
+            { "value": "37", "label": "NP" },
+            { "value": "34", "label": "SM" },
+            { "value": "51", "label": "BG" },
+            { "value": "52", "label": "BL" },
+            { "value": "63", "label": "Đồng nhân" },
+            { "value": "62", "label": "Đồng tính" },
+            { "value": "67", "label": "futa" },
+            { "value": "54", "label": "Cổ đại" },
+            { "value": "55", "label": "Hiện đại" },
+            { "value": "39", "label": "H học đường" },
+            { "value": "65", "label": "Học đường" },
+            { "value": "56", "label": "Đô thị" },
+            { "value": "49", "label": "Kỳ ảo" },
+            { "value": "48", "label": "Tiên hiệp" },
+            { "value": "40", "label": "Tận thế" },
+            { "value": "53", "label": "Huyền huyễn" },
+            { "value": "57", "label": "Khoa huyễn" },
+            { "value": "58", "label": "Thế giới tương lai" },
+            { "value": "59", "label": "Niên thượng" },
+            { "value": "60", "label": "Niên hạ" },
+            { "value": "61", "label": "Lãng mạn" },
+            { "value": "64", "label": "Võng du" },
+            { "value": "41", "label": "Người x thú" },
+            { "value": "43", "label": "Giới giải trí" },
+            { "value": "46", "label": "Cẩu huyết" },
+            { "value": "42", "label": "Hệ thống" },
+            { "value": "66", "label": "Nữ tôn" },
+            { "value": "47", "label": "Cường cường" },
+            { "value": "38", "label": "Thịt văn" },
+            { "value": "1", "label": "Sảng văn" },
+            { "value": "2", "label": "Ngược tâm" },
+            { "value": "4", "label": "Bi kịch" },
+            { "value": "7", "label": "Hắc ám" },
+            { "value": "3", "label": "Điềm văn" },
+            { "value": "5", "label": "Hài kịch" },
+            { "value": "45", "label": "Moe / dễ thương" },
+            { "value": "6", "label": "Nhẹ nhàng" },
+            { "value": "8", "label": "Thanh thủy" },
+            { "value": "28", "label": "Xuyên nhanh" },
+            { "value": "9", "label": "Xuyên không" },
+            { "value": "10", "label": "Trùng sinh" },
+            { "value": "50", "label": "Tinh tế" },
+            { "value": "13", "label": "Phiêu lưu" },
+            { "value": "44", "label": "Bàn tay vàng" },
+            { "value": "14", "label": "Hướng nữ" },
+            { "value": "15", "label": "Hướng nam" },
+            { "value": "21", "label": "Light novel" },
+            { "value": "22", "label": "Đam mỹ" },
+            { "value": "23", "label": "Bách hợp" },
+            { "value": "27", "label": "Chữa lành" },
+            { "value": "29", "label": "Thanh mai trúc mã" },
+            { "value": "25", "label": "Giãi bày tâm trạng" },
+            { "value": "11", "label": "Linh dị thần quái" },
+            { "value": "24", "label": "Nhị sáng tác" },
+            { "value": "12", "label": "Dị quốc" }
+          ]
+        }
+      ]
+    }
+  },
+  "script": {
+    "home": "home.js",
+    "genre": "genre.js",
+    "search": "search.js",
+    "detail": "detail.js",
+    "page": "page.js",
+    "toc": "toc.js",
+    "chap": "chap.js"
+  }
+}

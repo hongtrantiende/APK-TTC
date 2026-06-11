@@ -1,0 +1,1015 @@
+
+
+
+
+
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>冥婚小說搜索结果-微風小說</title>
+	<meta name="keywords" content="冥婚">
+<meta name="description" content="微風小說小說搜书频道为您找到了有关冥婚的小说信息，想了解有关冥婚小说及作者信息的书友，欢迎访问微風小說小說搜书频道。">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <style>
+      body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    padding: 20px;
+    background-color: #e8f5e9; /* 柔和淡绿色背景 */
+}
+
+h1 {
+    color: #333;
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.search-container {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.search-container input[type="text"] {
+    padding: 10px;
+    width: 70%;
+    max-width: 400px;
+    font-size: 16px;
+    border: 1px solid #ddd; /* 使用更柔和的灰色边框 */
+    border-radius: 6px;
+    background-color: #f9f9f5; /* 背景色为柔和的米色，减少对比 */
+    color: #444; /* 字体颜色稍微深一点，增强可读性 */
+}
+
+.search-container button {
+    padding: 10px 20px;
+    font-size: 16px;
+    margin-left: 8px;
+    background-color: #00796b; /* 使用温和的蓝绿色背景 */
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.search-container button:hover {
+    background-color: #004d40; /* 深一点的蓝绿色，平滑的悬停效果 */
+}
+
+.results {
+    margin-top: 30px;
+}
+
+.result-item {
+    display: flex;
+    flex-wrap: wrap;
+    background: white;
+    padding: 15px;
+    margin-bottom: 20px;
+    border-radius: 8px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    gap: 20px; /* 控制图片和信息之间的间距 */
+}
+
+.result-item img {
+    max-width: 100px;
+    border-radius: 6px;
+    object-fit: cover;
+}
+
+.info {
+    flex: 1;
+    min-width: 200px;
+}
+
+.info h3 {
+    margin: 0 0 10px;
+    font-size: 18px;
+}
+
+.info p {
+    margin: 4px 0;
+    color: #555;
+    font-size: 14px;
+}
+
+.no-results {
+    color: red;
+    font-weight: bold;
+    text-align: center;
+}
+
+.pagination {
+    text-align: center;
+    margin-top: 30px;
+}
+
+.pagination a {
+    display: inline-block;
+    padding: 8px 16px;
+    margin: 0 6px;
+    border-radius: 5px;
+    background-color: #7A9E9F;
+    color: white;
+    text-decoration: none;
+}
+
+.pagination .disabled {
+    background-color: #ccc;
+    pointer-events: none;
+}
+
+.line-clamp-2 {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+}
+
+/* 样式优化 */
+.active {
+    background-color: #0056b3;
+    font-weight: bold;
+}
+
+@media (max-width: 600px) {
+    .result-item {
+        flex-direction: row; /* 确保图片和信息都保持左右排列 */
+        align-items: center;
+        gap: 10px;
+    }
+
+    .result-item img {
+        margin-bottom: 0; /* 移除小屏幕下图片的底部间距 */
+        max-width: 80px; /* 更适合移动端的尺寸 */
+    }
+
+    .info {
+        text-align: left; /* 保持信息左对齐 */
+    }
+}
+
+.return-buttons {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    right: 20px;
+    display: flex;
+    justify-content: space-between;
+    z-index: 1000;
+}
+
+.return-buttons a {
+    padding: 8px 16px;
+    font-size: 16px;
+    background-color: #7A9E9F; /* 温和的灰色背景 */
+    color: white;
+    text-decoration: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.3s ease; /* 增加平滑过渡效果 */
+}
+
+.return-buttons a:hover {
+    background-color: #7A9E9F; /* 更深的灰色，保持平和感 */
+}
+
+/* 保留原本样式 */
+.search-container {
+    max-width: 600px;
+    margin: 40px auto;
+    padding: 20px;
+    background: #f9f9f5; /* 使用浅灰色背景，减少强烈对比 */
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+    border-radius: 20px;
+    font-family: "Segoe UI", sans-serif;
+}
+
+.search-container form {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.search-container input[type="text"] {
+    flex-grow: 1;
+    padding: 12px 16px;
+    border: 1px solid #ccc;
+    border-radius: 999px;
+    font-size: 16px;
+    transition: border-color 0.3s;
+    background-color: #f4f4f4; /* 柔和的背景色 */
+    color: #333; /* 深灰色字体，舒适阅读 */
+}
+
+.search-container input[type="text"]:focus {
+    outline: none;
+    border-color: #00796b; /* 采用蓝绿色作为焦点边框颜色 */
+    box-shadow: 0 0 5px rgba(0, 121, 107, 0.3); /* 轻微的蓝绿色阴影 */
+}
+
+.search-container button[type="submit"],
+.search-container button[type="button"] {
+    padding: 10px 16px;
+    background: #00796b; /* 使用温和的蓝绿色背景 */
+    color: white;
+    border: none;
+    border-radius: 999px;
+    cursor: pointer;
+    font-size: 15px;
+    transition: background 0.3s;
+}
+
+.search-container button[type="submit"]:hover,
+.search-container button[type="button"]:hover {
+    background: #004d40; /* 深蓝绿色，悬停效果 */
+}
+
+.hot-keywords, .history-searches {
+    margin-top: 15px;
+    font-size: 14px;
+    color: #444; /* 调整文字颜色为稍微深一点的灰色 */
+}
+
+.hot-keywords a, .history-searches a {
+    margin-right: 8px;
+    color: #00796b; /* 使用柔和的蓝绿色 */
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.hot-keywords a:hover, .history-searches a:hover {
+    color: #004d40; /* 深一点的蓝绿色，确保过渡平滑 */
+    text-decoration: underline;
+}
+
+.history-searches .item {
+    display: inline-flex;
+    align-items: center;
+    background: #f9f9f5; /* 使用更柔和的背景色 */
+    border-radius: 999px;
+    padding: 4px 10px;
+    margin: 4px;
+}
+
+.history-searches .delete {
+    margin-left: 6px;
+    color: #d32f2f; /* 使用柔和的红色，避免过于鲜艳 */
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.search-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 20px auto;
+    max-width: 600px;
+}
+
+.search-container form {
+    display: flex;
+    width: 100%;
+    background: #f9f9f5; /* 使用柔和的浅灰色背景 */
+    border: none; /* 去除表单的边框 */
+    border-radius: 999px;
+    padding: 10px 14px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05); /* 保留轻微阴影效果 */
+    transition: box-shadow 0.3s;
+}
+
+.search-container form:focus-within {
+    box-shadow: 0 4px 12px rgba(69, 160, 73, 0.15); /* 保留焦点时的阴影效果 */
+}
+
+.search-container input[type="text"] {
+    flex: 1;
+    border: none;
+    outline: none;
+    background: transparent;
+    padding: 8px 12px;
+    font-size: 16px;
+    color: #333;
+}
+
+.search-container input::placeholder {
+    color: #999;
+}
+
+.icon-button {
+    background: #45a049;  /* 绿色背景 */
+    border: none;
+    padding: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 0.3s, background-color 0.3s;
+    border-radius: 50%;
+}
+
+.icon-button:hover {
+    opacity: 0.8;
+    background-color: #388e3c;  /* 悬停时稍微深一些 */
+}
+
+.icon-button svg {
+    width: 22px;
+    height: 22px;
+    stroke: #ffffff;  /* 白色图标 */
+}
+
+
+</style>
+</head>
+<body>
+
+<!-- 返回按钮 -->
+<div class="return-buttons">
+    <!-- 返回上一页按钮 -->
+    <a href="javascript:history.back()">返回</a>
+    <!-- 返回首页按钮 -->
+    <a href="/">首页</a></div>
+
+<h1>微風小說-搜索</h1>
+
+
+<div class="search-container">
+    <form method="get" action="">
+        <input type="text" name="search" value="" placeholder="輸入小說名或作者..." required>
+        
+        <!-- 搜索图标按钮 -->
+        <button type="submit" aria-label="搜尋" class="icon-button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+        </button>
+        
+        <!-- 麦克风图标按钮（语音输入功能） -->
+        <button type="button" aria-label="語音輸入" class="icon-button" onclick="startVoice()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 1v14a4 4 0 0 0 4-4V5a4 4 0 0 0-8 0v6a4 4 0 0 0 4 4z"></path>
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                <line x1="12" y1="19" x2="12" y2="23"></line>
+                <line x1="8" y1="23" x2="16" y2="23"></line>
+            </svg>
+        </button>
+    </form>
+</div>
+
+<!-- 历史搜索记录 -->
+<div class="history-searches" id="historyBox" style="display:none;">
+    歷史紀錄：
+    <!-- JS 生成 -->
+</div>
+
+<!-- 热门关键词 -->
+
+
+
+
+
+<style>
+.box-common {
+  margin: 1.5em auto;
+  max-width: 100%;
+  text-align: center;
+  background-color: #f1f9f1;
+  border: 1px solid #b2d8b2;
+  border-radius: 8px;
+  padding: 0.8em 1.2em;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.box-common a {
+  display: inline-block;
+  font-size: clamp(14px, 4vw, 18px);
+  color: #3b805a;
+  font-weight: bold;
+  text-decoration: none;
+  transition: background-color 0.3s ease;
+}
+
+.box-common a:hover {
+  text-decoration: underline;
+}
+
+
+
+
+</style>
+<!-- 加入 LINE -->
+<div class="box-common">
+  <a  href="https://lin.ee/KdjAWUy" target="_blank">
+    📨 点击加入 LINE 快速催更找書
+  </a>
+</div>
+
+<!-- 找書提示 -->
+<div class="box-common">
+  😥 没搜到？<a href="/findbook.php">快來試試「幫我找書」功能吧！</a>
+</div>
+
+
+
+  <div class="results font-sans text-[16px] leading-[1.7] text-[#222] bg-[#fefefc]">
+        <div class="result-item flex items-start gap-4 p-5 mb-5 rounded-lg shadow-md bg-[#f9f9f5] overflow-hidden sm:gap-6 sm:p-6">
+        <a href="https://www.wfxs.tw/xiaoshuo/1/" class="flex-shrink-0 w-24 h-32 sm:w-28 sm:h-36">
+            <img src="https://img.wfxs.tw/0/1/1s.jpg"
+                 alt="冥婚 封面"
+                 class="w-full h-full object-cover rounded-md" />
+        </a>
+        <div class="flex flex-col justify-between flex-1 min-w-0">
+            <h3 class="text-[18px] sm:text-xl font-semibold mb-2 text-[#333] leading-snug">
+                <a href="https://www.wfxs.tw/xiaoshuo/1/" class="hover:underline" target="_blank">
+                    冥婚                </a>
+            </h3>
+            <p class="text-[14px] text-[#555] mb-1">
+                河流生生 | 連載            </p>
+            <p class="text-[14px] text-[#444] mb-1 line-clamp-2 break-words">
+                    我叫喬仙兒，喬家的女兒，以及這次冥婚的.......祭品。來自微風小說網
+            </p>
+            <p class="text-[14px] text-[#333]">
+                最後章節：
+                <a href="https://www.wfxs.tw/xiaoshuo/1/17714439/" class="underline" target="_blank">
+                    第276章大結局                </a>
+            </p>
+        </div>
+    </div>
+        <div class="result-item flex items-start gap-4 p-5 mb-5 rounded-lg shadow-md bg-[#f9f9f5] overflow-hidden sm:gap-6 sm:p-6">
+        <a href="https://www.wfxs.tw/xiaoshuo/534989/" class="flex-shrink-0 w-24 h-32 sm:w-28 sm:h-36">
+            <img src="https://img.wfxs.tw/534/534989/534989s.jpg"
+                 alt="冥婚 封面"
+                 class="w-full h-full object-cover rounded-md" />
+        </a>
+        <div class="flex flex-col justify-between flex-1 min-w-0">
+            <h3 class="text-[18px] sm:text-xl font-semibold mb-2 text-[#333] leading-snug">
+                <a href="https://www.wfxs.tw/xiaoshuo/534989/" class="hover:underline" target="_blank">
+                    冥婚                </a>
+            </h3>
+            <p class="text-[14px] text-[#555] mb-1">
+                唐九公子 | 連載            </p>
+            <p class="text-[14px] text-[#444] mb-1 line-clamp-2 break-words">
+                    她的側臉很漂亮，細琢精雕的感覺，可是，我更喜歡的是她的耳朵。
+            </p>
+            <p class="text-[14px] text-[#333]">
+                最後章節：
+                <a href="https://www.wfxs.tw/xiaoshuo/534989/76452915/" class="underline" target="_blank">
+                    第十五章 身體昏迷魂分離（2）                </a>
+            </p>
+        </div>
+    </div>
+        <div class="result-item flex items-start gap-4 p-5 mb-5 rounded-lg shadow-md bg-[#f9f9f5] overflow-hidden sm:gap-6 sm:p-6">
+        <a href="https://www.wfxs.tw/xiaoshuo/666740/" class="flex-shrink-0 w-24 h-32 sm:w-28 sm:h-36">
+            <img src="https://img.wfxs.tw/666/666740/666740s.jpg"
+                 alt="冥婚 封面"
+                 class="w-full h-full object-cover rounded-md" />
+        </a>
+        <div class="flex flex-col justify-between flex-1 min-w-0">
+            <h3 class="text-[18px] sm:text-xl font-semibold mb-2 text-[#333] leading-snug">
+                <a href="https://www.wfxs.tw/xiaoshuo/666740/" class="hover:underline" target="_blank">
+                    冥婚                </a>
+            </h3>
+            <p class="text-[14px] text-[#555] mb-1">
+                僵屍親娘 | 連載            </p>
+            <p class="text-[14px] text-[#444] mb-1 line-clamp-2 break-words">
+                    冥婚，又名“配骨”。
+    事情起源於一場離奇的婚禮。
+    十八歲的新娘，八歲的新郎。
+    然而它離奇的原因並不在此，而是——
+    婚禮時，新娘，已經死了。
+    衛家噩夢降臨了。
+    龐大的家族裏埋了多少秘密？
+    多年前活埋的女人到底為何？
+    愛與恨，到底誰才是主宰？
+    不一樣的結局，不一樣的耽美。
+    內容標簽：驚悚懸疑 報仇雪恨 年下 青梅竹馬
+    主角：衛遙，卿樹 ┃ 配角：衛蘭若，大太太，三老爺，衛老爺老太爺 ┃ 其它：冥婚
+            </p>
+            <p class="text-[14px] text-[#333]">
+                最後章節：
+                <a href="https://www.wfxs.tw/xiaoshuo/666740/76826652/" class="underline" target="_blank">
+                    第8節                </a>
+            </p>
+        </div>
+    </div>
+        <div class="result-item flex items-start gap-4 p-5 mb-5 rounded-lg shadow-md bg-[#f9f9f5] overflow-hidden sm:gap-6 sm:p-6">
+        <a href="https://www.wfxs.tw/xiaoshuo/785294/" class="flex-shrink-0 w-24 h-32 sm:w-28 sm:h-36">
+            <img src="https://img.wfxs.tw/785/785294/785294s.jpg"
+                 alt="冥婚 封面"
+                 class="w-full h-full object-cover rounded-md" />
+        </a>
+        <div class="flex flex-col justify-between flex-1 min-w-0">
+            <h3 class="text-[18px] sm:text-xl font-semibold mb-2 text-[#333] leading-snug">
+                <a href="https://www.wfxs.tw/xiaoshuo/785294/" class="hover:underline" target="_blank">
+                    冥婚                </a>
+            </h3>
+            <p class="text-[14px] text-[#555] mb-1">
+                周德東 | 連載            </p>
+            <p class="text-[14px] text-[#444] mb-1 line-clamp-2 break-words">
+                    一場把人逼向靈魂死角的變態遊戲：冥婚 當愛情遭遇死亡，你會如何選擇？幾對在情網上認識的戀人，被一張神秘而駭人的冥婚照片引到貴州一個偏僻的小鎮上，每次活著回來的卻隻有一人。失蹤的人渺無蹤影，回來的人似傻若狂，那個小鎮卻仿佛從未曾存在。142857的郵編中到底有何玄機？推著空嬰兒車的老婆婆是人是鬼？掛著中國銀行標誌的工商銀行藏著什麼詭異？ 冥冥之中，誰在操控人的脆弱靈魂?
+            </p>
+            <p class="text-[14px] text-[#333]">
+                最後章節：
+                <a href="https://www.wfxs.tw/xiaoshuo/785294/78744977/" class="underline" target="_blank">
+                    72、神秘來信                </a>
+            </p>
+        </div>
+    </div>
+        <div class="result-item flex items-start gap-4 p-5 mb-5 rounded-lg shadow-md bg-[#f9f9f5] overflow-hidden sm:gap-6 sm:p-6">
+        <a href="https://www.wfxs.tw/xiaoshuo/1059056/" class="flex-shrink-0 w-24 h-32 sm:w-28 sm:h-36">
+            <img src="https://img.wfxs.tw/1059/1059056/1059056s.jpg"
+                 alt="冥婚 封面"
+                 class="w-full h-full object-cover rounded-md" />
+        </a>
+        <div class="flex flex-col justify-between flex-1 min-w-0">
+            <h3 class="text-[18px] sm:text-xl font-semibold mb-2 text-[#333] leading-snug">
+                <a href="https://www.wfxs.tw/xiaoshuo/1059056/" class="hover:underline" target="_blank">
+                    冥婚                </a>
+            </h3>
+            <p class="text-[14px] text-[#555] mb-1">
+                道門九公子 | 連載            </p>
+            <p class="text-[14px] text-[#444] mb-1 line-clamp-2 break-words">
+                    我一出生就命犯孤煞，注定隻能一個人過一輩子，誰敢和我玩，不是被車撞死就是生怪病病死。爺爺為了延續家裏的香火，給我找了一個非常漂亮的女孩兒為伴……
+            </p>
+            <p class="text-[14px] text-[#333]">
+                最後章節：
+                <a href="https://www.wfxs.tw/xiaoshuo/1059056/78619028/" class="underline" target="_blank">
+                    第973章 如果死了                </a>
+            </p>
+        </div>
+    </div>
+        <div class="result-item flex items-start gap-4 p-5 mb-5 rounded-lg shadow-md bg-[#f9f9f5] overflow-hidden sm:gap-6 sm:p-6">
+        <a href="https://www.wfxs.tw/xiaoshuo/1468836/" class="flex-shrink-0 w-24 h-32 sm:w-28 sm:h-36">
+            <img src="https://img.wfxs.tw/1468/1468836/1468836s.jpg"
+                 alt="冥婚 封面"
+                 class="w-full h-full object-cover rounded-md" />
+        </a>
+        <div class="flex flex-col justify-between flex-1 min-w-0">
+            <h3 class="text-[18px] sm:text-xl font-semibold mb-2 text-[#333] leading-snug">
+                <a href="https://www.wfxs.tw/xiaoshuo/1468836/" class="hover:underline" target="_blank">
+                    冥婚                </a>
+            </h3>
+            <p class="text-[14px] text-[#555] mb-1">
+                短篇 | 連載            </p>
+            <p class="text-[14px] text-[#444] mb-1 line-clamp-2 break-words">
+                    不顧家人反對，和去世男友結了冥婚，誰知半夜他竟爬到我床上…
+            </p>
+            <p class="text-[14px] text-[#333]">
+                最後章節：
+                <a href="https://www.wfxs.tw/xiaoshuo/1468836/79239686/" class="underline" target="_blank">
+                    第4章                </a>
+            </p>
+        </div>
+    </div>
+        <div class="result-item flex items-start gap-4 p-5 mb-5 rounded-lg shadow-md bg-[#f9f9f5] overflow-hidden sm:gap-6 sm:p-6">
+        <a href="https://www.wfxs.tw/xiaoshuo/2920077/" class="flex-shrink-0 w-24 h-32 sm:w-28 sm:h-36">
+            <img src="https://img.wfxs.tw/2920/2920077/2920077s.jpg"
+                 alt="冥婚 封面"
+                 class="w-full h-full object-cover rounded-md" />
+        </a>
+        <div class="flex flex-col justify-between flex-1 min-w-0">
+            <h3 class="text-[18px] sm:text-xl font-semibold mb-2 text-[#333] leading-snug">
+                <a href="https://www.wfxs.tw/xiaoshuo/2920077/" class="hover:underline" target="_blank">
+                    冥婚                </a>
+            </h3>
+            <p class="text-[14px] text-[#555] mb-1">
+                夢休 | 連載            </p>
+            <p class="text-[14px] text-[#444] mb-1 line-clamp-2 break-words">
+                    一場失戀，引發了一場布了二十三年的局，女友的離奇死亡，屍體的不翼而飛，持續兩年的冥婚，還有那夢中飄渺的呼喚……是注定的血與淚，還是夢與虛幻，那就跟隨我走進這不一樣的世界……
+            </p>
+            <p class="text-[14px] text-[#333]">
+                最後章節：
+                <a href="https://www.wfxs.tw/xiaoshuo/2920077/80168172/" class="underline" target="_blank">
+                    第二百五十七章：危機四伏                </a>
+            </p>
+        </div>
+    </div>
+        <div class="result-item flex items-start gap-4 p-5 mb-5 rounded-lg shadow-md bg-[#f9f9f5] overflow-hidden sm:gap-6 sm:p-6">
+        <a href="https://www.wfxs.tw/xiaoshuo/1043/" class="flex-shrink-0 w-24 h-32 sm:w-28 sm:h-36">
+            <img src="https://img.wfxs.tw/1/1043/1043s.jpg"
+                 alt="冥婚掠情 鬼夫請繞道 封面"
+                 class="w-full h-full object-cover rounded-md" />
+        </a>
+        <div class="flex flex-col justify-between flex-1 min-w-0">
+            <h3 class="text-[18px] sm:text-xl font-semibold mb-2 text-[#333] leading-snug">
+                <a href="https://www.wfxs.tw/xiaoshuo/1043/" class="hover:underline" target="_blank">
+                    冥婚掠情 鬼夫請繞道                </a>
+            </h3>
+            <p class="text-[14px] text-[#555] mb-1">
+                岐清 | 連載            </p>
+            <p class="text-[14px] text-[#444] mb-1 line-clamp-2 break-words">
+                    為了幫家裏分擔重擔，我做起了入殮師，幫死人化妝。一次不小心說出口的再見竟然讓一個帥鬼成了我的男朋友&lt;/p&gt;
+            </p>
+            <p class="text-[14px] text-[#333]">
+                最後章節：
+                <a href="https://www.wfxs.tw/xiaoshuo/1043/271075/" class="underline" target="_blank">
+                    第四百八十九章 大結局                </a>
+            </p>
+        </div>
+    </div>
+        <div class="result-item flex items-start gap-4 p-5 mb-5 rounded-lg shadow-md bg-[#f9f9f5] overflow-hidden sm:gap-6 sm:p-6">
+        <a href="https://www.wfxs.tw/xiaoshuo/4715/" class="flex-shrink-0 w-24 h-32 sm:w-28 sm:h-36">
+            <img src="https://img.wfxs.tw/4/4715/4715s.jpg"
+                 alt="冥婚王妃 封面"
+                 class="w-full h-full object-cover rounded-md" />
+        </a>
+        <div class="flex flex-col justify-between flex-1 min-w-0">
+            <h3 class="text-[18px] sm:text-xl font-semibold mb-2 text-[#333] leading-snug">
+                <a href="https://www.wfxs.tw/xiaoshuo/4715/" class="hover:underline" target="_blank">
+                    冥婚王妃                </a>
+            </h3>
+            <p class="text-[14px] text-[#555] mb-1">
+                喬真 | 連載            </p>
+            <p class="text-[14px] text-[#444] mb-1 line-clamp-2 break-words">
+                    陸雲袖自小被寄宿在姑姑家中，備受煎熬。被自己姑姑設計要以冥婚的形式嫁入王爺府來還清姑姑一家人所欠下的債務，而她是不是從今以後以此芳華年，度了殘餘生？而就在入嫁當天，她作為一個未亡人，居然與“新郎”的長兄在圓房！這背後是有人指使還是另有其目的？&lt;/p&gt;
+            </p>
+            <p class="text-[14px] text-[#333]">
+                最後章節：
+                <a href="https://www.wfxs.tw/xiaoshuo/4715/3652873/" class="underline" target="_blank">
+                    209大結局                </a>
+            </p>
+        </div>
+    </div>
+        <div class="result-item flex items-start gap-4 p-5 mb-5 rounded-lg shadow-md bg-[#f9f9f5] overflow-hidden sm:gap-6 sm:p-6">
+        <a href="https://www.wfxs.tw/xiaoshuo/20233/" class="flex-shrink-0 w-24 h-32 sm:w-28 sm:h-36">
+            <img src="https://img.wfxs.tw/20/20233/20233s.jpg"
+                 alt="冥婚難逃：鬼王夫君求放過 封面"
+                 class="w-full h-full object-cover rounded-md" />
+        </a>
+        <div class="flex flex-col justify-between flex-1 min-w-0">
+            <h3 class="text-[18px] sm:text-xl font-semibold mb-2 text-[#333] leading-snug">
+                <a href="https://www.wfxs.tw/xiaoshuo/20233/" class="hover:underline" target="_blank">
+                    冥婚難逃：鬼王夫君求放過                </a>
+            </h3>
+            <p class="text-[14px] text-[#555] mb-1">
+                逝雪琪 | 連載            </p>
+            <p class="text-[14px] text-[#444] mb-1 line-clamp-2 break-words">
+                    一紙婚配，花轎臨門，她被迫嫁給鬼界之王楊柒，成了三界聞名的“鬼後”。    世人皆知這鬼王手掌生死，令人聞風喪膽，但誰又知他愛妻如命，寵溺無度……    洞房花燭夜，良辰美景時，本該談天說地聊人生，可他卻攻城略地無下限！    某女這才發現其實他就是一隻腹黑的大尾狼！
+            </p>
+            <p class="text-[14px] text-[#333]">
+                最後章節：
+                <a href="https://www.wfxs.tw/xiaoshuo/20233/80167636/" class="underline" target="_blank">
+                    第二百六十章 大結局                </a>
+            </p>
+        </div>
+    </div>
+        <div class="result-item flex items-start gap-4 p-5 mb-5 rounded-lg shadow-md bg-[#f9f9f5] overflow-hidden sm:gap-6 sm:p-6">
+        <a href="https://www.wfxs.tw/xiaoshuo/21790/" class="flex-shrink-0 w-24 h-32 sm:w-28 sm:h-36">
+            <img src="https://img.wfxs.tw/21/21790/21790s.jpg"
+                 alt="冥婚難從，傲嬌鬼夫撩上癮 封面"
+                 class="w-full h-full object-cover rounded-md" />
+        </a>
+        <div class="flex flex-col justify-between flex-1 min-w-0">
+            <h3 class="text-[18px] sm:text-xl font-semibold mb-2 text-[#333] leading-snug">
+                <a href="https://www.wfxs.tw/xiaoshuo/21790/" class="hover:underline" target="_blank">
+                    冥婚難從，傲嬌鬼夫撩上癮                </a>
+            </h3>
+            <p class="text-[14px] text-[#555] mb-1">
+                妖綰綰 | 連載            </p>
+            <p class="text-[14px] text-[#444] mb-1 line-clamp-2 break-words">
+                    她天生體質極陰，易招鬼。    隻不過是去了一趟春遊就招惹了一隻實力強大又傲嬌的鬼。    被吃幹抹淨不說某鬼還厚顏無恥的要她給他生個兒子。    雲夜修心滿意足的躺在床上看著一旁默默傷心的蘇千曼，紅唇輕聲細語的說道，“曼曼，給我生個孩子吧！”    一個枕頭砸到了他的頭上，
+            </p>
+            <p class="text-[14px] text-[#333]">
+                最後章節：
+                <a href="https://www.wfxs.tw/xiaoshuo/21790/7909197/" class="underline" target="_blank">
+                    第三十二章 想媽媽了嗎？                </a>
+            </p>
+        </div>
+    </div>
+        <div class="result-item flex items-start gap-4 p-5 mb-5 rounded-lg shadow-md bg-[#f9f9f5] overflow-hidden sm:gap-6 sm:p-6">
+        <a href="https://www.wfxs.tw/xiaoshuo/23005/" class="flex-shrink-0 w-24 h-32 sm:w-28 sm:h-36">
+            <img src="https://img.wfxs.tw/23/23005/23005s.jpg"
+                 alt="冥婚少女：霸道鬼夫誘捕小嬌妻 封面"
+                 class="w-full h-full object-cover rounded-md" />
+        </a>
+        <div class="flex flex-col justify-between flex-1 min-w-0">
+            <h3 class="text-[18px] sm:text-xl font-semibold mb-2 text-[#333] leading-snug">
+                <a href="https://www.wfxs.tw/xiaoshuo/23005/" class="hover:underline" target="_blank">
+                    冥婚少女：霸道鬼夫誘捕小嬌妻                </a>
+            </h3>
+            <p class="text-[14px] text-[#555] mb-1">
+                冰箱少女 | 連載            </p>
+            <p class="text-[14px] text-[#444] mb-1 line-clamp-2 break-words">
+                    我被人拐賣到農村和一個死人冥婚！！
+    婆婆還是一個位人見人怕的降頭女，從此我的整個人生軌跡都發生了翻天覆地的變化。我想過要從這裏逃跑，可是身上卻中了婆婆下的血降頭。
+    每天被逼著洗衣做飯，還要服侍死人。
+    “你是我的女人，這輩子也別想離開這裏。接下來，你就得為我傳宗接代。”借屍還魂的鬼夫如是說
+            </p>
+            <p class="text-[14px] text-[#333]">
+                最後章節：
+                <a href="https://www.wfxs.tw/xiaoshuo/23005/8088890/" class="underline" target="_blank">
+                    第260章 大結局                </a>
+            </p>
+        </div>
+    </div>
+        <div class="result-item flex items-start gap-4 p-5 mb-5 rounded-lg shadow-md bg-[#f9f9f5] overflow-hidden sm:gap-6 sm:p-6">
+        <a href="https://www.wfxs.tw/xiaoshuo/24335/" class="flex-shrink-0 w-24 h-32 sm:w-28 sm:h-36">
+            <img src="https://img.wfxs.tw/24/24335/24335s.jpg"
+                 alt="冥婚老公別亂來 封面"
+                 class="w-full h-full object-cover rounded-md" />
+        </a>
+        <div class="flex flex-col justify-between flex-1 min-w-0">
+            <h3 class="text-[18px] sm:text-xl font-semibold mb-2 text-[#333] leading-snug">
+                <a href="https://www.wfxs.tw/xiaoshuo/24335/" class="hover:underline" target="_blank">
+                    冥婚老公別亂來                </a>
+            </h3>
+            <p class="text-[14px] text-[#555] mb-1">
+                萌新求關愛 | 連載            </p>
+            <p class="text-[14px] text-[#444] mb-1 line-clamp-2 break-words">
+                    我天生命薄，算命先生說我活不過十歲！為了保命媽媽讓我嫁給了石頭人，讓我和石頭人喝交杯酒。現在我十八歲了，突然被惡鬼纏身。惡鬼說他就是當年我的冥婚新郎，鬼夫大大求放過！
+            </p>
+            <p class="text-[14px] text-[#333]">
+                最後章節：
+                <a href="https://www.wfxs.tw/xiaoshuo/24335/8265624/" class="underline" target="_blank">
+                    第260章 一家三口（完）                </a>
+            </p>
+        </div>
+    </div>
+        <div class="result-item flex items-start gap-4 p-5 mb-5 rounded-lg shadow-md bg-[#f9f9f5] overflow-hidden sm:gap-6 sm:p-6">
+        <a href="https://www.wfxs.tw/xiaoshuo/15563/" class="flex-shrink-0 w-24 h-32 sm:w-28 sm:h-36">
+            <img src="https://img.wfxs.tw/15/15563/15563s.jpg"
+                 alt="冥婚難逃，鬼差夫君不好惹 封面"
+                 class="w-full h-full object-cover rounded-md" />
+        </a>
+        <div class="flex flex-col justify-between flex-1 min-w-0">
+            <h3 class="text-[18px] sm:text-xl font-semibold mb-2 text-[#333] leading-snug">
+                <a href="https://www.wfxs.tw/xiaoshuo/15563/" class="hover:underline" target="_blank">
+                    冥婚難逃，鬼差夫君不好惹                </a>
+            </h3>
+            <p class="text-[14px] text-[#555] mb-1">
+                淡竹葉葉 | 連載            </p>
+            <p class="text-[14px] text-[#444] mb-1 line-clamp-2 break-words">
+                    她出生時就差點被親身父親直接扔進尿桶淹死。    長大之後，結了四次婚，四次都在婚禮前死了丈夫，命運讓她一個不信鬼神的人都覺得自己果然就是一個克夫的女人。    直到遇到他，日夜以靈魂的形態跟在她身邊，在每個夜裏在她占有她，在她身上留下屬於他的痕跡，她以為他真的愛她……    直到
+            </p>
+            <p class="text-[14px] text-[#333]">
+                最後章節：
+                <a href="https://www.wfxs.tw/xiaoshuo/15563/6727022/" class="underline" target="_blank">
+                    第70章完結篇塵埃落定                </a>
+            </p>
+        </div>
+    </div>
+        <div class="result-item flex items-start gap-4 p-5 mb-5 rounded-lg shadow-md bg-[#f9f9f5] overflow-hidden sm:gap-6 sm:p-6">
+        <a href="https://www.wfxs.tw/xiaoshuo/15895/" class="flex-shrink-0 w-24 h-32 sm:w-28 sm:h-36">
+            <img src="https://img.wfxs.tw/15/15895/15895s.jpg"
+                 alt="冥婚啞嫁 封面"
+                 class="w-full h-full object-cover rounded-md" />
+        </a>
+        <div class="flex flex-col justify-between flex-1 min-w-0">
+            <h3 class="text-[18px] sm:text-xl font-semibold mb-2 text-[#333] leading-snug">
+                <a href="https://www.wfxs.tw/xiaoshuo/15895/" class="hover:underline" target="_blank">
+                    冥婚啞嫁                </a>
+            </h3>
+            <p class="text-[14px] text-[#555] mb-1">
+                荊冉 | 連載            </p>
+            <p class="text-[14px] text-[#444] mb-1 line-clamp-2 break-words">
+                    （荊冉小說讀者群：，歡迎大家加入討論）
+    古有冥婚，生者契，死者祭，死生有約，無可逃避…
+    要說我荊可長這麼大也沒有什麼特殊要求，上學結婚生子，過個普通女人的生活就挺好，可偏偏有人半夜纏上我，那雙冰冷的手不安分的很，事後還邪魅的告訴我說不可以！
+    什麼？不可以？
+    我堂堂二十一世紀大學生，不信鬼神不信天地你告訴我不可以？娃娃親，開什麼玩笑，這是犯法的知道不？
+    拗不過金錢誘惑，好吧，娃娃親就娃娃親吧，聽說那家挺有錢的，可結婚之後才告訴我，這是陰親！
+            </p>
+            <p class="text-[14px] text-[#333]">
+                最後章節：
+                <a href="https://www.wfxs.tw/xiaoshuo/15895/6806123/" class="underline" target="_blank">
+                    第175章 在這裏結束                </a>
+            </p>
+        </div>
+    </div>
+        <div class="result-item flex items-start gap-4 p-5 mb-5 rounded-lg shadow-md bg-[#f9f9f5] overflow-hidden sm:gap-6 sm:p-6">
+        <a href="https://www.wfxs.tw/xiaoshuo/6829/" class="flex-shrink-0 w-24 h-32 sm:w-28 sm:h-36">
+            <img src="https://img.wfxs.tw/6/6829/6829s.jpg"
+                 alt="冥婚獨寵：鬼夫夜夜纏 封面"
+                 class="w-full h-full object-cover rounded-md" />
+        </a>
+        <div class="flex flex-col justify-between flex-1 min-w-0">
+            <h3 class="text-[18px] sm:text-xl font-semibold mb-2 text-[#333] leading-snug">
+                <a href="https://www.wfxs.tw/xiaoshuo/6829/" class="hover:underline" target="_blank">
+                    冥婚獨寵：鬼夫夜夜纏                </a>
+            </h3>
+            <p class="text-[14px] text-[#555] mb-1">
+                喵星人 | 連載            </p>
+            <p class="text-[14px] text-[#444] mb-1 line-clamp-2 break-words">
+                    網上買了個戒指麼？竟然還買一送一，來了個腹黑男鬼夜夜纏我！
+            </p>
+            <p class="text-[14px] text-[#333]">
+                最後章節：
+                <a href="https://www.wfxs.tw/xiaoshuo/6829/2144724/" class="underline" target="_blank">
+                    第四百六十八章 大結局                </a>
+            </p>
+        </div>
+    </div>
+        <div class="result-item flex items-start gap-4 p-5 mb-5 rounded-lg shadow-md bg-[#f9f9f5] overflow-hidden sm:gap-6 sm:p-6">
+        <a href="https://www.wfxs.tw/xiaoshuo/6889/" class="flex-shrink-0 w-24 h-32 sm:w-28 sm:h-36">
+            <img src="https://img.wfxs.tw/6/6889/6889s.jpg"
+                 alt="冥婚來襲：鬼夫狠凶猛 封面"
+                 class="w-full h-full object-cover rounded-md" />
+        </a>
+        <div class="flex flex-col justify-between flex-1 min-w-0">
+            <h3 class="text-[18px] sm:text-xl font-semibold mb-2 text-[#333] leading-snug">
+                <a href="https://www.wfxs.tw/xiaoshuo/6889/" class="hover:underline" target="_blank">
+                    冥婚來襲：鬼夫狠凶猛                </a>
+            </h3>
+            <p class="text-[14px] text-[#555] mb-1">
+                九尾貓尊 | 連載            </p>
+            <p class="text-[14px] text-[#444] mb-1 line-clamp-2 break-words">
+                    生於九陰之時的我根本不信這世間有鬼物，所以在鬼節那日我才敢加班到淩晨。&lt;/p&gt;
+    誰知點背的我真就撞到了靈異事件，撞鬼就撞鬼這也就算了，誰知道我的一句“我要嫁給鬼王天天收拾鬼。”結果我就真的一不小心嫁了，不過嫁的不是鬼王。&lt;/p&gt;
+    撞鬼橋，飲鬼血，結冥婚，從此我便過上了與桃木劍，五帝錢，各種符咒結緣的日子！&lt;/p&gt;
+    可誰能告訴我，這些東西為什麼對這隻鬼一點用都沒有，他還是會夜夜爬上我的床？&lt;/p&gt;
+    我簡直欲哭無淚，想死卻又不敢死。&lt;/p&gt;
+    可為什麼每當我遇到危險的時候，他都猶如謫仙一樣出現在我的麵前，霸道的把我護在懷裏，用那來自冥獄中陰冷的聲音說“遊魂野鬼若敢動瑤兒一分，我必讓他魂飛湮滅消失在這三界六道之中。妖界若敢動瑤兒一分，我必血洗妖界。仙界若想分開我與瑤兒，我必翻天覆地放出冥界厲鬼將人間化為冥獄！”&lt;/p&gt;
+            </p>
+            <p class="text-[14px] text-[#333]">
+                最後章節：
+                <a href="https://www.wfxs.tw/xiaoshuo/6889/3131783/" class="underline" target="_blank">
+                    第240章 完結章下                </a>
+            </p>
+        </div>
+    </div>
+        <div class="result-item flex items-start gap-4 p-5 mb-5 rounded-lg shadow-md bg-[#f9f9f5] overflow-hidden sm:gap-6 sm:p-6">
+        <a href="https://www.wfxs.tw/xiaoshuo/7484/" class="flex-shrink-0 w-24 h-32 sm:w-28 sm:h-36">
+            <img src="https://img.wfxs.tw/7/7484/7484s.jpg"
+                 alt="冥婚鬼嫁：我的鬼王師父很撩人 封面"
+                 class="w-full h-full object-cover rounded-md" />
+        </a>
+        <div class="flex flex-col justify-between flex-1 min-w-0">
+            <h3 class="text-[18px] sm:text-xl font-semibold mb-2 text-[#333] leading-snug">
+                <a href="https://www.wfxs.tw/xiaoshuo/7484/" class="hover:underline" target="_blank">
+                    冥婚鬼嫁：我的鬼王師父很撩人                </a>
+            </h3>
+            <p class="text-[14px] text-[#555] mb-1">
+                書香 | 連載            </p>
+            <p class="text-[14px] text-[#444] mb-1 line-clamp-2 break-words">
+                    我是個被啞道婆收養在乾坤庵的女孩，天生不能見陽光，啞道婆告訴我，等我過了十八歲，我才能和正常人一樣。    但自我過了十八歲生日，我則陷入噩夢之中，我不是正常人，我是個鬼生子，而且，更加離奇的是，我的師父，他是我前世的男人，因我和他產生了不倫之戀，之後，我身邊漸漸發生了很多詭秘可怕的恐怖之事.......
+            </p>
+            <p class="text-[14px] text-[#333]">
+                最後章節：
+                <a href="https://www.wfxs.tw/xiaoshuo/7484/2344195/" class="underline" target="_blank">
+                    第三百二十五章 大結局                </a>
+            </p>
+        </div>
+    </div>
+        <div class="result-item flex items-start gap-4 p-5 mb-5 rounded-lg shadow-md bg-[#f9f9f5] overflow-hidden sm:gap-6 sm:p-6">
+        <a href="https://www.wfxs.tw/xiaoshuo/7556/" class="flex-shrink-0 w-24 h-32 sm:w-28 sm:h-36">
+            <img src="https://img.wfxs.tw/7/7556/7556s.jpg"
+                 alt="冥婚：鬼夫陰魂不散 封面"
+                 class="w-full h-full object-cover rounded-md" />
+        </a>
+        <div class="flex flex-col justify-between flex-1 min-w-0">
+            <h3 class="text-[18px] sm:text-xl font-semibold mb-2 text-[#333] leading-snug">
+                <a href="https://www.wfxs.tw/xiaoshuo/7556/" class="hover:underline" target="_blank">
+                    冥婚：鬼夫陰魂不散                </a>
+            </h3>
+            <p class="text-[14px] text-[#555] mb-1">
+                花不語 | 連載            </p>
+            <p class="text-[14px] text-[#444] mb-1 line-clamp-2 break-words">
+                    我天生一雙陰陽眼，卻隻是一個半吊子的獵人—獵鬼師，雖然技不如其他獵鬼師，但是我有一腔熱情。我進入大學當天，不小心劃破手，血滴到那枚陰冷的玉佩上，暗結了冥婚，當天晚上就被一隻鬼給壓在床上纏綿不休，“娘子，為夫等你好苦！”陰風陣陣，不管是驅鬼符，桃木劍，帝錢，響鈴咒語，還是那五角星符，偏偏都收服不了他，更可恨的是還看不清他的麵容，卻夜夜被他恣意欺躪。捉鬼的時候，又被一個討厭的俊美男人纏上，事後還被他諷刺技術不精，氣的我拿那人一點辦法都沒。白天被男人欺負，夜裏被厲鬼欺負，直到肚子裏傳來一句軟糯的叫喊：“媽媽！”
+            </p>
+            <p class="text-[14px] text-[#333]">
+                最後章節：
+                <a href="https://www.wfxs.tw/xiaoshuo/7556/3670147/" class="underline" target="_blank">
+                    第444章 番外5：帝呈肅與蘭青竹兒時                </a>
+            </p>
+        </div>
+    </div>
+        <div class="result-item flex items-start gap-4 p-5 mb-5 rounded-lg shadow-md bg-[#f9f9f5] overflow-hidden sm:gap-6 sm:p-6">
+        <a href="https://www.wfxs.tw/xiaoshuo/10682/" class="flex-shrink-0 w-24 h-32 sm:w-28 sm:h-36">
+            <img src="https://img.wfxs.tw/10/10682/10682s.jpg"
+                 alt="冥婚來襲：陰夫來寵 封面"
+                 class="w-full h-full object-cover rounded-md" />
+        </a>
+        <div class="flex flex-col justify-between flex-1 min-w-0">
+            <h3 class="text-[18px] sm:text-xl font-semibold mb-2 text-[#333] leading-snug">
+                <a href="https://www.wfxs.tw/xiaoshuo/10682/" class="hover:underline" target="_blank">
+                    冥婚來襲：陰夫來寵                </a>
+            </h3>
+            <p class="text-[14px] text-[#555] mb-1">
+                戲言 | 連載            </p>
+            <p class="text-[14px] text-[#444] mb-1 line-clamp-2 break-words">
+                    我與男朋友一夜歡愛，醒來後卻發現自己在墳場。而後，無論我怎麼逃都逃不出去。。。。。。&lt;/p&gt;
+            </p>
+            <p class="text-[14px] text-[#333]">
+                最後章節：
+                <a href="https://www.wfxs.tw/xiaoshuo/10682/5728889/" class="underline" target="_blank">
+                    第262章 大結局                </a>
+            </p>
+        </div>
+    </div>
+    </div>
+
+
+
+
+
+
+
+
+
+
+<div class="pagination">
+    
+    <!-- 当前页 -->
+    <button class="px-3 py-2 bg-[#7A9E9F] text-white rounded">1</button>
+            <!-- 下一页 -->
+        <a href="?search=&s=%E5%86%A5%E5%A9%9A&page=2">下一頁</a>
+        <!-- 尾页 -->
+        <a href="?search=&s=%E5%86%A5%E5%A9%9A&page=50">尾頁</a>
+    </div>
+
+
+<script>
+// 获取输入框和表单
+const searchInput = document.querySelector('input[name="search"]');
+const form = document.querySelector('form');
+const historyBox = document.getElementById('historyBox');
+
+// 获取历史记录
+function getHistory() {
+    return JSON.parse(localStorage.getItem('searchHistory') || '[]');
+}
+
+// 保存搜索历史
+function saveToHistory(keyword) {
+    let history = getHistory();
+    keyword = keyword.trim();
+    if (!keyword) return;
+    // 去重 + 最新靠前
+    history = history.filter(item => item !== keyword);
+    history.unshift(keyword);
+    if (history.length > 5) history = history.slice(0, 5);
+    localStorage.setItem('searchHistory', JSON.stringify(history));
+    renderHistory();
+}
+
+// 删除历史记录项
+function deleteHistoryItem(keyword) {
+    let history = getHistory();
+    history = history.filter(item => item !== keyword);
+    localStorage.setItem('searchHistory', JSON.stringify(history));
+    renderHistory();
+}
+
+// 渲染历史记录
+function renderHistory() {
+    const history = getHistory();
+    if (history.length === 0) {
+        historyBox.style.display = "none";
+        return;
+    }
+
+    historyBox.innerHTML = "歷史紀錄：";
+    history.forEach(item => {
+        const container = document.createElement('span');
+        container.className = 'item';
+
+        const link = document.createElement('a');
+        link.textContent = item;
+        link.onclick = () => {
+            searchInput.value = item;
+            form.submit();
+        };
+
+        const del = document.createElement('span');
+        del.textContent = '❌';
+        del.className = 'delete';
+        del.onclick = () => deleteHistoryItem(item);
+
+        container.appendChild(link);
+        container.appendChild(del);
+        historyBox.appendChild(container);
+    });
+
+    historyBox.style.display = "block";
+}
+
+// 提交时保存搜索
+form.addEventListener('submit', function () {
+    if (searchInput.value.trim()) {
+        saveToHistory(searchInput.value.trim());
+    }
+});
+
+// 初始渲染历史记录
+window.addEventListener('load', renderHistory);
+
+// 语音输入功能
+function startVoice() {
+    if (!('webkitSpeechRecognition' in window)) {
+        alert("目前浏览器不支援語音搜尋");
+        return;
+    }
+    const recognition = new webkitSpeechRecognition();
+    recognition.lang = "zh-TW";
+    recognition.start();
+    recognition.onresult = function (e) {
+        searchInput.value = e.results[0][0].transcript;
+    };
+}
+
+</script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'96d09b721e7ae2f1',t:'MTc1NDg0MDU4OS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>

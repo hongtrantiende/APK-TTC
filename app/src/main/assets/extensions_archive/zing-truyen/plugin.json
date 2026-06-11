@@ -1,0 +1,21 @@
+{
+  "metadata": {
+    "name": "Zing Truyện",
+    "author": "Nahona",
+    "version": 1,
+    "source": "https://zingtruyen.site/",
+    "regexp": "(www.)?zingtruyen.site/story/(.*?)/\\d+.html",
+    "description": "Bản chính thức của ZingTruyen",
+    "locale": "vi_VN",
+    "language": "javascript",
+    "type": "novel"
+  },
+  "script": {
+    "home": "home.js",
+    "detail": "detail.js",
+    "toc": "toc.js",
+    "search": "search.js",
+    "genre": "genre.js",
+    "chap": "chap.js"
+  }
+}

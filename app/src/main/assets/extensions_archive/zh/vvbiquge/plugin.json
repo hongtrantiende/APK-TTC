@@ -1,0 +1,21 @@
+{
+  "metadata": {
+    "name": "vvbiquge",
+    "author": "Nahona",
+    "version": 1,
+    "source": "http://www.vvbiquge.cc",
+    "regexp": "(www.)?vvbiquge.cc/\\d+_\\d+/?$",
+    "description": "Bút Thủ Các muốn sử dụng phải tải 1.1.1.1 rồi bật nó lên thì muốn load được ext nhé",
+    "locale": "zh_CN",
+    "language": "javascript",
+    "type": "chinese_novel"
+  },
+  "script": {
+    "home": "home.js",
+    "detail": "detail.js",
+    "toc": "toc.js",
+    "genre": "genre.js",
+    "search": "search.js",
+    "chap": "chap.js"
+  }
+}

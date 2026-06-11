@@ -1,0 +1,96 @@
+[
+  {
+    "id": "bg1",
+    "color": "#3A3129",
+    "background": "#D3C3A3",
+    "background_path": "files/reader/bg/bg7.jpg"
+  },
+  {
+    "id": "bg2",
+    "color": "#1B310E",
+    "background": "#A2C0E5",
+    "background_path": "files/reader/bg/bg4.jpg"
+  },
+  {
+    "id": "bg3",
+    "color": "#1B310E",
+    "background": "#F3C9D7",
+    "background_path": "files/reader/bg/bg5.jpg"
+  },
+  {
+    "id": "bg4",
+    "color": "#1B310E",
+    "background": "#F1F7ED",
+    "background_path": "files/reader/bg/bg6.png"
+  },
+  {
+    "id": "bg5",
+    "color": "#645032",
+    "background": "#ece1ca"
+  },
+  {
+    "id": "bg6",
+    "color": "#3A342B",
+    "background": "#FFFFFF"
+  },
+  {
+    "id": "bg7",
+    "color": "#334B39",
+    "background": "#C2E0CD"
+  },
+  {
+    "id": "bg_dark",
+    "color": "#cccccc",
+    "background": "#000000"
+  },
+  {
+    "id": "bg8",
+    "color": "#95938F",
+    "background": "#393030"
+  },
+  {
+    "id": "bg9",
+    "color": "#CCE8CF",
+    "background": "#333333"
+  },
+  {
+    "id": "bg10",
+    "color": "#637079",
+    "background": "#051C2C"
+  },
+  {
+    "id": "bg11",
+    "color": "#607057",
+    "background": "#152B06"
+  },
+  {
+    "id": "bg12",
+    "color": "#4D5052",
+    "background": "#151C1F"
+  },
+  {
+    "id": "bg13",
+    "color": "#5F5F5F",
+    "background": "#000000"
+  },
+  {
+    "id": "bg14",
+    "color": "#494949",
+    "background": "#000000"
+  },
+  {
+    "id": "bg15",
+    "color": "#204353",
+    "background": "#001622"
+  },
+  {
+    "id": "bg16",
+    "color": "#445053",
+    "background": "#171F27"
+  },
+  {
+    "id": "bg17",
+    "color": "#574F3C",
+    "background": "#251C05"
+  }
+]

@@ -1,0 +1,28 @@
+{
+  "metadata": {
+    "name": "85 Novel",
+    "author": "Đường đen",
+    "version": 2,
+    "source": "https://www.85novel.com",
+    "regexp": "(https?://)?(www\\.)?85novel\\.com/book/\\d+(?:/\\d+)?\\.html$",
+    "description": "Tải nhanh sẽ bị ban IP, set 1 luồng 30s",
+    "locale": "zh_CN",
+    "language": "javascript",
+    "type": "chinese_novel",
+    "encrypt": true
+  },
+  "script": {
+    "home": "home.js",
+    "genre": "genre.js",
+    "detail": "detail.js",
+    "page": "page.js",
+    "toc": "toc.js",
+    "chap": "chap.js",
+    "search": "search.js",
+    "gen": "gen.js"
+  },
+  "config": {
+    "thread_num": 1,
+    "delay": 30000
+  }
+}

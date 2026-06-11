@@ -1,0 +1,22 @@
+{
+  "metadata": {
+    "name": "sweetastes",
+    "author": "Đường đen",
+    "version": 2,
+    "source": "https://www.bjtriz.com",
+    "regexp": "(?:www\\.)?bjtriz\\.com\\/book\\/(\\d+)",
+    "description": "Đọc truyện trên trang bjtriz, chỉ đọc chương free",
+    "locale": "zh_CN",
+    "language": "javascript",
+    "type": "chinese_novel",
+    "encrypt": true
+  },
+  "script": {
+    "home": "home.js",
+    "search": "search.js",
+    "genre": "genre.js",
+    "detail": "detail.js",
+    "toc": "toc.js",
+    "chap": "chap.js"
+  }
+}

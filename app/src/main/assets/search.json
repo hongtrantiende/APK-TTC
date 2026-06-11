@@ -1,0 +1,27 @@
+[
+  {
+    "name": "Google",
+    "icon": "file:///android_asset/img/google.png",
+    "url": "https://www.google.com/search?ie=UTF-8&oe=UTF-8&q=%s"
+  },
+  {
+    "name": "Bing",
+    "icon": "file:///android_asset/img/bing.png",
+    "url": "https://www.bing.com/search?q=%s"
+  },
+  {
+    "name": "Duckduckgo",
+    "icon": "file:///android_asset/img/duckduckgo.png",
+    "url": "https://duckduckgo.com/?q=%s"
+  },
+  {
+    "name": "Baidu",
+    "icon": "file:///android_asset/img/baidu.png",
+    "url": "https://www.baidu.com/s?wd=%s"
+  },
+  {
+    "name": "Yandex",
+    "icon": "file:///android_asset/img/yandex.png",
+    "url": "https://yandex.ru/yandsearch?lr=21411&text=%s"
+  }
+]

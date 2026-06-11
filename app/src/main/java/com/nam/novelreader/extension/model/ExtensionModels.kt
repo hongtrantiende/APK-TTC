@@ -36,7 +36,7 @@ data class PluginJson(
 data class PluginMetadata(
     val name: String,
     val author: String = "Unknown",
-    val version: Int = 1,
+    val version: Double = 1.0,
     val source: String = "",
     val regexp: String? = null,
     val description: String = "",
@@ -54,7 +54,7 @@ data class PluginMetadata(
 data class ExtensionInfo(
     val name: String,
     val author: String = "Unknown",
-    val version: Int = 1,
+    val version: Double = 1.0,
     val source: String = "",
     val path: String = "",           // URL download plugin.zip
     val icon: String = "",           // URL icon
@@ -133,113 +133,6 @@ data class LoadedExtension(
                 .replace("https://14.225.254.182", "https://sangtacviet.com")
         }
 
-        // Runtime patches cho tiện ích Wikidich
-        if (id == "wiki-dich" || id == "wikidich") {
-            if (fileName == "config.js") {
-                finalContent = finalContent
-                    .replace("https://wikicv.net", "https://wikidichvn.com")
-                    .replace("http://wikicv.net", "https://wikidichvn.com")
-                    .replace("https://wikidich.com.vn", "https://wikidichvn.com")
-                    .replace("http://wikidich.com.vn", "https://wikidichvn.com")
-                    .replace("https://truyenwikidich.com", "https://wikidichvn.com")
-                    .replace("http://truyenwikidich.com", "https://wikidichvn.com")
-                    .replace("https://truyenwikidich.net", "https://wikidichvn.com")
-                    .replace("http://truyenwikidich.net", "https://wikidichvn.com")
-                
-                finalContent = finalContent + "\n" + """
-                    if (typeof BASE_URL !== 'undefined') {
-                        if (BASE_URL.indexOf("wikicv.net") >= 0 || 
-                            BASE_URL.indexOf("wikidich.com.vn") >= 0 || 
-                            BASE_URL.indexOf("truyenwikidich.com") >= 0 || 
-                            BASE_URL.indexOf("truyenwikidich.net") >= 0) {
-                            BASE_URL = "https://wikidichvn.com";
-                        }
-                    }
-                """.trimIndent()
-            } else if (fileName == "toc.js") {
-                finalContent = """
-                    load('config.js');
-
-                    function execute(url) {
-                        var targetUrl = url;
-                        if (typeof storyUrlFromAny === 'function') {
-                            targetUrl = storyUrlFromAny(url);
-                        }
-                        
-                        targetUrl = targetUrl.replace(/^(?:https?:\/\/)?(?:[^@\n]+@)?(?:www\.)?([^:\/\n?]+)/img, BASE_URL);
-                        
-                        var doc = Http.get(targetUrl).html();
-                        var html = doc.html();
-                        
-                        var bookId = "";
-                        var totalPages = 1;
-                        var re = /page\((\d+)\s*,\s*(\d+)\)/g;
-                        var m;
-                        while ((m = re.exec(html)) !== null) {
-                            bookId = bookId || m[1];
-                            var p = parseInt(m[2], 10);
-                            if (p > totalPages) totalPages = p;
-                        }
-                        
-                        if (!bookId) {
-                            var bidInput = html.match(/name="bid"\s+value="(\d+)"/) || html.match(/value="(\d+)"\s+name="bid"/);
-                            if (bidInput) bookId = bidInput[1];
-                        }
-                        
-                        var data = [];
-                        var seen = {};
-                        
-                        function parseHtmlChapters(contentHtml) {
-                            var linksRe = /<a\s+href=['"]([^'"]+)['"][^>]*>([\s\S]*?)<\/a>/gi;
-                            var lm;
-                            while ((lm = linksRe.exec(contentHtml)) !== null) {
-                                var href = lm[1];
-                                if (href.indexOf('/chuong-') >= 0) {
-                                    var name = lm[2].replace(/<[^>]*>/g, '').trim();
-                                    var fullUrl = href;
-                                    if (fullUrl.indexOf('http') !== 0) {
-                                        if (fullUrl.indexOf('/') !== 0) {
-                                            fullUrl = '/' + fullUrl;
-                                        }
-                                        fullUrl = BASE_URL + fullUrl;
-                                    }
-                                    if (!seen[fullUrl]) {
-                                        seen[fullUrl] = true;
-                                        data.push({
-                                            name: name,
-                                            url: fullUrl,
-                                            host: BASE_URL
-                                        });
-                                    }
-                                }
-                            }
-                        }
-                        
-                        if (bookId) {
-                            for (var pageNum = 1; pageNum <= totalPages; pageNum++) {
-                                var listUrl = BASE_URL + "/get/listchap/" + bookId + "?page=" + pageNum;
-                                var response = Http.get(listUrl).string();
-                                if (response) {
-                                    try {
-                                        var json = JSON.parse(response);
-                                        if (json && json.data) {
-                                            parseHtmlChapters(json.data);
-                                        }
-                                    } catch(e) {
-                                        parseHtmlChapters(response);
-                                    }
-                                }
-                            }
-                        } else {
-                            parseHtmlChapters(html);
-                        }
-                        
-                        return Response.success(data);
-                    }
-                """.trimIndent()
-            }
-        }
-
         return finalContent
     }
 
@@ -279,12 +172,16 @@ enum class ScriptType(val key: String) {
     GENRE("genre"),
     DETAIL("detail"),
     SEARCH("search"),
-    PAGE("page"),
+    PAGE("page"),          // Comic: danh sách ảnh của chapter
     TOC("toc"),
     CHAP("chap"),
-    TRACK("track"),
-    VOICE("voice"),
+    TRACK("track"),        // Video: resolve stream URL
+    VOICE("voice"),        // TTS audio stream
     TTS("tts"),
+    SUGGEST("suggest"),    // Gợi ý truyện (3 extensions)
+    COMMENT("comment"),    // Bình luận (12 extensions)
+    LANGUAGE("language"),  // Danh sách ngôn ngữ dịch (4 extensions)
+    HOMECONTENT("homecontent"), // Nội dung trang chủ thêm (17 extensions)
     ;
 
     companion object {

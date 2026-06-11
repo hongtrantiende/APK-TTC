@@ -1,0 +1,23 @@
+{
+  "metadata": {
+    "name": "ZumiNovel",
+    "author": "hieu05",
+    "version": 3,
+    "source": "https://zuminovel.com",
+    "regexp": "https?:\\/\\/(?:www\\.)?zuminovel\\.com\\/novel\\/[a-zA-Z0-9-]+\\/?(?:\\?.*)?$",
+    "description": "Đọc truyện trên ZumiNovel",
+    "locale": "vi_VN",
+    "tag": "normal",
+    "type": "novel",
+    "language": "javascript"
+  },
+  "script": {
+    "home": "home.js",
+    "gen": "gen.js",
+    "detail": "detail.js",
+    "search": "search.js",
+    "page": "page.js",
+    "toc": "toc.js",
+    "chap": "chap.js"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "metadata": {
+    "name": "truyendich.vn",
+    "author": "B",
+    "version": 3,
+    "source": "https://truyendich.vn",
+    "regexp": "https://((truyendich.vn)|(tienhiep.xyz))/.*?",
+    "description": "Đọc truyện trên trang truyendich",
+    "locale": "vi_VN",
+    "type": "novel",
+    "language": "javascript"
+  },
+  "script": {
+    "home": "home.js",
+    "genre": "genre.js",
+    "search": "search.js",
+    "detail": "detail.js",
+    "toc": "toc.js",
+    "chap": "chap.js",
+    "page": "page.js"
+  }
+}

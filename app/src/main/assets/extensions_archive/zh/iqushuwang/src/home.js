@@ -1,0 +1,1 @@
+function execute() {    return Response.success([        {title: "Trang đầu", input: "/", script: "up.js"},    ]);}

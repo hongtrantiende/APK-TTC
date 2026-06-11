@@ -1,5 +1,19 @@
 package com.nam.novelreader.feature.reader
 
+import android.app.Activity
+import android.view.View
+import android.webkit.WebChromeClient
+import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
+import kotlinx.coroutines.delay
+
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.pager.PagerState
+import androidx.compose.ui.platform.LocalConfiguration
+import android.content.pm.ActivityInfo
+
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -119,67 +133,89 @@ class ReaderViewModel @Inject constructor(
     private val _currentIndex = MutableStateFlow(0)
     val currentIndex: StateFlow<Int> = _currentIndex
 
-    fun loadChapter(extensionId: String, chapterUrl: String) {
+    fun loadChapter(extensionId: String, chapterUrl: String, isOffline: Boolean = false) {
         viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
-            var success = false
-            while (isActive && !success) {
+            if (isOffline) {
                 try {
-                    val result = repository.getChapterContent(extensionId, chapterUrl)
-                    _chapter.value = result
-                    _error.value = null
-                    success = true
-                    
-                    // Tiền tải chương tiếp theo chạy ngầm (Prefetching)
-                    getNextUrl()?.let { nextUrl ->
-                        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-                            try {
-                                repository.getChapterContent(extensionId, nextUrl)
-                            } catch (e: Exception) {
-                                // Bỏ qua lỗi prefetch
-                            }
-                        }
+                    val result = repository.getChapterContentOffline(chapterUrl)
+                    if (result != null) {
+                        _chapter.value = result
+                    } else {
+                        _error.value = "Chương chưa được tải xuống! Vui lòng tải chương trước khi đọc offline."
                     }
                 } catch (e: Exception) {
-                    android.util.Log.e("ReaderViewModel", "loadChapter failed: ${e.message}, retrying in 3s...", e)
-                    if (_chapter.value == null) {
-                        _error.value = e.message ?: "Đã xảy ra lỗi khi tải chương. Đang thử lại..."
-                    }
-                    kotlinx.coroutines.delay(3000)
+                    _error.value = e.message ?: "Lỗi tải chương offline."
                 }
+                _isLoading.value = false
+            } else {
+                var success = false
+                while (isActive && !success) {
+                    try {
+                        val result = repository.getChapterContent(extensionId, chapterUrl)
+                        _chapter.value = result
+                        _error.value = null
+                        success = true
+                        
+                        // Tiền tải chương tiếp theo chạy ngầm (Prefetching)
+                        getNextUrl()?.let { nextUrl ->
+                            viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                                try {
+                                    repository.getChapterContent(extensionId, nextUrl)
+                                } catch (e: Exception) {
+                                    // Bỏ qua lỗi prefetch
+                                }
+                            }
+                        }
+                    } catch (e: Exception) {
+                        android.util.Log.e("ReaderViewModel", "loadChapter failed: ${e.message}, retrying in 3s...", e)
+                        if (_chapter.value == null) {
+                            _error.value = e.message ?: "Đã xảy ra lỗi khi tải chương. Đang thử lại..."
+                        }
+                        kotlinx.coroutines.delay(3000)
+                    }
+                }
+                _isLoading.value = false
             }
-            _isLoading.value = false
         }
     }
 
-    fun loadToc(extensionId: String, novelUrl: String, forceRefresh: Boolean = false) {
+    fun loadToc(extensionId: String, novelUrl: String, forceRefresh: Boolean = false, isOffline: Boolean = false) {
         viewModelScope.launch {
-            if (forceRefresh) {
-                _isLoading.value = true
-                try {
-                    val toc = repository.getTableOfContents(extensionId, novelUrl)
-                    if (toc.isNotEmpty()) {
-                        repository.cacheChapters(novelUrl, toc)
-                    }
-                } catch (e: Exception) {
-                    android.util.Log.e("ReaderViewModel", "force loadToc failed: ${e.message}", e)
-                } finally {
-                    _isLoading.value = false
+            if (isOffline) {
+                repository.getCachedChapters(novelUrl).collect { cachedEntities ->
+                    _chapters.value = cachedEntities.map { 
+                        Chapter(url = it.url, title = it.title, index = it.index, isDownloaded = it.isDownloaded)
+                    }.filter { it.isDownloaded }.sortedBy { it.index }
                 }
             } else {
-                repository.getCachedChapters(novelUrl).collect { cachedEntities ->
-                    if (cachedEntities.isNotEmpty()) {
-                        _chapters.value = cachedEntities.map { 
-                            Chapter(url = it.url, title = it.title, index = it.index, isDownloaded = it.isDownloaded)
-                        }.sortedBy { it.index }
-                    } else {
-                        try {
-                            val toc = repository.getTableOfContents(extensionId, novelUrl)
-                            _chapters.value = toc
+                if (forceRefresh) {
+                    _isLoading.value = true
+                    try {
+                        val toc = repository.getTableOfContents(extensionId, novelUrl)
+                        if (toc.isNotEmpty()) {
                             repository.cacheChapters(novelUrl, toc)
-                        } catch (e: Exception) {
-                            android.util.Log.e("ReaderViewModel", "loadToc failed: ${e.message}", e)
+                        }
+                    } catch (e: Exception) {
+                        android.util.Log.e("ReaderViewModel", "force loadToc failed: ${e.message}", e)
+                    } finally {
+                        _isLoading.value = false
+                    }
+                } else {
+                    repository.getCachedChapters(novelUrl).collect { cachedEntities ->
+                        if (cachedEntities.isNotEmpty()) {
+                            _chapters.value = cachedEntities.map { 
+                                Chapter(url = it.url, title = it.title, index = it.index, isDownloaded = it.isDownloaded)
+                            }.sortedBy { it.index }
+                        } else {
+                            try {
+                                val toc = repository.getTableOfContents(extensionId, novelUrl)
+                                _chapters.value = toc
+                                repository.cacheChapters(novelUrl, toc)
+                            } catch (e: Exception) {
+                                android.util.Log.e("ReaderViewModel", "loadToc failed: ${e.message}", e)
+                            }
                         }
                     }
                 }
@@ -244,6 +280,73 @@ class ReaderViewModel @Inject constructor(
     suspend fun getChapterContent(extensionId: String, chapterUrl: String): Chapter? {
         return repository.getChapterContent(extensionId, chapterUrl)
     }
+
+    // ========== Nâng cấp Video Player & Track Resolver ==========
+    val resolvedVideoUrl = MutableStateFlow<String?>(null)
+    val isResolvingTrack = MutableStateFlow(false)
+
+    fun resolveVideoUrl(extensionId: String, serverUrl: String) {
+        viewModelScope.launch {
+            isResolvingTrack.value = true
+            try {
+                val videoExts = listOf(".mp4", ".m3u8", ".mkv", ".webm", ".ts", ".avi", ".mov", ".flv", ".dash")
+                val lowerUrl = serverUrl.lowercase()
+                val isDirect = serverUrl.startsWith("http") 
+                    && !serverUrl.contains("<")
+                    && videoExts.any { lowerUrl.contains(it) }
+
+                if (isDirect) {
+                    resolvedVideoUrl.value = serverUrl
+                } else {
+                    val extension = repository.getExtension(extensionId)
+                    if (extension?.pluginJson?.script?.containsKey("track") == true) {
+                        val trackResult = repository.executeExtension(extensionId, com.nam.novelreader.extension.model.ScriptType.TRACK, serverUrl)
+                        if (trackResult is com.nam.novelreader.extension.model.ExtensionResult.Success) {
+                            val videoUrl = parseTrackUrl(trackResult.data)
+                            if (!videoUrl.isNullOrBlank()) {
+                                resolvedVideoUrl.value = videoUrl
+                            } else {
+                                resolvedVideoUrl.value = serverUrl
+                            }
+                        } else {
+                            resolvedVideoUrl.value = serverUrl
+                        }
+                    } else {
+                        resolvedVideoUrl.value = serverUrl
+                    }
+                }
+            } catch (e: java.lang.Exception) {
+                resolvedVideoUrl.value = serverUrl
+            } finally {
+                isResolvingTrack.value = false
+            }
+        }
+    }
+
+    private fun parseTrackUrl(jsonStr: String): String? {
+        return try {
+            val element = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }.parseToJsonElement(jsonStr)
+            if (element is kotlinx.serialization.json.JsonObject) {
+                val dataElement = element["data"]
+                if (dataElement is kotlinx.serialization.json.JsonObject) {
+                    val d = dataElement["data"]
+                    val u = dataElement["url"]
+                    if (d is kotlinx.serialization.json.JsonPrimitive) d.content
+                    else if (u is kotlinx.serialization.json.JsonPrimitive) u.content
+                    else null
+                } else if (dataElement is kotlinx.serialization.json.JsonPrimitive) {
+                    dataElement.content
+                } else {
+                    val d = element["data"]
+                    if (d is kotlinx.serialization.json.JsonPrimitive) d.content else null
+                }
+            } else {
+                null
+            }
+        } catch (e: java.lang.Exception) {
+            null
+        }
+    }
 }
 
 @Composable
@@ -307,6 +410,7 @@ fun TextReaderScreen(
     extensionId: String,
     novelUrl: String,
     chapterUrl: String,
+    isOffline: Boolean = false,
     navController: NavHostController,
     viewModel: ReaderViewModel = hiltViewModel(),
 ) {
@@ -319,7 +423,9 @@ fun TextReaderScreen(
 
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("novel_reader_prefs", Context.MODE_PRIVATE) }
-    val autoTranslateQt = prefs.getBoolean("reader_auto_translate_qt", false)
+    var translationMode by remember(extensionId) {
+        mutableStateOf(prefs.getString("ext_translation_mode_$extensionId", "Gốc") ?: "Gốc")
+    }
     val isDictLoaded by com.nam.novelreader.util.QuickTranslateEngine.isDictLoadedFlow.collectAsStateWithLifecycle(
         initialValue = com.nam.novelreader.util.QuickTranslateEngine.isDictLoaded()
     )
@@ -331,28 +437,31 @@ fun TextReaderScreen(
     // Đồng bộ hóa trạng thái tức thời ngay trong Composition để WebView nạp ngay
     var lastChapterUrl by remember { mutableStateOf<String?>(null) }
     val currentUrlFromFlow = chapter?.url
-    if (currentUrlFromFlow != lastChapterUrl) {
+    if (currentUrlFromFlow != null && currentUrlFromFlow != lastChapterUrl) {
         lastChapterUrl = currentUrlFromFlow
         displayTitle = chapter?.title ?: ""
         displayContent = chapter?.content
     }
 
-    LaunchedEffect(chapter?.url, autoTranslateQt, isDictLoaded) {
+    LaunchedEffect(chapter?.url, translationMode, isDictLoaded) {
         val ch = chapter
-        if (ch != null && autoTranslateQt && ch.content != null) {
-            isTranslating = true
-            val (tTitle, tContent) = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
-                val title = com.nam.novelreader.util.QuickTranslateEngine.translate(context, ch.title)
-                val content = com.nam.novelreader.util.QuickTranslateEngine.translate(context, ch.content)
-                Pair(title, content)
+        if (ch != null) {
+            if (translationMode != "Gốc" && ch.content != null) {
+                isTranslating = true
+                val targetMode = if (translationMode.contains("Hán Việt")) "hanviet" else "vi"
+                val (tTitle, tContent) = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+                    val title = com.nam.novelreader.util.QuickTranslateEngine.translate(context, ch.title, targetMode)
+                    val content = com.nam.novelreader.util.QuickTranslateEngine.translate(context, ch.content, targetMode)
+                    Pair(title, content)
+                }
+                displayTitle = tTitle
+                displayContent = tContent
+                isTranslating = false
+            } else {
+                displayTitle = ch.title
+                displayContent = ch.content
+                isTranslating = false
             }
-            displayTitle = tTitle
-            displayContent = tContent
-            isTranslating = false
-        } else {
-            displayTitle = ch?.title ?: ""
-            displayContent = ch?.content
-            isTranslating = false
         }
     }
 
@@ -443,9 +552,11 @@ fun TextReaderScreen(
     var ttsSentenceIndex by remember { mutableIntStateOf(0) }
     var ttsTotalSentences by remember { mutableIntStateOf(0) }
     var ttsBgMusic by remember { mutableStateOf("Không có") }
+    var ttsElapsedSeconds by remember { mutableIntStateOf(0) }
+    var ttsTotalSeconds by remember { mutableIntStateOf(0) }
     var shouldAutoStartTtsOnNextChapter by remember { mutableStateOf(false) }
     var shouldStartTtsOnChapterLoaded by remember { mutableStateOf(false) }
-
+    
     var showTocDrawer by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val activity = context as? android.app.Activity
@@ -522,8 +633,11 @@ fun TextReaderScreen(
                     ttsTotalSentences = intent.getIntExtra("extra_status_total", 0)
                     ttsBgMusic = intent.getStringExtra("extra_status_bg_music") ?: "Không có"
                     
+                    ttsElapsedSeconds = intent.getIntExtra("extra_status_elapsed_seconds", 0)
+                    ttsTotalSeconds = intent.getIntExtra("extra_status_total_seconds", 0)
+                    
                     // Nếu đang nghe chương khác, chuyển chapter trên UI cho đồng bộ
-                    if (ttsChapterUrl.isNotEmpty() && ttsChapterUrl != currentChapterUrl) {
+                    if (ttsChapterUrl.isNotEmpty() && ttsChapterUrl != "sample_tts_test" && ttsChapterUrl != currentChapterUrl) {
                         currentChapterUrl = ttsChapterUrl
                     }
                 } else if (intent?.action == com.nam.novelreader.service.TextToSpeechService.ACTION_TTS_CHAPTER_COMPLETED) {
@@ -565,9 +679,9 @@ fun TextReaderScreen(
         }
     }
 
-    LaunchedEffect(extensionId, novelUrl) {
+    LaunchedEffect(extensionId, novelUrl, isOffline) {
         kotlinx.coroutines.delay(250)
-        viewModel.loadToc(extensionId, novelUrl)
+        viewModel.loadToc(extensionId, novelUrl, isOffline = isOffline)
         viewModel.loadNovel(novelUrl)
     }
 
@@ -575,7 +689,7 @@ fun TextReaderScreen(
         viewModel.findCurrentIndex(currentChapterUrl)
     }
 
-    LaunchedEffect(currentChapterUrl) {
+    LaunchedEffect(currentChapterUrl, isOffline) {
         if (!loadedChaptersInWebView.contains(currentChapterUrl)) {
             webViewAlpha = 0.4f
             loadedChaptersInWebView.clear()
@@ -583,7 +697,7 @@ fun TextReaderScreen(
             if (chapter == null) {
                 kotlinx.coroutines.delay(250)
             }
-            viewModel.loadChapter(extensionId, currentChapterUrl)
+            viewModel.loadChapter(extensionId, currentChapterUrl, isOffline = isOffline)
         } else {
             viewModel.findCurrentIndex(currentChapterUrl)
         }
@@ -609,19 +723,31 @@ fun TextReaderScreen(
     }
 
     // Xác định màu nền của Toolbar và Panel dựa trên theme Index đọc để tiệp màu
+    // Theme 0-7: sáng (khớp bg1-bg7 VBook) | Theme 8-17: tối (bg8-bg17 VBook)
     val (uiBgColor, uiTextColor, uiPrimaryColor) = when (themeIndex) {
-        0 -> Triple(Color(0xFFD3C3A3), Color(0xFF3A3129), Color(0xFF8B5A2B)) // Kraft hoa văn (bg7.jpg)
-        1 -> Triple(Color(0xFFFFFFFF), Color(0xFF3A342B), Color(0xFF1976D2)) // Trắng trơn
-        2 -> Triple(Color(0xFFF1F7ED), Color(0xFF1B310E), Color(0xFF2E7D32)) // Xanh lá hoa văn (bg6.png)
-        3 -> Triple(Color(0xFFA2C0E5), Color(0xFF1B310E), Color(0xFF1976D2)) // Xanh dương hoa văn (bg4.jpg)
-        4 -> Triple(Color(0xFF1C1C1C), Color(0xFFCCCCCC), Color(0xFFD4A574)) // Đêm đen
-        5 -> Triple(Color(0xFFF3C9D7), Color(0xFF1B310E), Color(0xFFC2185B)) // Hồng hoa văn (bg5.jpg)
-        6 -> Triple(Color(0xFFECE1CA), Color(0xFF645032), Color(0xFF8B5A2B)) // Vàng giấy trơn
-        7 -> Triple(Color(0xFFC2E0CD), Color(0xFF334B39), Color(0xFF2E7D32)) // Lục nhạt trơn
+        0  -> Triple(Color(0xFFD3C3A3), Color(0xFF3A3129), Color(0xFF8B5A2B)) // bg1: Kraft hoa văn
+        1  -> Triple(Color(0xFFFFFFFF), Color(0xFF3A342B), Color(0xFF1976D2)) // bg6: Trắng trơn
+        2  -> Triple(Color(0xFFF1F7ED), Color(0xFF1B310E), Color(0xFF2E7D32)) // bg4: Xanh lá hoa văn
+        3  -> Triple(Color(0xFFA2C0E5), Color(0xFF1B310E), Color(0xFF1976D2)) // bg2: Xanh dương hoa văn
+        4  -> Triple(Color(0xFF000000), Color(0xFFCCCCCC), Color(0xFFD4A574)) // bg_dark: Đêm đen thuần
+        5  -> Triple(Color(0xFFF3C9D7), Color(0xFF1B310E), Color(0xFFC2185B)) // bg3: Hồng hoa văn
+        6  -> Triple(Color(0xFFECE1CA), Color(0xFF645032), Color(0xFF8B5A2B)) // bg5: Vàng giấy trơn
+        7  -> Triple(Color(0xFFC2E0CD), Color(0xFF334B39), Color(0xFF2E7D32)) // bg7: Lục nhạt trơn
+        // Dark themes (bg8-bg17 VBook)
+        8  -> Triple(Color(0xFF393030), Color(0xFF95938F), Color(0xFFD4A574)) // bg8: Nâu tối
+        9  -> Triple(Color(0xFF333333), Color(0xFFCCE8CF), Color(0xFF66BB6A)) // bg9: Xám tối xanh
+        10 -> Triple(Color(0xFF051C2C), Color(0xFF637079), Color(0xFF4FC3F7)) // bg10: Navy đêm
+        11 -> Triple(Color(0xFF152B06), Color(0xFF607057), Color(0xFF66BB6A)) // bg11: Xanh rừng tối
+        12 -> Triple(Color(0xFF151C1F), Color(0xFF4D5052), Color(0xFF78909C)) // bg12: Xanh đen
+        13 -> Triple(Color(0xFF000000), Color(0xFF5F5F5F), Color(0xFF9E9E9E)) // bg13: Đen 1
+        14 -> Triple(Color(0xFF000000), Color(0xFF494949), Color(0xFF757575)) // bg14: Đen 2
+        15 -> Triple(Color(0xFF001622), Color(0xFF204353), Color(0xFF4FC3F7)) // bg15: Xanh đậm
+        16 -> Triple(Color(0xFF171F27), Color(0xFF445053), Color(0xFF78909C)) // bg16: Slate tối
+        17 -> Triple(Color(0xFF251C05), Color(0xFF574F3C), Color(0xFFD4A574)) // bg17: Đồng tối
         else -> Triple(Color(0xFFD3C3A3), Color(0xFF3A3129), Color(0xFF8B5A2B))
     }
 
-    val customColorScheme = if (themeIndex == 4) {
+    val customColorScheme = if (themeIndex >= 4) {
         darkColorScheme(
             background = uiBgColor,
             surface = uiBgColor,
@@ -772,38 +898,36 @@ fun TextReaderScreen(
                                                 loadedChaptersInWebView.add(nextUrl)
                                                 scope.launch {
                                                     try {
-                                                        val nextChap = viewModel.getChapterContent(extensionId, nextUrl)
-                                                        if (nextChap != null) {
-                                                            val nextContent = nextChap.content
-                                                            val nextTitle = nextChap.title
-                                                            if (nextContent != null) {
-                                                                val displayNextContent = if (autoTranslateQt && isDictLoaded) {
-                                                                    com.nam.novelreader.util.QuickTranslateEngine.translate(context, nextContent)
-                                                                } else {
-                                                                    nextContent
-                                                                }
-                                                                val displayNextTitle = if (autoTranslateQt && isDictLoaded) {
-                                                                    com.nam.novelreader.util.QuickTranslateEngine.translate(context, nextTitle)
-                                                                } else {
-                                                                    nextTitle
-                                                                }
-                                                                val formatted = formatHtmlContent(displayNextContent)
-                                                                val escapedTitle = displayNextTitle.replace("'", "\\'").replace("\"", "\\\"")
-                                                                val escapedContent = formatted.replace("'", "\\'").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "")
-                                                                val js = "appendChapter('$nextUrl', '$escapedTitle', '$escapedContent');"
-                                                                webViewRef?.evaluateJavascript(js, null)
-                                                            } else {
-                                                                webViewRef?.evaluateJavascript("resetLoadFlag();", null)
-                                                            }
-                                                        } else {
-                                                            webViewRef?.evaluateJavascript("resetLoadFlag();", null)
-                                                            loadedChaptersInWebView.remove(nextUrl)
-                                                        }
-                                                    } catch (e: Exception) {
-                                                        android.util.Log.e("ReaderScreens", "Failed to append next chapter", e)
-                                                        webViewRef?.evaluateJavascript("resetLoadFlag();", null)
-                                                        loadedChaptersInWebView.remove(nextUrl)
-                                                    }
+                                                         val nextChap = viewModel.getChapterContent(extensionId, nextUrl)
+                                                         if (nextChap != null) {
+                                                             val nextContent = nextChap.content
+                                                             val nextTitle = nextChap.title
+                                                             if (nextContent != null) {
+                                                                 val (displayNextTitle, displayNextContent) = if (translationMode != "Gốc") {
+                                                                     val targetMode = if (translationMode.contains("Hán Việt")) "hanviet" else "vi"
+                                                                     val title = com.nam.novelreader.util.QuickTranslateEngine.translate(context, nextTitle, targetMode)
+                                                                     val content = com.nam.novelreader.util.QuickTranslateEngine.translate(context, nextContent, targetMode)
+                                                                     Pair(title, content)
+                                                                 } else {
+                                                                     Pair(nextTitle, nextContent)
+                                                                 }
+                                                                 val formatted = formatHtmlContent(displayNextContent)
+                                                                 val escapedTitle = displayNextTitle.replace("'", "\\'").replace("\"", "\\\"")
+                                                                 val escapedContent = formatted.replace("'", "\\'").replace("\"", "\\\"").replace("\n", "\\\n").replace("\r", "")
+                                                                 val js = "appendChapter('$nextUrl', '$escapedTitle', '$escapedContent');"
+                                                                 webViewRef?.evaluateJavascript(js, null)
+                                                             } else {
+                                                                 webViewRef?.evaluateJavascript("resetLoadFlag();", null)
+                                                             }
+                                                         } else {
+                                                             webViewRef?.evaluateJavascript("resetLoadFlag();", null)
+                                                             loadedChaptersInWebView.remove(nextUrl)
+                                                         }
+                                                     } catch (e: Exception) {
+                                                         android.util.Log.e("ReaderScreens", "Failed to append next chapter", e)
+                                                         webViewRef?.evaluateJavascript("resetLoadFlag();", null)
+                                                         loadedChaptersInWebView.remove(nextUrl)
+                                                     }
                                                 }
                                             } else {
                                                 webViewRef?.evaluateJavascript("resetLoadFlag();", null)
@@ -981,28 +1105,268 @@ fun TextReaderScreen(
                 exit = slideOutVertically(targetOffsetY = { -it }),
                 modifier = Modifier.align(Alignment.TopCenter),
             ) {
-                var showTranslationDialogByMenu by remember { mutableStateOf(false) }
+                var showTranslationDialog by remember { mutableStateOf(false) }
 
-                if (showTranslationDialogByMenu) {
-                    AlertDialog(
-                        onDismissRequest = { showTranslationDialogByMenu = false },
-                        title = { Text("Chế độ dịch") },
-                        text = { Text("Bạn có muốn bật/tắt chế độ dịch nhanh (Quick Translate) của trình đọc?") },
-                        confirmButton = {
-                            TextButton(onClick = {
-                                showTranslationDialogByMenu = false
-                                prefs.edit().putBoolean("reader_auto_translate_qt", !autoTranslateQt).apply()
-                                viewModel.loadChapter(extensionId, currentChapterUrl)
-                            }) {
-                                Text("Xác nhận")
-                            }
-                        },
-                        dismissButton = {
-                            TextButton(onClick = { showTranslationDialogByMenu = false }) {
-                                Text("Hủy")
+                if (showTranslationDialog) {
+                    var tempSource by remember(extensionId, showTranslationDialog) {
+                        mutableStateOf(prefs.getString("ext_translate_source_$extensionId", "Tiếng Trung") ?: "Tiếng Trung")
+                    }
+                    var tempTarget by remember(extensionId, showTranslationDialog) {
+                        mutableStateOf(prefs.getString("ext_translate_target_$extensionId", "Việt (VP)") ?: "Việt (VP)")
+                    }
+                    var tempEngine by remember(extensionId, showTranslationDialog) {
+                        mutableStateOf(prefs.getString("ext_translate_engine_$extensionId", "QT") ?: "QT")
+                    }
+                    var tempScope by remember(extensionId, showTranslationDialog) {
+                        mutableStateOf(prefs.getString("ext_translate_scope_$extensionId", "Tất cả") ?: "Tất cả")
+                    }
+                    var tempEnabled by remember(extensionId, showTranslationDialog) {
+                        mutableStateOf(translationMode != "Gốc")
+                    }
+
+                    var sourceMenuExpanded by remember { mutableStateOf(false) }
+                    var targetMenuExpanded by remember { mutableStateOf(false) }
+                    var engineMenuExpanded by remember { mutableStateOf(false) }
+                    var scopeMenuExpanded by remember { mutableStateOf(false) }
+
+                    val themeSwitchThumbChecked = com.nam.novelreader.feature.components.VBookTheme.switchThumbCheckedColor()
+                    val themeSwitchTrackChecked = com.nam.novelreader.feature.components.VBookTheme.switchTrackCheckedColor()
+                    val themeSwitchThumbUnchecked = com.nam.novelreader.feature.components.VBookTheme.switchThumbUncheckedColor()
+                    val themeSwitchTrackUnchecked = com.nam.novelreader.feature.components.VBookTheme.switchTrackUncheckedColor()
+
+                    Dialog(onDismissRequest = { showTranslationDialog = false }) {
+                        Box(
+                            modifier = Modifier
+                                .width(360.dp)
+                                .clip(RoundedCornerShape(28.dp))
+                                .background(uiBgColor)
+                                .border(1.dp, uiTextColor.copy(alpha = 0.12f), RoundedCornerShape(28.dp))
+                                .padding(20.dp)
+                        ) {
+                            Column {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    IconButton(onClick = { showTranslationDialog = false }) {
+                                        Icon(Icons.Filled.Close, contentDescription = "Close", tint = uiTextColor)
+                                    }
+                                    Text(
+                                        text = "Dịch",
+                                        fontSize = 20.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = uiTextColor
+                                    )
+                                    IconButton(onClick = {
+                                        showTranslationDialog = false
+                                        navController.navigate(Routes.TRANSLATION_SETTINGS)
+                                    }) {
+                                        Icon(Icons.Filled.Settings, contentDescription = "Settings", tint = uiTextColor)
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(16.dp))
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Box(modifier = Modifier.weight(1f)) {
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clip(RoundedCornerShape(12.dp))
+                                                .background(uiTextColor.copy(alpha = 0.08f))
+                                                .clickable { sourceMenuExpanded = true }
+                                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                                            horizontalArrangement = Arrangement.Center,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(text = tempSource, color = uiTextColor, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Icon(Icons.Filled.KeyboardArrowDown, null, tint = uiTextColor, modifier = Modifier.size(16.dp))
+                                        }
+                                        DropdownMenu(
+                                            expanded = sourceMenuExpanded,
+                                            onDismissRequest = { sourceMenuExpanded = false }
+                                        ) {
+                                            listOf("Tiếng Trung", "Tự động nhận diện", "Tiếng Anh", "Tiếng Nhật", "Tiếng Hàn").forEach { lang ->
+                                                DropdownMenuItem(
+                                                    text = { Text(lang) },
+                                                    onClick = {
+                                                        tempSource = lang
+                                                        sourceMenuExpanded = false
+                                                    }
+                                                )
+                                            }
+                                        }
+                                    }
+
+                                    Spacer(modifier = Modifier.width(8.dp))
+
+                                    Switch(
+                                        checked = tempEnabled,
+                                        onCheckedChange = { tempEnabled = it },
+                                        colors = SwitchDefaults.colors(
+                                            checkedThumbColor = themeSwitchThumbChecked,
+                                            checkedTrackColor = themeSwitchTrackChecked,
+                                            uncheckedThumbColor = themeSwitchThumbUnchecked,
+                                            uncheckedTrackColor = themeSwitchTrackUnchecked
+                                        )
+                                    )
+
+                                    Spacer(modifier = Modifier.width(8.dp))
+
+                                    Box(modifier = Modifier.weight(1f)) {
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clip(RoundedCornerShape(12.dp))
+                                                .background(uiTextColor.copy(alpha = 0.08f))
+                                                .clickable { targetMenuExpanded = true }
+                                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                                            horizontalArrangement = Arrangement.Center,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(text = tempTarget, color = uiTextColor, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Icon(Icons.Filled.KeyboardArrowDown, null, tint = uiTextColor, modifier = Modifier.size(16.dp))
+                                        }
+                                        DropdownMenu(
+                                            expanded = targetMenuExpanded,
+                                            onDismissRequest = { targetMenuExpanded = false }
+                                        ) {
+                                            listOf("Việt (VP)", "Hán Việt", "Việt (Dịch)").forEach { lang ->
+                                                DropdownMenuItem(
+                                                    text = { Text(lang) },
+                                                    onClick = {
+                                                        tempTarget = lang
+                                                        targetMenuExpanded = false
+                                                    }
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(20.dp))
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Box(modifier = Modifier.weight(1.1f)) {
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clip(RoundedCornerShape(12.dp))
+                                                .background(uiTextColor.copy(alpha = 0.08f))
+                                                .clickable { engineMenuExpanded = true }
+                                                .padding(horizontal = 10.dp, vertical = 10.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(20.dp)
+                                                    .background(uiPrimaryColor, CircleShape),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Filled.MenuBook,
+                                                    contentDescription = null,
+                                                    tint = uiBgColor,
+                                                    modifier = Modifier.size(12.dp)
+                                                )
+                                            }
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Text(text = tempEngine, color = uiTextColor, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                                            Icon(Icons.Filled.KeyboardArrowDown, null, tint = uiTextColor, modifier = Modifier.size(16.dp))
+                                        }
+                                        DropdownMenu(
+                                            expanded = engineMenuExpanded,
+                                            onDismissRequest = { engineMenuExpanded = false }
+                                        ) {
+                                            listOf("QT", "Google", "Bắc Cực Tinh", "GGChan").forEach { eng ->
+                                                DropdownMenuItem(
+                                                    text = { Text(eng) },
+                                                    onClick = {
+                                                        tempEngine = eng
+                                                        engineMenuExpanded = false
+                                                    }
+                                                )
+                                            }
+                                        }
+                                    }
+
+                                    Spacer(modifier = Modifier.width(10.dp))
+
+                                    Row(
+                                        modifier = Modifier.weight(1.3f),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Box(modifier = Modifier.weight(1f)) {
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .clip(RoundedCornerShape(12.dp))
+                                                    .background(uiTextColor.copy(alpha = 0.08f))
+                                                .clickable { scopeMenuExpanded = true }
+                                                .padding(horizontal = 8.dp, vertical = 10.dp),
+                                                horizontalArrangement = Arrangement.Center,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Text(text = tempScope, color = uiTextColor, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                                Spacer(modifier = Modifier.width(2.dp))
+                                                Icon(Icons.Filled.KeyboardArrowDown, null, tint = uiTextColor, modifier = Modifier.size(14.dp))
+                                            }
+                                            DropdownMenu(
+                                                expanded = scopeMenuExpanded,
+                                                onDismissRequest = { scopeMenuExpanded = false }
+                                            ) {
+                                                listOf("Tất cả", "Tên truyện", "Nội dung").forEach { scp ->
+                                                    DropdownMenuItem(
+                                                        text = { Text(scp) },
+                                                        onClick = {
+                                                            tempScope = scp
+                                                            scopeMenuExpanded = false
+                                                        }
+                                                    )
+                                                }
+                                            }
+                                        }
+
+                                        Spacer(modifier = Modifier.width(8.dp))
+
+                                        Button(
+                                            onClick = {
+                                                val finalMode = if (tempEnabled) tempTarget else "Gốc"
+                                                prefs.edit().apply {
+                                                    putString("ext_translation_mode_$extensionId", finalMode)
+                                                    putString("ext_translate_source_$extensionId", tempSource)
+                                                    putString("ext_translate_target_$extensionId", tempTarget)
+                                                    putString("ext_translate_engine_$extensionId", tempEngine)
+                                                    putString("ext_translate_scope_$extensionId", tempScope)
+                                                }.apply()
+                                                translationMode = finalMode
+                                                showTranslationDialog = false
+                                            },
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = uiPrimaryColor,
+                                                contentColor = uiBgColor
+                                            ),
+                                            shape = RoundedCornerShape(12.dp),
+                                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp)
+                                        ) {
+                                            Text("Lưu", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+                                }
                             }
                         }
-                    )
+                    }
                 }
 
                 Surface(
@@ -1018,6 +1382,48 @@ fun TextReaderScreen(
                     ) {
                         IconButton(onClick = { navController.popBackStack() }) {
                             Icon(Icons.Filled.Close, "Đóng", tint = uiTextColor)
+                        }
+
+                        // Chip dịch VBook gốc cạnh nút Close
+                        Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            color = uiTextColor.copy(alpha = 0.08f),
+                            modifier = Modifier
+                                .padding(horizontal = 4.dp)
+                                .clickable { showTranslationDialog = true }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(18.dp)
+                                        .background(Color(0xFF3B5998), CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.MenuBook,
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(10.dp)
+                                    )
+                                }
+                                Text(
+                                    text = translationMode,
+                                    color = uiTextColor,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 11.sp
+                                )
+                                Icon(
+                                    imageVector = Icons.Filled.KeyboardArrowDown,
+                                    contentDescription = null,
+                                    tint = uiTextColor.copy(alpha = 0.7f),
+                                    modifier = Modifier.size(12.dp)
+                                )
+                            }
                         }
                         
                         Column(
@@ -1053,32 +1459,8 @@ fun TextReaderScreen(
                             }
                         }
 
-                        // Nút Gốc/Dịch nằm trên Top Bar được chuyển sang bên phải và đồng bộ màu
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = uiTextColor.copy(alpha = 0.1f),
-                            modifier = Modifier
-                                .clickable { showTranslationDialogByMenu = true }
-                                .padding(horizontal = 4.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(Icons.Filled.Language, null, tint = uiTextColor, modifier = Modifier.size(12.dp))
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = if (autoTranslateQt) "Dịch" else "Gốc",
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = uiTextColor
-                                )
-                                Spacer(modifier = Modifier.width(2.dp))
-                                Icon(Icons.Filled.KeyboardArrowDown, null, tint = uiTextColor.copy(alpha = 0.7f), modifier = Modifier.size(10.dp))
-                            }
-                        }
-
-                        IconButton(onClick = { viewModel.loadChapter(extensionId, currentChapterUrl) }) {
+                        // Xóa nút dịch cũ ở đây và thay thế bằng nút refresh
+                        IconButton(onClick = { viewModel.loadChapter(extensionId, currentChapterUrl, isOffline = isOffline) }) {
                             Icon(Icons.Filled.Refresh, "Tải lại", tint = uiTextColor)
                         }
                         IconButton(onClick = {}) {
@@ -1281,9 +1663,10 @@ fun TextReaderScreen(
                     extensionId = extensionId,
                     novelUrl = novelUrl,
                     onRefreshToc = {
-                        viewModel.loadToc(extensionId, novelUrl, forceRefresh = true)
+                        viewModel.loadToc(extensionId, novelUrl, forceRefresh = true, isOffline = isOffline)
                     },
-                    onDismiss = { showTocBottomSheet = false }
+                    onDismiss = { showTocBottomSheet = false },
+                    isOffline = isOffline
                 )
             }
 
@@ -1304,6 +1687,8 @@ fun TextReaderScreen(
                     speed = ttsSpeed,
                     themeIndex = themeIndex,
                     bgMusic = ttsBgMusic,
+                    elapsedSeconds = ttsElapsedSeconds,
+                    totalSeconds = ttsTotalSeconds,
                     onPlayPause = {
                         val intent = Intent(context, com.nam.novelreader.service.TextToSpeechService::class.java).apply {
                             action = com.nam.novelreader.service.TextToSpeechService.ACTION_PLAY_PAUSE
@@ -1331,6 +1716,13 @@ fun TextReaderScreen(
                     onNextChapter = {
                         val intent = Intent(context, com.nam.novelreader.service.TextToSpeechService::class.java).apply {
                             action = com.nam.novelreader.service.TextToSpeechService.ACTION_NEXT_CHAPTER
+                        }
+                        context.startService(intent)
+                    },
+                    onSeekToSentence = { sentenceIndex ->
+                        val intent = Intent(context, com.nam.novelreader.service.TextToSpeechService::class.java).apply {
+                            action = com.nam.novelreader.service.TextToSpeechService.ACTION_SEEK_TO_SENTENCE
+                            putExtra(com.nam.novelreader.service.TextToSpeechService.EXTRA_SENTENCE_INDEX, sentenceIndex)
                         }
                         context.startService(intent)
                     },
@@ -1366,7 +1758,7 @@ fun TextReaderScreen(
                 )
             }
 
-            if ((isLoading || isTranslating || webViewAlpha < 0.9f) && error == null) {
+            if ((isLoading || isTranslating || webViewAlpha < 0.9f) && error == null && !showAudioPlayer) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -1573,18 +1965,33 @@ fun ReaderSettingsDialog(
                     modifier = Modifier.size(24.dp)
                 )
                 Spacer(modifier = Modifier.width(16.dp))
-                Row(
+                LazyRow(
                     modifier = Modifier.weight(1f),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    val allThemes = listOf(0, 1, 2, 3, 4, 5, 6, 7)
-                    allThemes.forEach { index ->
+                    val allThemes = listOf(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17)
+                    items(allThemes) { index ->
                         val isSelected = themeIndex == index
+                        // Màu dot preview khớp reader/theme.json của VBook
                         val themeColor = when (index) {
-                            1 -> Color(0xFFFFFFFF)
-                            4 -> Color(0xFF000000)
-                            6 -> Color(0xFFECE1CA)
-                            7 -> Color(0xFFC2E0CD)
+                            0  -> Color(0xFFD3C3A3)  // bg1: Kraft
+                            1  -> Color(0xFFFFFFFF)  // bg6: Trắng
+                            2  -> Color(0xFFF1F7ED)  // bg4: Xanh lá
+                            3  -> Color(0xFFA2C0E5)  // bg2: Xanh dương
+                            4  -> Color(0xFF000000)  // bg_dark: Đen thuần
+                            5  -> Color(0xFFF3C9D7)  // bg3: Hồng
+                            6  -> Color(0xFFECE1CA)  // bg5: Vàng giấy
+                            7  -> Color(0xFFC2E0CD)  // bg7: Lục nhạt
+                            8  -> Color(0xFF393030)  // bg8: Nâu tối
+                            9  -> Color(0xFF333333)  // bg9: Xám tối
+                            10 -> Color(0xFF051C2C)  // bg10: Navy
+                            11 -> Color(0xFF152B06)  // bg11: Xanh rừng
+                            12 -> Color(0xFF151C1F)  // bg12: Xanh đen
+                            13 -> Color(0xFF1A1A1A)  // bg13: Đen 1
+                            14 -> Color(0xFF0D0D0D)  // bg14: Đen 2
+                            15 -> Color(0xFF001622)  // bg15: Xanh đậm
+                            16 -> Color(0xFF171F27)  // bg16: Slate
+                            17 -> Color(0xFF251C05)  // bg17: Đồng tối
                             else -> Color.Transparent
                         }
                         Box(
@@ -2421,27 +2828,38 @@ private fun buildReaderHtml(
     doublePage: Boolean
 ): String {
     val formattedContent = formatHtmlContent(content)
-    // 8 themes từ APK gốc
+    // 18 themes khớp VBook reader/theme.json
     val (textColor, bgColor) = when (themeIndex) {
-        0 -> Pair("#3A3129", "#D3C3A3") // Kraft hoa văn (bg7.jpg)
-        1 -> Pair("#3A342B", "#FFFFFF") // Trắng trơn
-        2 -> Pair("#1B310E", "#F1F7ED") // Xanh lá hoa văn (bg6.png)
-        3 -> Pair("#1B310E", "#A2C0E5") // Xanh dương hoa văn (bg4.jpg)
-        4 -> Pair("#CCCCCC", "#000000") // Đêm đen
-        5 -> Pair("#1B310E", "#F3C9D7") // Hồng hoa văn (bg5.jpg)
-        6 -> Pair("#645032", "#ECE1CA") // Vàng giấy trơn
-        7 -> Pair("#334B39", "#C2E0CD") // Lục nhạt trơn
+        0  -> Pair("#3A3129", "#D3C3A3") // bg1: Kraft
+        1  -> Pair("#3A342B", "#FFFFFF") // bg6: Trắng trơn
+        2  -> Pair("#1B310E", "#F1F7ED") // bg4: Xanh lá nhạt
+        3  -> Pair("#1B310E", "#A2C0E5") // bg2: Xanh dương
+        4  -> Pair("#CCCCCC", "#000000") // bg_dark: Đêm đen
+        5  -> Pair("#1B310E", "#F3C9D7") // bg3: Hồng nhạt
+        6  -> Pair("#645032", "#ECE1CA") // bg5: Vàng giấy
+        7  -> Pair("#334B39", "#C2E0CD") // bg7: Lục nhạt
+        // Dark themes (bg8-bg17)
+        8  -> Pair("#95938F", "#393030") // bg8: Nâu tối
+        9  -> Pair("#CCE8CF", "#333333") // bg9: Xám tối xanh
+        10 -> Pair("#637079", "#051C2C") // bg10: Navy đêm
+        11 -> Pair("#607057", "#152B06") // bg11: Xanh rừng tối
+        12 -> Pair("#4D5052", "#151C1F") // bg12: Xanh đen
+        13 -> Pair("#5F5F5F", "#000000") // bg13: Đen 1
+        14 -> Pair("#494949", "#000000") // bg14: Đen 2
+        15 -> Pair("#204353", "#001622") // bg15: Xanh đậm
+        16 -> Pair("#445053", "#171F27") // bg16: Slate tối
+        17 -> Pair("#574F3C", "#251C05") // bg17: Đồng tối
         else -> Pair("#3A3129", "#D3C3A3")
     }
 
-    val bgImageName = when (themeIndex) {
-        0 -> "bg7.jpg"
-        2 -> "bg6.png"
-        3 -> "bg4.jpg"
-        5 -> "bg5.jpg"
-        else -> null
+    // CSS gradient texture thay thế ảnh nền — không bao giờ có vết hằn
+    val bgTextureCss = when (themeIndex) {
+        0 -> "background: linear-gradient(135deg, #D3C3A3 0%, #CBBB99 25%, #D5C5A5 50%, #CDBD9D 75%, #D3C3A3 100%);"
+        2 -> "background: linear-gradient(135deg, #F1F7ED 0%, #E8F0E4 25%, #F3F9EF 50%, #EAF2E6 75%, #F1F7ED 100%);"
+        3 -> "background: linear-gradient(135deg, #A2C0E5 0%, #9AB8DD 25%, #A6C4E9 50%, #9EBCE1 75%, #A2C0E5 100%);"
+        5 -> "background: linear-gradient(135deg, #F3C9D7 0%, #EBBFCD 25%, #F5CDD9 50%, #EDC3CF 75%, #F3C9D7 100%);"
+        else -> "" // Themes 1,4,6,7 đã là màu trơn
     }
-    val bgImageBase64 = bgImageName?.let { getAssetAsBase64(context, it) }
 
     val textAlignStyle = when (textAlign) {
         0 -> "left"
@@ -2465,7 +2883,7 @@ private fun buildReaderHtml(
                 line-height: $lineHeight;
                 color: $textColor;
                 background-color: $bgColor;
-                ${if (!bgImageBase64.isNullOrEmpty()) "background-image: url('data:image/${if (bgImageName!!.endsWith(".png")) "png" else "jpeg"};base64,$bgImageBase64'); background-repeat: repeat; background-size: auto;" else ""}
+                $bgTextureCss
                 -webkit-text-size-adjust: 100%;
             }
             ${if (readingMode == 0) """
@@ -2545,12 +2963,12 @@ private fun buildReaderHtml(
                 height: 0;
                 margin: 20px 0;
             }
-            p {
-                text-align: $textAlignStyle;
-                text-indent: ${textIndentValue}em;
-                letter-spacing: ${charSpacing}em;
-                margin-top: 0;
-                margin-bottom: ${paragraphSpacing}em;
+            p, div {
+                text-align: $textAlignStyle !important;
+                text-indent: ${textIndentValue}em !important;
+                letter-spacing: ${charSpacing}em !important;
+                margin-top: 0 !important;
+                margin-bottom: ${paragraphSpacing}em !important;
                 word-wrap: break-word;
             }
             .nav-buttons {
@@ -2776,14 +3194,25 @@ fun ComicReaderScreen(
     extensionId: String,
     novelUrl: String,
     chapterUrl: String,
+    isOffline: Boolean = false,
     navController: NavHostController,
     viewModel: ReaderViewModel = hiltViewModel(),
 ) {
     val chapter by viewModel.chapter.collectAsStateWithLifecycle()
+    val novel by viewModel.novel.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val error by viewModel.error.collectAsStateWithLifecycle()
     val chapters by viewModel.chapters.collectAsStateWithLifecycle()
     val currentIndex by viewModel.currentIndex.collectAsStateWithLifecycle()
+    
+    val context = LocalContext.current
+    val prefs = remember { context.getSharedPreferences("novel_reader_prefs", Context.MODE_PRIVATE) }
+    
+    // Đọc chế độ đọc: 0: Cuộn dọc, 1: Lật ngang
+    var readingMode by remember { 
+        mutableIntStateOf(prefs.getInt("comic_reading_mode", 0)) 
+    }
+    
     var showUI by remember { mutableStateOf(false) }
     var currentChapterUrl by remember { mutableStateOf(chapterUrl) }
 
@@ -2799,22 +3228,29 @@ fun ComicReaderScreen(
         }
     }
 
-    val listState = androidx.compose.runtime.saveable.rememberSaveable(currentChapterUrl, saver = LazyListState.Saver) { LazyListState() }
+    val listState = rememberLazyListState()
+    
+    val images = chapter?.images ?: emptyList()
+    val pagerState = rememberPagerState(initialPage = 0, pageCount = { images.size })
 
     androidx.activity.compose.BackHandler {
         navController.popBackStack()
     }
 
-    val activity = LocalContext.current as? android.app.Activity
+    val activity = context as? android.app.Activity
     val view = androidx.compose.ui.platform.LocalView.current
+    var isLandscape by remember { mutableStateOf(false) }
+
     DisposableEffect(Unit) {
         onDispose {
             activity?.window?.let { window ->
                 val insetsController = androidx.core.view.WindowCompat.getInsetsController(window, view)
                 insetsController.show(androidx.core.view.WindowInsetsCompat.Type.systemBars())
             }
+            activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
         }
     }
+
     LaunchedEffect(showUI) {
         activity?.window?.let { window ->
             val insetsController = androidx.core.view.WindowCompat.getInsetsController(window, view)
@@ -2827,16 +3263,17 @@ fun ComicReaderScreen(
         }
     }
 
-    LaunchedEffect(extensionId, novelUrl) {
-        viewModel.loadToc(extensionId, novelUrl)
+    LaunchedEffect(extensionId, novelUrl, isOffline) {
+        viewModel.loadToc(extensionId, novelUrl, isOffline = isOffline)
+        viewModel.loadNovel(novelUrl)
     }
 
     LaunchedEffect(currentChapterUrl, chapters) {
         viewModel.findCurrentIndex(currentChapterUrl)
     }
 
-    LaunchedEffect(currentChapterUrl) {
-        viewModel.loadChapter(extensionId, currentChapterUrl)
+    LaunchedEffect(currentChapterUrl, isOffline) {
+        viewModel.loadChapter(extensionId, currentChapterUrl, isOffline = isOffline)
         try {
             listState.scrollToItem(0)
         } catch (_: Exception) {}
@@ -2860,21 +3297,19 @@ fun ComicReaderScreen(
         }
     }
 
+    var showTocBottomSheet by remember { mutableStateOf(false) }
+
     Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
         if (isLoading) {
             Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black),
+                modifier = Modifier.fillMaxSize().background(Color.Black),
                 contentAlignment = Alignment.Center,
             ) {
                 CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
             }
         } else if (error != null) {
             Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black),
+                modifier = Modifier.fillMaxSize().background(Color.Black),
                 contentAlignment = Alignment.Center,
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -2883,7 +3318,7 @@ fun ComicReaderScreen(
                     Text(text = error ?: "", color = Color.White, textAlign = TextAlign.Center, modifier = Modifier.padding(horizontal = 32.dp))
                     Spacer(modifier = Modifier.height(24.dp))
                     Button(
-                        onClick = { viewModel.loadChapter(extensionId, currentChapterUrl) },
+                        onClick = { viewModel.loadChapter(extensionId, currentChapterUrl, isOffline = isOffline) },
                         colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Color.Black)
                     ) {
                         Text("Thử lại")
@@ -2892,9 +3327,7 @@ fun ComicReaderScreen(
             }
         } else {
             chapter?.let { ch ->
-                val images = ch.images ?: emptyList()
                 if (images.isNotEmpty()) {
-                    // Zoom box
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
@@ -2921,14 +3354,81 @@ fun ComicReaderScreen(
                                 )
                             }
                     ) {
-                        val context = LocalContext.current
-                        LazyColumn(
-                            state = listState,
-                            modifier = Modifier.fillMaxSize()
-                        ) {
-                            itemsIndexed(images, key = { index, imgUrl -> "$index-$imgUrl" }) { index, imgUrl ->
+                        if (readingMode == 0) {
+                            // Chế độ 1: Cuộn dọc liên tục
+                            LazyColumn(
+                                state = listState,
+                                modifier = Modifier.fillMaxSize()
+                            ) {
+                                itemsIndexed(images, key = { index, imgUrl -> "$index-$imgUrl" }) { index, imgUrl ->
+                                    val imageRequest = remember(imgUrl) {
+                                        val cookie = extensionId.takeIf { it.isNotBlank() }?.let { prefs.getString("ext_cookies_$it", null) }
+                                        val defaultUa = com.nam.novelreader.util.UserAgentUtils.getCleanUserAgent(context)
+
+                                        val builder = coil.request.ImageRequest.Builder(context)
+                                            .data(imgUrl)
+                                            .crossfade(true)
+                                            .diskCachePolicy(coil.request.CachePolicy.ENABLED)
+                                            .memoryCachePolicy(coil.request.CachePolicy.ENABLED)
+                                        
+                                        if (!cookie.isNullOrBlank()) {
+                                            builder.addHeader("Cookie", cookie)
+                                        }
+                                        if (defaultUa.isNotBlank()) {
+                                            builder.addHeader("User-Agent", defaultUa)
+                                        }
+                                        builder.addHeader("Referer", novelUrl)
+                                        builder.build()
+                                    }
+
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .defaultMinSize(minHeight = 400.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        AsyncImage(
+                                            model = imageRequest,
+                                            contentDescription = "Trang ${index + 1}",
+                                            modifier = Modifier.fillMaxWidth().wrapContentHeight(),
+                                            contentScale = androidx.compose.ui.layout.ContentScale.FillWidth
+                                        )
+                                    }
+                                }
+
+                                // Nút nhảy chương nhanh ở cuối
+                                item {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp, horizontal = 16.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                                    ) {
+                                        Button(
+                                            onClick = { viewModel.getPreviousUrl()?.let { currentChapterUrl = it } },
+                                            enabled = viewModel.hasPrevious,
+                                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF26211D)),
+                                            modifier = Modifier.weight(1f)
+                                        ) {
+                                            Text("Chương trước", color = Color.White)
+                                        }
+                                        Button(
+                                            onClick = { viewModel.getNextUrl()?.let { currentChapterUrl = it } },
+                                            enabled = viewModel.hasNext,
+                                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF26211D)),
+                                            modifier = Modifier.weight(1f)
+                                        ) {
+                                            Text("Chương sau", color = Color.White)
+                                        }
+                                    }
+                                }
+                            }
+                        } else {
+                            // Chế độ 2: Lật trang ngang (Horizontal Pager)
+                            HorizontalPager(
+                                state = pagerState,
+                                modifier = Modifier.fillMaxSize()
+                            ) { page ->
+                                val imgUrl = images[page]
                                 val imageRequest = remember(imgUrl) {
-                                    val prefs = context.getSharedPreferences("novel_reader_prefs", Context.MODE_PRIVATE)
                                     val cookie = extensionId.takeIf { it.isNotBlank() }?.let { prefs.getString("ext_cookies_$it", null) }
                                     val defaultUa = com.nam.novelreader.util.UserAgentUtils.getCleanUserAgent(context)
 
@@ -2947,84 +3447,41 @@ fun ComicReaderScreen(
                                     builder.addHeader("Referer", novelUrl)
                                     builder.build()
                                 }
-
                                 Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .defaultMinSize(minHeight = 400.dp),
+                                    modifier = Modifier.fillMaxSize(),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     AsyncImage(
                                         model = imageRequest,
-                                        contentDescription = "Trang ${index + 1}",
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .wrapContentHeight(),
-                                        contentScale = androidx.compose.ui.layout.ContentScale.FillWidth
+                                        contentDescription = "Trang ${page + 1}",
+                                        modifier = Modifier.fillMaxWidth().wrapContentHeight(),
+                                        contentScale = androidx.compose.ui.layout.ContentScale.Fit
                                     )
-                                }
-                            }
-
-                            // Chuyển chương
-                            item {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 32.dp, horizontal = 16.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(16.dp)
-                                ) {
-                                    Button(
-                                        onClick = { viewModel.getPreviousUrl()?.let { currentChapterUrl = it } },
-                                        enabled = viewModel.hasPrevious,
-                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF26211D)),
-                                        modifier = Modifier.weight(1f)
-                                    ) {
-                                        Text("Chương trước", color = Color.White)
-                                    }
-                                    Button(
-                                        onClick = { viewModel.getNextUrl()?.let { currentChapterUrl = it } },
-                                        enabled = viewModel.hasNext,
-                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF26211D)),
-                                        modifier = Modifier.weight(1f)
-                                    ) {
-                                        Text("Chương sau", color = Color.White)
-                                    }
                                 }
                             }
                         }
                     }
                 } else {
-                    // Fallback về text reader nếu không có images
                     Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(Color.Black)
-                            .padding(16.dp),
+                        modifier = Modifier.fillMaxSize().background(Color.Black).padding(16.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            text = ch.content ?: "Không có nội dung hình ảnh.",
-                            color = Color.White,
-                            textAlign = TextAlign.Center
-                        )
+                        Text(text = ch.content ?: "Không có nội dung hình ảnh.", color = Color.White, textAlign = TextAlign.Center)
                     }
                 }
             }
         }
 
-        // Top bar
+        // Top Bar điều khiển
         AnimatedVisibility(
             visible = showUI,
             enter = slideInVertically(initialOffsetY = { -it }),
             exit = slideOutVertically(targetOffsetY = { -it }),
             modifier = Modifier.align(Alignment.TopCenter),
         ) {
-            Surface(color = Color.Black.copy(alpha = 0.85f)) {
+            Surface(color = Color.Black.copy(alpha = 0.8f)) {
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .statusBarsPadding()
-                        .padding(horizontal = 4.dp, vertical = 8.dp),
+                    modifier = Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 4.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     IconButton(onClick = { navController.popBackStack() }) {
@@ -3041,12 +3498,132 @@ fun ComicReaderScreen(
             }
         }
 
-        // Chỉ số trang / Page indicator native ở góc dưới bên phải
-        if (chapter != null && !chapter!!.images.isNullOrEmpty()) {
-            val total = chapter!!.images!!.size
+        // Bottom Bar & Slider trang điều khiển Comic
+        AnimatedVisibility(
+            visible = showUI && chapter != null && images.isNotEmpty(),
+            enter = slideInVertically(initialOffsetY = { it }),
+            exit = slideOutVertically(targetOffsetY = { it }),
+            modifier = Modifier.align(Alignment.BottomCenter)
+        ) {
+            val total = images.size
+            val currentPageIndex = if (readingMode == 0) {
+                remember {
+                    derivedStateOf {
+                        val index = listState.firstVisibleItemIndex
+                        if (index < total) index else total - 1
+                    }
+                }.value
+            } else {
+                pagerState.currentPage
+            }
+
+            val coroutineScope = rememberCoroutineScope()
+
+            Surface(
+                color = Color.Black.copy(alpha = 0.85f),
+                shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 16.dp, vertical = 12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    // 1. Slider trang ảnh trong chương
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Text(
+                            text = "Trang ${currentPageIndex + 1} / $total",
+                            color = Color.White,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Slider(
+                            value = currentPageIndex.toFloat(),
+                            onValueChange = { value ->
+                                coroutineScope.launch {
+                                    val targetPage = value.toInt().coerceIn(0, total - 1)
+                                    if (readingMode == 0) {
+                                        listState.scrollToItem(targetPage)
+                                    } else {
+                                        pagerState.scrollToPage(targetPage)
+                                    }
+                                }
+                            },
+                            valueRange = 0f..(total - 1).toFloat().coerceAtLeast(1f),
+                            colors = SliderDefaults.colors(
+                                thumbColor = Color(0xFFD4A574),
+                                activeTrackColor = Color(0xFFD4A574),
+                                inactiveTrackColor = Color.White.copy(alpha = 0.3f)
+                            ),
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // 2. Các nút công cụ bổ sung
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Nút xoay màn hình nhanh
+                        IconButton(onClick = {
+                            isLandscape = !isLandscape
+                            activity?.requestedOrientation = if (isLandscape) {
+                                ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+                            } else {
+                                ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                            }
+                        }) {
+                            Icon(
+                                imageVector = if (isLandscape) Icons.Filled.ScreenLockPortrait else Icons.Filled.ScreenRotation,
+                                contentDescription = "Xoay màn hình",
+                                tint = Color.White
+                            )
+                        }
+
+                        // Chọn chế độ đọc (Cuộn dọc <-> Lật ngang)
+                        Button(
+                            onClick = {
+                                val nextMode = if (readingMode == 0) 1 else 0
+                                readingMode = nextMode
+                                prefs.edit().putInt("comic_reading_mode", nextMode).apply()
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF26211D)),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (readingMode == 0) Icons.Filled.ViewColumn else Icons.Filled.ViewCarousel,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = if (readingMode == 0) "Cuộn dọc" else "Lật ngang",
+                                color = Color.White,
+                                fontSize = 12.sp
+                            )
+                        }
+
+                        // Danh sách chương Bottom Sheet
+                        IconButton(onClick = { showTocBottomSheet = true }) {
+                            Icon(Icons.Filled.FormatListBulleted, "Mục lục", tint = Color.White)
+                        }
+                    }
+                }
+            }
+        }
+
+        // Chỉ số trang nổi ở góc dưới khi ẩn UI điều khiển
+        if (!showUI && chapter != null && images.isNotEmpty()) {
+            val total = images.size
             val current = remember {
                 derivedStateOf {
-                    val index = listState.firstVisibleItemIndex
+                    val index = if (readingMode == 0) listState.firstVisibleItemIndex else pagerState.currentPage
                     if (index < total) index + 1 else total
                 }
             }
@@ -3065,6 +3642,26 @@ fun ComicReaderScreen(
                 )
             }
         }
+
+        if (showTocBottomSheet) {
+            ReaderTocBottomSheet(
+                novel = novel,
+                chapters = chapters,
+                currentChapterUrl = currentChapterUrl,
+                themeIndex = 4, // Dark theme as default for comic
+                onChapterClick = { targetChapter ->
+                    currentChapterUrl = targetChapter.url
+                    showTocBottomSheet = false
+                },
+                extensionId = extensionId,
+                novelUrl = novelUrl,
+                onRefreshToc = {
+                    viewModel.loadToc(extensionId, novelUrl, forceRefresh = true, isOffline = isOffline)
+                },
+                onDismiss = { showTocBottomSheet = false },
+                isOffline = isOffline
+            )
+        }
     }
 }
 
@@ -3074,141 +3671,1150 @@ fun VideoReaderScreen(
     extensionId: String,
     novelUrl: String,
     chapterUrl: String,
+    isOffline: Boolean = false,
     navController: NavHostController,
     viewModel: ReaderViewModel = hiltViewModel(),
 ) {
     val chapter by viewModel.chapter.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val error by viewModel.error.collectAsStateWithLifecycle()
+    val chapters by viewModel.chapters.collectAsStateWithLifecycle()
+    val currentIndex by viewModel.currentIndex.collectAsStateWithLifecycle()
+
+    val resolvedVideoUrl by viewModel.resolvedVideoUrl.collectAsStateWithLifecycle()
+    val isResolvingTrack by viewModel.isResolvingTrack.collectAsStateWithLifecycle()
 
     val context = LocalContext.current
-    val exoPlayer = remember {
-        ExoPlayer.Builder(context).build().apply {
-            playWhenReady = true
+    val activity = context as? android.app.Activity
+    val prefs = remember { context.getSharedPreferences("novel_reader_prefs", Context.MODE_PRIVATE) }
+
+    // 1. Phân tách danh sách Server (Tracks) của tập phim từ JSON content
+    val servers = remember(chapter?.content) {
+        try {
+            val content = chapter?.content ?: ""
+            if (content.startsWith("[")) {
+                val jsonArray = org.json.JSONArray(content)
+                val list = mutableListOf<Pair<String, String>>()
+                for (i in 0 until jsonArray.length()) {
+                    val obj = jsonArray.getJSONObject(i)
+                    val title = obj.optString("title", obj.optString("name", "Server " + (i + 1)))
+                    val data = obj.optString("data", obj.optString("url", obj.optString("link", "")))
+                    list.add(Pair(title, data))
+                }
+                list
+            } else {
+                if (content.isNotBlank()) {
+                    listOf(Pair("Mặc định", content))
+                } else {
+                    emptyList()
+                }
+            }
+        } catch (e: Exception) {
+            if (chapter?.content?.isNotBlank() == true) {
+                listOf(Pair("Mặc định", chapter!!.content!!))
+            } else {
+                emptyList()
+            }
         }
     }
 
-    DisposableEffect(exoPlayer) {
-        onDispose {
-            exoPlayer.release()
+    var selectedServerIndex by remember(chapter) { mutableIntStateOf(0) }
+    var currentChapterUrl by remember { mutableStateOf(chapterUrl) }
+
+    // Tự động phân giải Link Video khi chọn server hoặc đổi tập
+    LaunchedEffect(servers, selectedServerIndex) {
+        if (servers.isNotEmpty() && selectedServerIndex < servers.size) {
+            val serverUrl = servers[selectedServerIndex].second
+            viewModel.resolveVideoUrl(extensionId, serverUrl)
         }
     }
 
-    androidx.activity.compose.BackHandler {
-        navController.popBackStack()
+    // Tải thông tin tập phim
+    LaunchedEffect(extensionId, novelUrl, isOffline) {
+        viewModel.loadToc(extensionId, novelUrl, isOffline = isOffline)
     }
 
-    DisposableEffect(chapterUrl) {
-        viewModel.loadChapter(extensionId, chapterUrl)
-        onDispose { }
+    LaunchedEffect(currentChapterUrl, chapters) {
+        viewModel.findCurrentIndex(currentChapterUrl)
+    }
+
+    LaunchedEffect(currentChapterUrl, isOffline) {
+        viewModel.loadChapter(extensionId, currentChapterUrl, isOffline = isOffline)
+        selectedServerIndex = 0
     }
 
     LaunchedEffect(chapter) {
         chapter?.let { ch ->
             viewModel.updateProgress(novelUrl, extensionId, ch.url, ch.title)
-            val content = ch.content?.trim() ?: ""
-            // Nếu là direct link, set vào exoplayer
-            if (content.startsWith("http") && !content.contains("<")) {
-                val mediaItem = MediaItem.fromUri(content)
-                exoPlayer.setMediaItem(mediaItem)
-                exoPlayer.prepare()
+        }
+    }
+
+    // Trình phát ExoPlayer
+    val exoPlayer = remember {
+        ExoPlayer.Builder(context).build().apply {
+            playWhenReady = prefs.getBoolean("video_auto_play", true)
+        }
+    }
+
+    // Đồng bộ tốc độ phát từ Preferences
+    var playSpeed by remember { mutableFloatStateOf(prefs.getFloat("video_play_speed", 1.0f)) }
+    LaunchedEffect(playSpeed) {
+        exoPlayer.setPlaybackSpeed(playSpeed)
+    }
+
+    // Xoay màn hình và Immersive Mode
+    var isFullscreen by remember { mutableStateOf(false) }
+    val view = androidx.compose.ui.platform.LocalView.current
+
+    fun enterImmersive() {
+        activity?.window?.let { window ->
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+                window.insetsController?.hide(android.view.WindowInsets.Type.statusBars() or android.view.WindowInsets.Type.navigationBars())
+                window.insetsController?.systemBarsBehavior = android.view.WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            } else {
+                @Suppress("DEPRECATION")
+                window.decorView.systemUiVisibility = (
+                    android.view.View.SYSTEM_UI_FLAG_FULLSCREEN
+                    or android.view.View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                    or android.view.View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                    or android.view.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                    or android.view.View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                )
+            }
+        }
+        activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+        isFullscreen = true
+    }
+
+    fun exitImmersive() {
+        activity?.window?.let { window ->
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+                window.insetsController?.show(android.view.WindowInsets.Type.statusBars() or android.view.WindowInsets.Type.navigationBars())
+            } else {
+                @Suppress("DEPRECATION")
+                window.decorView.systemUiVisibility = android.view.View.SYSTEM_UI_FLAG_VISIBLE
+            }
+        }
+        activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+        isFullscreen = false
+    }
+
+    DisposableEffect(exoPlayer) {
+        onDispose {
+            exoPlayer.release()
+            activity?.window?.let { window ->
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+                    window.insetsController?.show(android.view.WindowInsets.Type.statusBars() or android.view.WindowInsets.Type.navigationBars())
+                }
+            }
+            activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+        }
+    }
+
+    androidx.activity.compose.BackHandler {
+        if (isFullscreen) {
+            exitImmersive()
+        } else {
+            navController.popBackStack()
+        }
+    }
+
+    // Cài đặt giữ màn hình sáng
+    val keepScreenOn = prefs.getBoolean("video_keep_screen_on", true)
+    DisposableEffect(keepScreenOn) {
+        if (keepScreenOn) {
+            activity?.window?.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+        onDispose {
+            activity?.window?.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+    }
+
+    Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
+        VideoContent(
+            chapter = chapter,
+            isLoading = isLoading || isResolvingTrack,
+            error = error,
+            exoPlayer = exoPlayer,
+            novelUrl = novelUrl,
+            chromeUA = "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36",
+            isFullscreen = isFullscreen,
+            onFullscreenToggle = {
+                if (isFullscreen) exitImmersive() else enterImmersive()
+            },
+            resolvedVideoUrl = resolvedVideoUrl,
+            servers = servers,
+            selectedServerIndex = selectedServerIndex,
+            onServerChange = { selectedServerIndex = it },
+            playSpeed = playSpeed,
+            onPlaySpeedChange = { speed ->
+                playSpeed = speed
+                prefs.edit().putFloat("video_play_speed", speed).apply()
+            },
+            chapters = chapters,
+            currentIndex = currentIndex,
+            onChapterSelect = { targetUrl ->
+                currentChapterUrl = targetUrl
+            },
+            navController = navController,
+            isOffline = isOffline
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun VideoContent(
+    chapter: com.nam.novelreader.domain.model.Chapter?,
+    isLoading: Boolean,
+    error: String?,
+    exoPlayer: ExoPlayer,
+    novelUrl: String,
+    chromeUA: String,
+    isFullscreen: Boolean,
+    onFullscreenToggle: () -> Unit,
+    resolvedVideoUrl: String?,
+    servers: List<Pair<String, String>>,
+    selectedServerIndex: Int,
+    onServerChange: (Int) -> Unit,
+    playSpeed: Float,
+    onPlaySpeedChange: (Float) -> Unit,
+    chapters: List<Chapter>,
+    currentIndex: Int,
+    onChapterSelect: (String) -> Unit,
+    navController: NavHostController,
+    isOffline: Boolean
+) {
+    val context = LocalContext.current
+    val activity = context as? android.app.Activity
+    val prefs = remember { context.getSharedPreferences("novel_reader_prefs", Context.MODE_PRIVATE) }
+
+    // Trạng thái dò link video ngầm (WebView Sniffing)
+    var sniffedVideoUrl by remember(resolvedVideoUrl) { mutableStateOf<String?>(null) }
+    var isSniffing by remember(resolvedVideoUrl) { mutableStateOf(false) }
+    var sniffingTimeout by remember(resolvedVideoUrl) { mutableStateOf(false) }
+
+    // Nhận diện link video stream trực tiếp
+    val videoExts = remember { listOf(".mp4", ".m3u8", ".mkv", ".webm", ".ts", ".avi", ".mov", ".flv", ".dash") }
+    val isDirectLink = remember(resolvedVideoUrl) {
+        val lower = (resolvedVideoUrl ?: "").lowercase()
+        resolvedVideoUrl != null 
+            && resolvedVideoUrl.startsWith("http") 
+            && !resolvedVideoUrl.contains("<")
+            && videoExts.any { lower.contains(it) }
+    }
+
+    LaunchedEffect(resolvedVideoUrl, isDirectLink) {
+        if (resolvedVideoUrl != null) {
+            if (isDirectLink) {
+                sniffedVideoUrl = resolvedVideoUrl
+                isSniffing = false
+                sniffingTimeout = false
+            } else {
+                sniffedVideoUrl = null
+                isSniffing = true
+                sniffingTimeout = false
+                // Hẹn giờ 10 giây nếu không sniff được thì fallback hiển thị WebView
+                kotlinx.coroutines.delay(10000)
+                if (sniffedVideoUrl == null) {
+                    sniffingTimeout = true
+                    isSniffing = false
+                }
             }
         }
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(chapter?.title ?: "Video Reader", maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
+    // Nạp link video vào ExoPlayer
+    LaunchedEffect(sniffedVideoUrl) {
+        if (!sniffedVideoUrl.isNullOrBlank()) {
+            val mediaItem = MediaItem.fromUri(sniffedVideoUrl!!)
+            exoPlayer.setMediaItem(mediaItem)
+            exoPlayer.prepare()
+            
+            // Tự động seek tới vị trí trước đó nếu có lưu cấu hình
+            val autoContinue = prefs.getBoolean("video_auto_continue", false)
+            if (autoContinue && chapter != null) {
+                val savedPos = prefs.getLong("video_pos_" + chapter.url, 0L)
+                if (savedPos > 0) {
+                    exoPlayer.seekTo(savedPos)
+                }
+            }
+            
+            exoPlayer.play()
+        }
+    }
+
+    // Save vị trí phát lại khi dừng/thoát
+    DisposableEffect(chapter) {
+        onDispose {
+            if (chapter != null && exoPlayer.duration > 0) {
+                prefs.edit().putLong("video_pos_" + chapter.url, exoPlayer.currentPosition).apply()
+            }
+        }
+    }
+
+    // Tự động chuyển tập khi phát xong
+    var playFinishedTriggered by remember(chapter) { mutableStateOf(false) }
+    val autoNext = prefs.getBoolean("video_auto_next", true)
+    LaunchedEffect(exoPlayer) {
+        exoPlayer.addListener(object : androidx.media3.common.Player.Listener {
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                if (playbackState == androidx.media3.common.Player.STATE_ENDED && autoNext && !playFinishedTriggered) {
+                    playFinishedTriggered = true
+                    // Nhảy sang tập tiếp theo của Server hiện tại
+                    val serverChapters = chapters.filterIndexed { idx, ch ->
+                        // Bóc tách tập của Server hiện tại
+                        var sIdx = 0
+                        for (i in 0..idx) {
+                            if (chapters[i].url.startsWith("section://")) sIdx++
+                        }
+                        // so khớp chỉ số Server
+                        val currentServerIndex = selectedServerIndex
+                        sIdx == currentServerIndex + 1 && !ch.url.startsWith("section://")
+                    }
+                    val currentChapInServerIdx = serverChapters.indexOfFirst { it.url == chapter?.url }
+                    if (currentChapInServerIdx != -1 && currentChapInServerIdx < serverChapters.size - 1) {
+                        onChapterSelect(serverChapters[currentChapInServerIdx + 1].url)
                     }
                 }
-            )
-        }
-    ) { paddingValues ->
-        Box(modifier = Modifier.fillMaxSize().padding(paddingValues).background(Color.Black)) {
-            if (isLoading) {
-                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center), color = Color.White)
-            } else if (error != null) {
-                Text(text = error ?: "Lỗi kết nối", color = Color.Red, modifier = Modifier.align(Alignment.Center))
-            } else if (chapter != null) {
-                val content = chapter!!.content ?: ""
-                val isDirectLink = content.trim().startsWith("http") && !content.trim().contains("<")
+            }
+        })
+    }
 
-                if (isDirectLink) {
+    // Trạng thái thanh công cụ điều khiển
+    var showUI by remember { mutableStateOf(true) }
+    LaunchedEffect(showUI) {
+        if (showUI) {
+            kotlinx.coroutines.delay(5000)
+            showUI = false
+        }
+    }
+
+    var showPlaylistBottomSheet by remember { mutableStateOf(false) }
+    var showSettingsBottomSheet by remember { mutableStateOf(false) }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        if (isLoading) {
+            Box(
+                modifier = Modifier.fillMaxSize().background(Color.Black),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    CircularProgressIndicator(color = Color.White)
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(text = "Đang giải mã link phim...", color = Color.White, fontSize = 12.sp)
+                }
+            }
+        } else if (error != null) {
+            Box(
+                modifier = Modifier.fillMaxSize().background(Color.Black),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(Icons.Filled.Error, contentDescription = null, tint = Color.Red, modifier = Modifier.size(48.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text("Lỗi tải video: " + error, color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            }
+        } else {
+            // Khi đã bắt được direct link hoặc đang tải video bằng ExoPlayer
+            if (sniffedVideoUrl != null) {
+                Box(
+                    modifier = Modifier.fillMaxSize().pointerInput(Unit) {
+                        detectTapGestures(onTap = { showUI = !showUI })
+                    }
+                ) {
                     AndroidView(
                         factory = { ctx ->
                             PlayerView(ctx).apply {
                                 player = exoPlayer
-                                useController = true
-                                layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+                                useController = false // Tắt controller mặc định, tự vẽ controls
+                                layoutParams = ViewGroup.LayoutParams(
+                                    ViewGroup.LayoutParams.MATCH_PARENT,
+                                    ViewGroup.LayoutParams.MATCH_PARENT
+                                )
                             }
                         },
                         modifier = Modifier.fillMaxSize()
                     )
-                } else {
-                    // Embed video / Iframe player -> Fallback WebView với Fullscreen support
+
+                    // 1. Vẽ các thanh điều khiển Custom Controls của chúng ta
+                    AnimatedVisibility(
+                        visible = showUI,
+                        enter = fadeIn() + slideInVertically(initialOffsetY = { -it }),
+                        exit = fadeOut() + slideOutVertically(targetOffsetY = { -it }),
+                        modifier = Modifier.align(Alignment.TopCenter)
+                    ) {
+                        VideoTopBar(
+                            title = chapter?.title ?: "Xem phim",
+                            servers = servers,
+                            selectedServerIndex = selectedServerIndex,
+                            onServerChange = onServerChange,
+                            playSpeed = playSpeed,
+                            onPlaySpeedChange = onPlaySpeedChange,
+                            onSettingsClick = { showSettingsBottomSheet = true },
+                            onBackClick = {
+                                if (isFullscreen) onFullscreenToggle() else navController.popBackStack()
+                            }
+                        )
+                    }
+
+                    // Nút Play/Pause và tua nhanh ở giữa
+                    AnimatedVisibility(
+                        visible = showUI,
+                        enter = fadeIn(),
+                        exit = fadeOut(),
+                        modifier = Modifier.align(Alignment.Center)
+                    ) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(40.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            val seekStep = prefs.getInt("video_seek_step", 10) // mặc định tua 10s
+                            // Tua lùi
+                            IconButton(onClick = {
+                                val target = (exoPlayer.currentPosition - (seekStep * 1000)).coerceAtLeast(0L)
+                                exoPlayer.seekTo(target)
+                            }) {
+                                Icon(Icons.Filled.Replay10, "Tua lùi ${seekStep}s", tint = Color.White, modifier = Modifier.size(36.dp))
+                            }
+
+                            // Play/Pause
+                            var isPlaying by remember { mutableStateOf(exoPlayer.isPlaying) }
+                            LaunchedEffect(exoPlayer.isPlaying) {
+                                isPlaying = exoPlayer.isPlaying
+                            }
+                            IconButton(
+                                onClick = {
+                                    if (exoPlayer.isPlaying) {
+                                        exoPlayer.pause()
+                                    } else {
+                                        exoPlayer.play()
+                                    }
+                                },
+                                modifier = Modifier.size(56.dp).background(Color.Black.copy(alpha = 0.5f), CircleShape)
+                            ) {
+                                Icon(
+                                    imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                                    contentDescription = "Play/Pause",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(36.dp)
+                                )
+                            }
+
+                            // Tua tới
+                            IconButton(onClick = {
+                                val target = (exoPlayer.currentPosition + (seekStep * 1000)).coerceAtMost(exoPlayer.duration)
+                                exoPlayer.seekTo(target)
+                            }) {
+                                Icon(Icons.Filled.Forward10, "Tua tới ${seekStep}s", tint = Color.White, modifier = Modifier.size(36.dp))
+                            }
+                        }
+                    }
+
+                    // Bottom Bar điều khiển
+                    AnimatedVisibility(
+                        visible = showUI,
+                        enter = fadeIn() + slideInVertically(initialOffsetY = { it }),
+                        exit = fadeOut() + slideOutVertically(targetOffsetY = { it }),
+                        modifier = Modifier.align(Alignment.BottomCenter)
+                    ) {
+                        VideoBottomBar(
+                            exoPlayer = exoPlayer,
+                            chapters = chapters,
+                            selectedServerIndex = selectedServerIndex,
+                            currentChapterUrl = chapter?.url ?: "",
+                            onChapterSelect = onChapterSelect,
+                            onPlaylistClick = { showPlaylistBottomSheet = true },
+                            onFullscreenToggle = onFullscreenToggle,
+                            isFullscreen = isFullscreen
+                        )
+                    }
+                }
+            } else if (isSniffing) {
+                // Đang dò link ngầm (hiển thị spinner)
+                Box(
+                    modifier = Modifier.fillMaxSize().background(Color.Black),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        CircularProgressIndicator(color = Color.White)
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(text = "Đang dò link video chất lượng cao (sniffing)...", color = Color.White, fontSize = 12.sp)
+                    }
+                    
+                    // Webview ẩn ngầm
                     AndroidView(
                         factory = { ctx ->
                             WebView(ctx).apply {
-                                layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
-                                settings.javaScriptEnabled = true
-                                settings.domStorageEnabled = true
-                                settings.mediaPlaybackRequiresUserGesture = false
-                                settings.useWideViewPort = true
-                                settings.loadWithOverviewMode = true
-                                settings.mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
-                                setBackgroundColor(android.graphics.Color.BLACK)
-
-                                webChromeClient = object : android.webkit.WebChromeClient() {
-                                    private var customView: android.view.View? = null
+                                layoutParams = ViewGroup.LayoutParams(1, 1) // 1x1 dp ẩn
+                                settings.apply {
+                                    javaScriptEnabled = true
+                                    domStorageEnabled = true
+                                    mediaPlaybackRequiresUserGesture = false
+                                    userAgentString = chromeUA
+                                }
+                                webViewClient = object : WebViewClient() {
+                                    override fun shouldInterceptRequest(
+                                        view: WebView?,
+                                        request: WebResourceRequest?
+                                    ): WebResourceResponse? {
+                                        val reqUrl = request?.url?.toString() ?: ""
+                                        val lowerUrl = reqUrl.lowercase()
+                                        if (lowerUrl.contains(".m3u8") || lowerUrl.contains(".mp4") || lowerUrl.contains(".mkv") || lowerUrl.contains(".webm") || lowerUrl.contains("googlevideo.com")) {
+                                            (view?.context as? Activity)?.runOnUiThread {
+                                                if (isSniffing && sniffedVideoUrl == null) {
+                                                    sniffedVideoUrl = reqUrl
+                                                    isSniffing = false
+                                                    view.stopLoading()
+                                                }
+                                            }
+                                        }
+                                        return super.shouldInterceptRequest(view, request)
+                                    }
+                                }
+                            }
+                        },
+                        update = { webView ->
+                            resolvedVideoUrl?.let { webView.loadUrl(it, mapOf("Referer" to novelUrl)) }
+                        }
+                    )
+                }
+            } else if (sniffingTimeout) {
+                // Quá 10 giây không dò được link video direct -> Hiển thị WebView trực tiếp làm Fallback
+                Box(modifier = Modifier.fillMaxSize()) {
+                    AndroidView(
+                        factory = { ctx ->
+                            WebView(ctx).apply {
+                                settings.apply {
+                                    javaScriptEnabled = true
+                                    domStorageEnabled = true
+                                    mediaPlaybackRequiresUserGesture = false
+                                    useWideViewPort = true
+                                    loadWithOverviewMode = true
+                                    mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+                                    userAgentString = chromeUA
+                                }
+                                webChromeClient = object : WebChromeClient() {
+                                    private var customView: View? = null
                                     private var customViewCallback: CustomViewCallback? = null
 
-                                    override fun onShowCustomView(view: android.view.View?, callback: CustomViewCallback?) {
+                                    override fun onShowCustomView(view: View?, callback: CustomViewCallback?) {
                                         super.onShowCustomView(view, callback)
-                                        if (customView != null) {
-                                            callback?.onCustomViewHidden()
-                                            return
-                                        }
+                                        if (customView != null) { callback?.onCustomViewHidden(); return }
                                         customView = view
                                         customViewCallback = callback
-
-                                        val activity = context as? android.app.Activity
-                                        activity?.requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
-                                        val decorView = activity?.window?.decorView as? ViewGroup
-                                        decorView?.addView(view, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+                                        onFullscreenToggle()
+                                        val decorView = (ctx as? Activity)?.window?.decorView as? ViewGroup
+                                        decorView?.addView(view, ViewGroup.LayoutParams(
+                                            ViewGroup.LayoutParams.MATCH_PARENT,
+                                            ViewGroup.LayoutParams.MATCH_PARENT
+                                        ))
                                     }
 
                                     override fun onHideCustomView() {
                                         super.onHideCustomView()
                                         if (customView == null) return
-
-                                        val activity = context as? android.app.Activity
-                                        activity?.requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
-                                        val decorView = activity?.window?.decorView as? ViewGroup
+                                        val decorView = (ctx as? Activity)?.window?.decorView as? ViewGroup
                                         decorView?.removeView(customView)
                                         customView = null
                                         customViewCallback?.onCustomViewHidden()
                                         customViewCallback = null
+                                        onFullscreenToggle()
                                     }
                                 }
-                                webViewClient = WebViewClient()
+                                webViewClient = object : WebViewClient() {
+                                    override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+                                        return false
+                                    }
+                                }
                             }
                         },
                         update = { webView ->
-                            val html = if (content.trim().startsWith("<iframe") || content.trim().startsWith("<video")) {
-                                """<html><body style="margin:0;padding:0;background:black;display:flex;justify-content:center;align-items:center;height:100vh;">${content}</body></html>"""
-                            } else {
-                                content
-                            }
-                            webView.loadDataWithBaseURL(novelUrl, html, "text/html", "UTF-8", null)
+                            resolvedVideoUrl?.let { webView.loadUrl(it, mapOf("Referer" to novelUrl)) }
                         },
                         modifier = Modifier.fillMaxSize()
                     )
+
+                    // Nút Back trên góc để thoát WebView fallback
+                    IconButton(
+                        onClick = {
+                            if (isFullscreen) onFullscreenToggle() else navController.popBackStack()
+                        },
+                        modifier = Modifier.statusBarsPadding().padding(8.dp).align(Alignment.TopStart).background(Color.Black.copy(alpha = 0.5f), CircleShape)
+                    ) {
+                        Icon(Icons.Filled.ArrowBack, "Back", tint = Color.White)
+                    }
                 }
             }
+        }
+
+        // Playlist bottom sheet
+        if (showPlaylistBottomSheet) {
+            VideoPlaylistBottomSheet(
+                chapters = chapters,
+                currentChapterUrl = chapter?.url ?: "",
+                selectedServerIndex = selectedServerIndex,
+                onChapterClick = { targetUrl ->
+                    onChapterSelect(targetUrl)
+                    showPlaylistBottomSheet = false
+                },
+                onDismiss = { showPlaylistBottomSheet = false }
+            )
+        }
+
+        // Settings bottom sheet
+        if (showSettingsBottomSheet) {
+            VideoSettingsBottomSheet(
+                onDismiss = { showSettingsBottomSheet = false }
+            )
+        }
+    }
+}
+
+@Composable
+private fun VideoTopBar(
+    title: String,
+    servers: List<Pair<String, String>>,
+    selectedServerIndex: Int,
+    onServerChange: (Int) -> Unit,
+    playSpeed: Float,
+    onPlaySpeedChange: (Float) -> Unit,
+    onSettingsClick: () -> Unit,
+    onBackClick: () -> Unit
+) {
+    var serverMenuExpanded by remember { mutableStateOf(false) }
+    var speedMenuExpanded by remember { mutableStateOf(false) }
+
+    Surface(color = Color.Black.copy(alpha = 0.6f)) {
+        Row(
+            modifier = Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 8.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onBackClick) {
+                Icon(Icons.Filled.ArrowBack, "Back", tint = Color.White)
+            }
+            Text(
+                text = title,
+                color = Color.White,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
+            )
+
+            // 1. Dropdown chọn Server phát
+            if (servers.isNotEmpty()) {
+                Box {
+                    Button(
+                        onClick = { serverMenuExpanded = true },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.15f)),
+                        shape = RoundedCornerShape(8.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                        modifier = Modifier.height(32.dp)
+                    ) {
+                        Text(
+                            text = servers.getOrNull(selectedServerIndex)?.first ?: "Mặc định",
+                            color = Color.White,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.width(2.dp))
+                        Icon(Icons.Filled.KeyboardArrowDown, null, tint = Color.White, modifier = Modifier.size(16.dp))
+                    }
+                    DropdownMenu(
+                        expanded = serverMenuExpanded,
+                        onDismissRequest = { serverMenuExpanded = false }
+                    ) {
+                        servers.forEachIndexed { index, pair ->
+                            DropdownMenuItem(
+                                text = { Text(pair.first) },
+                                onClick = {
+                                    onServerChange(index)
+                                    serverMenuExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            // 2. Dropdown chọn Tốc độ phát
+            Box {
+                Button(
+                    onClick = { speedMenuExpanded = true },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.15f)),
+                    shape = RoundedCornerShape(8.dp),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                    modifier = Modifier.height(32.dp)
+                ) {
+                    Text(
+                        text = if (playSpeed == 1.0f) "1x" else "${playSpeed}x",
+                        color = Color.White,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.width(2.dp))
+                    Icon(Icons.Filled.KeyboardArrowDown, null, tint = Color.White, modifier = Modifier.size(16.dp))
+                }
+                
+                DropdownMenu(
+                    expanded = speedMenuExpanded,
+                    onDismissRequest = { speedMenuExpanded = false }
+                ) {
+                    // Custom dialog tốc độ dạng slide/chọn nhanh
+                    listOf(0.25f, 0.5f, 1.0f, 1.5f, 2.0f, 2.5f, 3.0f).forEach { speed ->
+                        DropdownMenuItem(
+                            text = { Text("${speed}x") },
+                            onClick = {
+                                onPlaySpeedChange(speed)
+                                speedMenuExpanded = false
+                            }
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            // 3. Nút Cài đặt (răng cưa)
+            IconButton(onClick = onSettingsClick) {
+                Icon(Icons.Filled.Settings, "Cài đặt", tint = Color.White)
+            }
+        }
+    }
+}
+
+@Composable
+private fun VideoBottomBar(
+    exoPlayer: ExoPlayer,
+    chapters: List<Chapter>,
+    selectedServerIndex: Int,
+    currentChapterUrl: String,
+    onChapterSelect: (String) -> Unit,
+    onPlaylistClick: () -> Unit,
+    onFullscreenToggle: () -> Unit,
+    isFullscreen: Boolean
+) {
+    // Thu thập thời gian chạy hiện tại và tổng thời gian phát
+    var currentPos by remember { mutableLongStateOf(0L) }
+    var duration by remember { mutableLongStateOf(0L) }
+
+    LaunchedEffect(exoPlayer) {
+        while (true) {
+            currentPos = exoPlayer.currentPosition
+            duration = exoPlayer.duration.coerceAtLeast(0L)
+            kotlinx.coroutines.delay(1000)
+        }
+    }
+
+    // Định dạng thời gian (Long sang mm:ss)
+    fun formatTime(ms: Long): String {
+        if (ms <= 0) return "00:00"
+        val totalSecs = ms / 1000
+        val mins = totalSecs / 60
+        val secs = totalSecs % 60
+        return String.format(java.util.Locale.US, "%02d:%02d", mins, secs)
+    }
+
+    // Lọc danh sách tập của Server hiện tại
+    val serverChapters = remember(chapters, selectedServerIndex) {
+        chapters.filterIndexed { idx, ch ->
+            var sIdx = 0
+            for (i in 0..idx) {
+                if (chapters[i].url.startsWith("section://")) sIdx++
+            }
+            val currentServerIndex = selectedServerIndex
+            sIdx == currentServerIndex + 1 && !ch.url.startsWith("section://")
+        }
+    }
+
+    val currentChapInServerIdx = serverChapters.indexOfFirst { it.url == currentChapterUrl }
+    val hasPrev = currentChapInServerIdx > 0
+    val hasNext = currentChapInServerIdx != -1 && currentChapInServerIdx < serverChapters.size - 1
+
+    Surface(color = Color.Black.copy(alpha = 0.6f)) {
+        Column(
+            modifier = Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 16.dp, vertical = 8.dp)
+        ) {
+            // 1. SeekBar tiến trình phát
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = formatTime(currentPos),
+                    color = Color.White,
+                    fontSize = 11.sp
+                )
+                Slider(
+                    value = currentPos.toFloat(),
+                    onValueChange = { value ->
+                        exoPlayer.seekTo(value.toLong())
+                    },
+                    valueRange = 0f..duration.toFloat().coerceAtLeast(1f),
+                    colors = SliderDefaults.colors(
+                        thumbColor = Color(0xFFD4A574),
+                        activeTrackColor = Color(0xFFD4A574),
+                        inactiveTrackColor = Color.White.copy(alpha = 0.3f)
+                    ),
+                    modifier = Modifier.weight(1f)
+                )
+                Text(
+                    text = formatTime(duration),
+                    color = Color.White,
+                    fontSize = 11.sp
+                )
+            }
+
+            // 2. Hàng nút điều khiển dưới đáy
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Góc bên trái: Tập trước / Tập sau
+                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    IconButton(
+                        onClick = {
+                            if (hasPrev) onChapterSelect(serverChapters[currentChapInServerIdx - 1].url)
+                        },
+                        enabled = hasPrev
+                    ) {
+                        Icon(Icons.Filled.SkipPrevious, "Tập trước", tint = if (hasPrev) Color.White else Color.White.copy(alpha = 0.3f))
+                    }
+                    IconButton(
+                        onClick = {
+                            if (hasNext) onChapterSelect(serverChapters[currentChapInServerIdx + 1].url)
+                        },
+                        enabled = hasNext
+                    ) {
+                        Icon(Icons.Filled.SkipNext, "Tập sau", tint = if (hasNext) Color.White else Color.White.copy(alpha = 0.3f))
+                    }
+                }
+
+                // Góc bên phải: Playlist, Xoay ngang màn hình
+                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    // Nút Danh sách tập (Playlist)
+                    IconButton(onClick = onPlaylistClick) {
+                        Icon(Icons.Filled.QueuePlayNext, "Danh sách tập", tint = Color.White)
+                    }
+                    // Nút Xoay màn hình nhanh (Full/Normal screen)
+                    IconButton(onClick = onFullscreenToggle) {
+                        Icon(
+                            imageVector = if (isFullscreen) Icons.Filled.FullscreenExit else Icons.Filled.Fullscreen,
+                            contentDescription = "Toàn màn hình",
+                            tint = Color.White
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun VideoPlaylistBottomSheet(
+    chapters: List<Chapter>,
+    currentChapterUrl: String,
+    selectedServerIndex: Int,
+    onChapterClick: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    // 1. Nhóm các tập theo Server dựa trên separator "section://"
+    val serverTabs = remember(chapters) {
+        val list = mutableListOf<String>()
+        chapters.forEach { ch ->
+            if (ch.url.startsWith("section://")) {
+                list.add(ch.title)
+            }
+        }
+        if (list.isEmpty()) list.add("Mặc định")
+        list
+    }
+
+    var selectedTabIdx by remember(selectedServerIndex) { mutableIntStateOf(selectedServerIndex.coerceIn(0, serverTabs.size - 1)) }
+    var searchQuery by remember { mutableStateOf("") }
+
+    // Lọc các tập phim của server đang chọn
+    val filteredChapters = remember(chapters, selectedTabIdx, searchQuery) {
+        val serverName = serverTabs.getOrNull(selectedTabIdx) ?: "Mặc định"
+        val list = mutableListOf<Chapter>()
+        var currentServer = "Mặc định"
+        
+        chapters.forEach { ch ->
+            if (ch.url.startsWith("section://")) {
+                currentServer = ch.title
+            } else {
+                if (currentServer == serverName) {
+                    if (searchQuery.isBlank() || ch.title.contains(searchQuery, ignoreCase = true)) {
+                        list.add(ch)
+                    }
+                }
+            }
+        }
+        list
+    }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = Color(0xFF141210),
+        tonalElevation = 8.dp
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
+        ) {
+            // Header Playlist
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(text = "Danh sách tập", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                IconButton(onClick = onDismiss) {
+                    Icon(Icons.Filled.Close, "Đóng", tint = Color.White)
+                }
+            }
+
+            // 2. Hàng Tab Server
+            if (serverTabs.size > 1) {
+                ScrollableTabRow(
+                    selectedTabIndex = selectedTabIdx,
+                    containerColor = Color.Transparent,
+                    contentColor = Color.White,
+                    edgePadding = 0.dp,
+                    indicator = { tabPositions ->
+                        TabRowDefaults.SecondaryIndicator(
+                            color = Color(0xFFD4A574),
+                            modifier = Modifier.tabIndicatorOffset(tabPositions[selectedTabIdx])
+                        )
+                    }
+                ) {
+                    serverTabs.forEachIndexed { index, name ->
+                        Tab(
+                            selected = selectedTabIdx == index,
+                            onClick = { selectedTabIdx = index },
+                            text = { Text(name, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = if (selectedTabIdx == index) Color(0xFFD4A574) else Color.White.copy(alpha = 0.6f)) }
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // 3. Ô tìm kiếm tập phim
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                placeholder = { Text("Tìm kiếm tập phim...", color = Color.White.copy(alpha = 0.4f), fontSize = 13.sp) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth().height(48.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = Color(0xFFD4A574),
+                    unfocusedBorderColor = Color.White.copy(alpha = 0.2f),
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White
+                )
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // 4. Lưới hiển thị các tập phim
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(4),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth().weight(1f, fill = false).defaultMinSize(minHeight = 200.dp)
+            ) {
+                items(filteredChapters) { ch ->
+                    val isCurrent = ch.url == currentChapterUrl
+                    val btnBg = if (isCurrent) Color(0xFFD4A574) else Color(0xFF26211D)
+                    val textColor = if (isCurrent) Color(0xFF141210) else Color.White
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(44.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(btnBg)
+                            .clickable { onChapterClick(ch.url) },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = ch.title,
+                            color = textColor,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(24.dp))
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun VideoSettingsBottomSheet(
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+    val prefs = remember { context.getSharedPreferences("novel_reader_prefs", Context.MODE_PRIVATE) }
+
+    var autoPlay by remember { mutableStateOf(prefs.getBoolean("video_auto_play", true)) }
+    var autoNext by remember { mutableStateOf(prefs.getBoolean("video_auto_next", true)) }
+    var autoContinue by remember { mutableStateOf(prefs.getBoolean("video_auto_continue", false)) }
+    var seekStep by remember { mutableIntStateOf(prefs.getInt("video_seek_step", 10)) }
+    var keepScreenOn by remember { mutableStateOf(prefs.getBoolean("video_keep_screen_on", true)) }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = Color(0xFF141210)
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(text = "Cài đặt phát video", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                IconButton(onClick = onDismiss) {
+                    Icon(Icons.Filled.Close, "Đóng", tint = Color.White)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Phát lại
+            Text(text = "Phát lại", color = Color(0xFFD4A574), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(text = "Tự động phát", color = Color.White, fontSize = 14.sp)
+                Switch(
+                    checked = autoPlay,
+                    onCheckedChange = {
+                        autoPlay = it
+                        prefs.edit().putBoolean("video_auto_play", it).apply()
+                    },
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = Color(0xFFD4A574),
+                        checkedTrackColor = Color(0xFFD4A574).copy(alpha = 0.5f)
+                    )
+                )
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(text = "Tự động chuyển tập", color = Color.White, fontSize = 14.sp)
+                Switch(
+                    checked = autoNext,
+                    onCheckedChange = {
+                        autoNext = it
+                        prefs.edit().putBoolean("video_auto_next", it).apply()
+                    },
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = Color(0xFFD4A574),
+                        checkedTrackColor = Color(0xFFD4A574).copy(alpha = 0.5f)
+                    )
+                )
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(text = "Tự động tiếp tục từ vị trí trước", color = Color.White, fontSize = 14.sp)
+                Switch(
+                    checked = autoContinue,
+                    onCheckedChange = {
+                        autoContinue = it
+                        prefs.edit().putBoolean("video_auto_continue", it).apply()
+                    },
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = Color(0xFFD4A574),
+                        checkedTrackColor = Color(0xFFD4A574).copy(alpha = 0.5f)
+                    )
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Tua
+            Text(text = "Tua tới/Tua lùi", color = Color(0xFFD4A574), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                listOf(5, 10, 15, 30).forEach { secs ->
+                    val isSelected = seekStep == secs
+                    val bg = if (isSelected) Color(0xFFD4A574) else Color(0xFF26211D)
+                    val textCol = if (isSelected) Color(0xFF141210) else Color.White
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(36.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(bg)
+                            .clickable {
+                                seekStep = secs
+                                prefs.edit().putInt("video_seek_step", secs).apply()
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(text = "${secs}s", color = textCol, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Hiển thị
+            Text(text = "Hiển thị & Năng lượng", color = Color(0xFFD4A574), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(text = "Giữ màn hình luôn bật khi xem phim", color = Color.White, fontSize = 14.sp)
+                Switch(
+                    checked = keepScreenOn,
+                    onCheckedChange = {
+                        keepScreenOn = it
+                        prefs.edit().putBoolean("video_keep_screen_on", it).apply()
+                    },
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = Color(0xFFD4A574),
+                        checkedTrackColor = Color(0xFFD4A574).copy(alpha = 0.5f)
+                    )
+                )
+            }
+
+            Spacer(modifier = Modifier.height(32.dp))
         }
     }
 }

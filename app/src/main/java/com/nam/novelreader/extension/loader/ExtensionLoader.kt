@@ -41,7 +41,7 @@ class ExtensionLoader @Inject constructor(
     companion object {
         private const val TAG = "ExtLoader"
         /** Default VBook community extension repository */
-        const val DEFAULT_REPO_URL = "https://www.vbookext.me/api/plugin.json"
+        const val DEFAULT_REPO_URL = "https://raw.githubusercontent.com/hongtrantiende/Extransion-TTC/main/plugin.json"
     }
 
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
@@ -61,10 +61,49 @@ class ExtensionLoader @Inject constructor(
     }
 
     /**
-     * Fetch danh sách extensions từ assets.
+     * Fetch danh sách extensions từ assets bằng cách scan trực tiếp thư mục extensions/.
+     * Cách này đảm bảo:
+     * - path luôn đúng: "file:///android_asset/extensions/{folder}"
+     * - icon luôn đúng: "file:///android_asset/extensions/{folder}/icon.png"
+     * - Không phụ thuộc vào plugin.json root (có thể cũ hoặc thiếu trường path/icon)
      */
-    suspend fun fetchBuiltInExtensions(): List<ExtensionInfo> {
-        return fetchRepository("file:///android_asset/plugin.json")
+    suspend fun fetchBuiltInExtensions(): List<ExtensionInfo> = withContext(Dispatchers.IO) {
+        try {
+            val folders = appContext.assets.list("extensions") ?: return@withContext emptyList()
+            folders.mapNotNull { folderName ->
+                try {
+                    val pluginJsonStr = appContext.assets
+                        .open("extensions/$folderName/plugin.json")
+                        .bufferedReader().use { it.readText() }
+                    val pluginJson = json.decodeFromString<PluginJson>(pluginJsonStr)
+                    val meta = pluginJson.metadata
+
+                    // Kiểm tra xem folder có icon.png không
+                    val hasIcon = try {
+                        appContext.assets.open("extensions/$folderName/icon.png").close()
+                        true
+                    } catch (e: Exception) { false }
+
+                    ExtensionInfo(
+                        name = meta.name,
+                        author = meta.author,
+                        version = meta.version,
+                        source = meta.source,
+                        path = "file:///android_asset/extensions/$folderName",
+                        icon = if (hasIcon) "file:///android_asset/extensions/$folderName/icon.png" else "",
+                        description = meta.description,
+                        type = meta.type,
+                        locale = meta.locale,
+                    )
+                } catch (e: Exception) {
+                    Log.w(TAG, "Skipped extension folder: $folderName — ${e.message}")
+                    null
+                }
+            }
+        } catch (e: Throwable) {
+            Log.e(TAG, "fetchBuiltInExtensions failed", e)
+            emptyList()
+        }
     }
 
     /**
@@ -203,7 +242,7 @@ class ExtensionLoader @Inject constructor(
                     id = extId,
                     name = info.name,
                     author = info.author,
-                    version = info.version,
+                    version = info.version.toInt(),
                     source = info.source,
                     type = normalizedType,
                     locale = info.locale,
@@ -301,17 +340,32 @@ class ExtensionLoader @Inject constructor(
  
     /**
      * Thêm repository mặc định nếu chưa có.
-     * Chỉ nạp duy nhất repository nội bộ (offline assets) để đảm bảo tính an toàn và local-first.
+     * Cấu hình mặc định sử dụng duy nhất kho GitHub mới để người dùng lấy tiện ích trực tiếp từ đó.
      */
     suspend fun ensureDefaultRepository() {
         val repos = repositoryDao.getEnabledRepositories()
-        val hasLocal = repos.any { it.url == "file:///android_asset/plugin.json" }
+        
+        // 1. Tự động xóa repository cục bộ (assets) cũ khỏi DB nếu có
+        repos.forEach { repo ->
+            if (repo.url == "file:///android_asset/plugin.json") {
+                repositoryDao.delete(repo)
+            }
+        }
 
-        if (!hasLocal) {
+        // 2. Tự động chuyển đổi repository online cũ sang repository GitHub mới của người dùng
+        repos.forEach { repo ->
+            if (repo.url == "https://www.vbookext.me/api/plugin.json") {
+                repositoryDao.insert(repo.copy(url = DEFAULT_REPO_URL, name = "Thư viện Tiện ích (GitHub)"))
+            }
+        }
+
+        // 3. Nếu chưa có bất kỳ repository GitHub mới nào trong DB, chèn nó làm mặc định
+        val hasDefault = repos.any { it.url == DEFAULT_REPO_URL }
+        if (!hasDefault) {
             repositoryDao.insert(
                 RepositoryEntity(
-                    url = "file:///android_asset/plugin.json",
-                    name = "Thư viện Tiện ích (Cục bộ)",
+                    url = DEFAULT_REPO_URL,
+                    name = "Thư viện Tiện ích (GitHub)",
                 )
             )
         }

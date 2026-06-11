@@ -1,0 +1,22 @@
+{
+  "metadata": {
+    "name": "nTruyen",
+    "author": "kychi",
+    "version": 8,
+    "source": "https://ntruyen.biz/",
+    "regexp": "(www.)?ntruyen.biz/[^/]+/?$",
+    "description": "Đọc truyện từ ntruyen.biz (fork của B)",
+    "locale": "vi_VN",
+    "language": "javascript",
+    "type": "novel"
+  },
+  "script": {
+    "home": "home.js",
+    "page": "page.js",
+    "genre": "genre.js",
+    "detail": "detail.js",
+    "search": "search.js",
+    "toc": "toc.js",
+    "chap": "chap.js"
+  }
+}

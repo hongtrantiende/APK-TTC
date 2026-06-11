@@ -1,0 +1,1 @@
+function execute() {    return Response.success([        {title: "最新小说推荐", input: "/", script: "up.js"},    ]);}

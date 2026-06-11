@@ -2,6 +2,7 @@ package com.nam.novelreader.feature.browse
 
 import androidx.compose.foundation.pager.HorizontalPager
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.foundation.clickable
@@ -43,6 +44,8 @@ import android.content.Context
 import androidx.compose.ui.window.Dialog
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -68,10 +71,10 @@ import com.nam.novelreader.navigation.Routes
 
 
 /**
- * BrowseScreen — giống VBook:
- * - Top bar: tên extension + source URL + Search
- * - Filter chips (tab names từ home.js)
- * - Grid 3 cột hiển thị truyện
+ * BrowseScreen ? gi?ng VBook:
+ * - Top bar: t?n extension + source URL + Search
+ * - Filter chips (tab names t? home.js)
+ * - Grid 3 c?t hi?n th? truy?n
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -99,10 +102,12 @@ fun BrowseScreen(
 
     val isFromTab = extensionId == null
     var showExtensionSheet by remember { mutableStateOf(false) }
+    val drawerScope = rememberCoroutineScope()
 
     val themeBgColor = com.nam.novelreader.feature.components.VBookTheme.backgroundColor()
     val themeTextColor = com.nam.novelreader.feature.components.VBookTheme.textColor()
     val themePrimaryColor = com.nam.novelreader.feature.components.VBookTheme.primaryColor()
+    val themeAccentColor = com.nam.novelreader.feature.components.VBookTheme.accentColor()
     val themeCardColor = com.nam.novelreader.feature.components.VBookTheme.cardColor()
     val themeSubTextColor = com.nam.novelreader.feature.components.VBookTheme.subTextColor()
     val themeSwitchThumbChecked = com.nam.novelreader.feature.components.VBookTheme.switchThumbCheckedColor()
@@ -125,20 +130,20 @@ fun BrowseScreen(
                         .fillMaxWidth()
                         .background(com.nam.novelreader.feature.components.VBookTheme.backgroundColor())
                         .statusBarsPadding()
-                        .padding(top = 0.dp)
+                        .padding(top = 8.dp, bottom = 4.dp)
                 ) {
                     // Top Row
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 0.dp),
+                            .padding(horizontal = 16.dp, vertical = 0.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = extensionName.ifBlank { "Tàng Thư Viện [APP]" },
                                 color = com.nam.novelreader.feature.components.VBookTheme.textColor(),
-                                fontSize = 18.sp,
+                                fontSize = 24.sp,
                                 fontWeight = FontWeight.Bold,
                                 maxLines = 1
                             )
@@ -173,7 +178,9 @@ fun BrowseScreen(
                                     .padding(horizontal = 12.dp, vertical = 6.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                if (!extensionIconPath.isNullOrBlank()) {
+                                val isSupportedBrowseIcon = !extensionIconPath.isNullOrBlank() &&
+                                    java.io.File(extensionIconPath).extension.lowercase() in listOf("png", "jpg", "jpeg", "webp", "bmp")
+                                if (isSupportedBrowseIcon) {
                                     AsyncImage(
                                         model = extensionIconPath,
                                         contentDescription = null,
@@ -470,7 +477,7 @@ fun BrowseScreen(
                                                     shape = RoundedCornerShape(12.dp),
                                                     contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp)
                                                 ) {
-                                                    Text("Lưu", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                                    Text("Luu", fontSize = 14.sp, fontWeight = FontWeight.Bold)
                                                 }
                                         }
                                     }
@@ -478,43 +485,44 @@ fun BrowseScreen(
                             }
                         }
 
-                        Spacer(modifier = Modifier.width(16.dp))
+                        Spacer(modifier = Modifier.width(12.dp))
 
                         // Search
                         IconButton(
                             onClick = { navController.navigate(Routes.search(currentExtensionId ?: "")) },
-                            modifier = Modifier.size(24.dp)
+                            modifier = Modifier.size(32.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Filled.Search,
                                 contentDescription = "Search",
-                                tint = com.nam.novelreader.feature.components.VBookTheme.textColor()
+                                tint = com.nam.novelreader.feature.components.VBookTheme.textColor(),
+                                modifier = Modifier.size(26.dp)
                             )
                         }
 
-                        Spacer(modifier = Modifier.width(16.dp))
+                        Spacer(modifier = Modifier.width(12.dp))
 
-                        // Extension Icon (opens drawer) — Giống quyển sách ở APK gốc
+                        // Extension Icon (opens floating card) ? Gi?ng quy?n s?ch ? APK g?c
                         val toolbarIconFile = remember(extensionIconPath) { extensionIconPath?.let { java.io.File(it) } }
                         IconButton(
                             onClick = { showExtensionSheet = true },
-                            modifier = Modifier.size(28.dp)
+                            modifier = Modifier.size(32.dp)
                         ) {
                             if (toolbarIconFile != null && toolbarIconFile.exists()) {
                                 AsyncImage(
                                     model = toolbarIconFile,
                                     contentDescription = "Extensions",
                                     modifier = Modifier
-                                        .size(24.dp)
-                                        .clip(RoundedCornerShape(4.dp)),
+                                        .size(28.dp)
+                                        .clip(RoundedCornerShape(8.dp)),
                                     contentScale = ContentScale.Crop
                                 )
                             } else {
                                 Icon(
                                     imageVector = Icons.Filled.MenuBook,
                                     contentDescription = "Extensions",
-                                    tint = Color(0xFF64B5F6),
-                                    modifier = Modifier.size(24.dp)
+                                    tint = com.nam.novelreader.feature.components.VBookTheme.primaryColor(),
+                                    modifier = Modifier.size(28.dp)
                                 )
                             }
                         }
@@ -555,14 +563,14 @@ fun BrowseScreen(
                 val coroutineScope = rememberCoroutineScope()
                 var categoriesExpanded by remember { mutableStateOf(false) }
 
-                // Đồng bộ từ pagerState.currentPage sang ViewModel selectTab
+                // ??ng b? t? pagerState.currentPage sang ViewModel selectTab
                 LaunchedEffect(pagerState.currentPage, homeTabs) {
                     if (homeTabs.isNotEmpty() && pagerState.currentPage in homeTabs.indices) {
                         viewModel.selectTab(homeTabs[pagerState.currentPage])
                     }
                 }
 
-                // 1. Luôn hiển thị Tab Chips nếu danh sách homeTabs không rỗng
+                // 1. Lu?n hi?n th? Tab Chips n?u danh s?ch homeTabs kh?ng r?ng
                 if (homeTabs.isNotEmpty()) {
                     Column(
                         modifier = Modifier.fillMaxWidth().background(com.nam.novelreader.feature.components.VBookTheme.backgroundColor())
@@ -652,7 +660,7 @@ fun BrowseScreen(
                     }
                 }
 
-                // 2. Phần nội dung còn lại
+                // 2. Ph?n n?i dung c?n l?i
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -789,8 +797,13 @@ fun BrowseScreen(
             }
         }
         
-        // Dim background che phủ bắt click để đóng Drawer
-        if (showExtensionSheet) {
+        // Dim background che ph? b?t click d? d?ng Drawer
+        // Extension Popup Card
+        AnimatedVisibility(
+            visible = showExtensionSheet,
+            enter = fadeIn(),
+            exit = fadeOut()
+        ) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -798,28 +811,21 @@ fun BrowseScreen(
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null
-                    ) { showExtensionSheet = false }
-            )
-        }
-
-        // Custom Side Drawer (Slide in from right)
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = androidx.compose.ui.AbsoluteAlignment.CenterRight
-        ) {
-            AnimatedVisibility(
-                visible = showExtensionSheet,
-                enter = slideInHorizontally(initialOffsetX = { it }),
-                exit = slideOutHorizontally(targetOffsetX = { it }),
-                modifier = Modifier
-                    .fillMaxWidth(0.82f)
-                    .widthIn(max = 400.dp)
-                    .fillMaxHeight()
+                    ) { showExtensionSheet = false },
+                contentAlignment = Alignment.TopEnd
             ) {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = com.nam.novelreader.feature.components.VBookTheme.backgroundColor(),
-                    shadowElevation = 8.dp
+                Box(
+                    modifier = Modifier
+                        .padding(top = padding.calculateTopPadding() + 8.dp, end = 12.dp, start = 12.dp)
+                        .widthIn(max = 340.dp)
+                        .fillMaxWidth(0.9f)
+                        .fillMaxHeight(0.75f)
+                        .clip(RoundedCornerShape(24.dp))
+                        .background(com.nam.novelreader.feature.components.VBookTheme.cardColor())
+                        .clickable( // Prevent clicks from propagating to the background
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) {}
                 ) {
                     ExtensionDetailSheetContent(
                         name = extensionName.ifBlank { (currentExtensionId ?: "").replace("-", " ").replaceFirstChar { it.uppercase() } },
@@ -857,7 +863,7 @@ fun CustomCategoryChip(
     isGridItem: Boolean = false,
     onClick: () -> Unit
 ) {
-    val primaryColor = com.nam.novelreader.feature.components.VBookTheme.primaryColor()
+    val accentColor = com.nam.novelreader.feature.components.VBookTheme.accentColor()
     val cardColor = com.nam.novelreader.feature.components.VBookTheme.cardColor()
     val textColor = com.nam.novelreader.feature.components.VBookTheme.textColor()
 
@@ -865,11 +871,11 @@ fun CustomCategoryChip(
         modifier = modifier
             .clip(CircleShape)
             .background(
-                if (selected) primaryColor.copy(alpha = 0.2f) else cardColor.copy(alpha = 0.4f)
+                if (selected) accentColor.copy(alpha = 0.2f) else cardColor.copy(alpha = 0.4f)
             )
             .border(
                 width = 1.dp,
-                color = if (selected) primaryColor else textColor.copy(alpha = 0.2f),
+                color = if (selected) accentColor else textColor.copy(alpha = 0.2f),
                 shape = CircleShape
             )
             .bounceClick(onClick = onClick)
@@ -880,7 +886,7 @@ fun CustomCategoryChip(
             text = name,
             fontSize = 13.sp,
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-            color = if (selected) primaryColor else textColor,
+            color = if (selected) accentColor else textColor,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
@@ -902,28 +908,6 @@ fun NovelGridItem(
             .padding(bottom = 2.dp),
         horizontalAlignment = Alignment.Start
     ) {
-        val context = LocalContext.current
-        val imageRequest = remember(novel.cover) {
-            val prefs = context.getSharedPreferences("novel_reader_prefs", Context.MODE_PRIVATE)
-            val cookie = novel.extensionId.takeIf { it.isNotBlank() }?.let { prefs.getString("ext_cookies_$it", null) }
-            val defaultUa = com.nam.novelreader.util.UserAgentUtils.getCleanUserAgent(context)
-
-            val builder = ImageRequest.Builder(context)
-                .data(novel.cover)
-                .crossfade(true)
-                .diskCachePolicy(CachePolicy.ENABLED)
-                .memoryCachePolicy(CachePolicy.ENABLED)
-            
-            if (!cookie.isNullOrBlank()) {
-                builder.addHeader("Cookie", cookie)
-            }
-            if (defaultUa.isNotBlank()) {
-                builder.addHeader("User-Agent", defaultUa)
-            }
-            
-            builder.build()
-        }
-
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -931,7 +915,7 @@ fun NovelGridItem(
                 .clip(RoundedCornerShape(themeState.browseCoverCornerRadius.dp))
         ) {
             AsyncImage(
-                model = imageRequest,
+                model = com.nam.novelreader.feature.components.buildNovelImageRequest(novel),
                 contentDescription = novel.title,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop,
@@ -951,7 +935,7 @@ fun NovelGridItem(
             color = com.nam.novelreader.feature.components.VBookTheme.textColor()
         )
         if (!novel.author.isNullOrBlank()) {
-            val authorText = novel.author + if (!novel.status.isNullOrBlank()) " • ${novel.status}" else ""
+            val authorText = novel.author + if (!novel.status.isNullOrBlank()) " · ${novel.status}" else ""
             Spacer(modifier = Modifier.height(1.dp))
             Text(
                 text = authorText,
@@ -1013,38 +997,17 @@ fun ExtensionDetailSheetContent(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(themeBg) // Đảm bảo background đồng bộ
-            .navigationBarsPadding()
+            .background(themeCard)
     ) {
-        // Top Header Section
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .fillMaxWidth()
-                .statusBarsPadding()
-                .padding(horizontal = 16.dp, vertical = 12.dp)
-        ) {
-            IconButton(onClick = onDismiss, modifier = Modifier.size(36.dp)) {
-                Icon(Icons.Filled.Close, contentDescription = "Close", tint = themeText)
-            }
-            Spacer(modifier = Modifier.width(12.dp))
-            Text(
-                text = "Phần mở rộng",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                color = themeText,
-                modifier = Modifier.weight(1f)
-            )
-        }
+        Spacer(modifier = Modifier.height(12.dp))
 
         // List Section
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(1),
+        LazyColumn(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
                 .padding(horizontal = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             items(
                 items = sortedExtensions,
@@ -1059,21 +1022,41 @@ fun ExtensionDetailSheetContent(
                     "en_us", "en" -> "🇺🇸"
                     else -> "🌐"
                 }
+                val langLabel = when (extLocale.lowercase(java.util.Locale.ROOT)) {
+                    "vi_vn", "vi" -> "VI"
+                    "zh_cn", "zh", "cn", "chi", "zho" -> "ZH"
+                    "en_us", "en" -> "EN"
+                    "ja", "ja_jp" -> "JA"
+                    "ko", "ko_kr" -> "KO"
+                    else -> extLocale.take(2).uppercase().ifBlank { "??" }
+                }
+                val langBadgeColor = when (extLocale.lowercase(java.util.Locale.ROOT)) {
+                    "vi_vn", "vi" -> Color(0xFF4CAF50)
+                    "zh_cn", "zh", "cn", "chi", "zho" -> Color(0xFFE53935)
+                    "en_us", "en" -> Color(0xFF1565C0)
+                    "ja", "ja_jp" -> Color(0xFFE91E63)
+                    "ko", "ko_kr" -> Color(0xFF9C27B0)
+                    else -> Color(0xFF607D8B)
+                }
                 val cleanDomain = ext.source.replace("https://", "").replace("http://", "").trimEnd('/')
 
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .clickable { onSelectExtension(ext.id) }
-                        .padding(horizontal = 8.dp, vertical = 8.dp),
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(if (isActive) themePrimary.copy(alpha = 0.1f) else themeCard.copy(alpha = 0.5f))
+                        .bounceClick { onSelectExtension(ext.id) }
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     val iconFile = remember(ext.iconPath, ext.localPath) {
                         val path = ext.iconPath ?: "${ext.localPath}/icon.png"
                         File(path)
                     }
-                    if (iconFile.exists()) {
+                    val isSupportedIcon = remember(iconFile) {
+                        iconFile.exists() && iconFile.extension.lowercase() in listOf("png", "jpg", "jpeg", "webp", "bmp")
+                    }
+                    if (isSupportedIcon) {
                         AsyncImage(
                             model = iconFile,
                             contentDescription = ext.cleanName,
@@ -1114,6 +1097,23 @@ fun ExtensionDetailSheetContent(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
+                            // Badge ngôn ngữ: VI / ZH / EN ...
+                            Box(
+                                modifier = Modifier
+                                    .background(
+                                        color = langBadgeColor.copy(alpha = 0.15f),
+                                        shape = RoundedCornerShape(4.dp)
+                                    )
+                                    .padding(horizontal = 5.dp, vertical = 1.dp)
+                            ) {
+                                Text(
+                                    text = langLabel,
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = langBadgeColor,
+                                    letterSpacing = 0.5.sp
+                                )
+                            }
                             Text(
                                 text = flag,
                                 style = MaterialTheme.typography.bodySmall,
@@ -1133,18 +1133,16 @@ fun ExtensionDetailSheetContent(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        if (isActive) {
-                            IconButton(
-                                onClick = { onConfigExtension(ext.id) },
-                                modifier = Modifier.size(36.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.Settings,
-                                    contentDescription = "Cấu hình",
-                                    tint = themeSubText,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
+                        IconButton(
+                            onClick = { onConfigExtension(ext.id) },
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Settings,
+                                contentDescription = "Cấu hình",
+                                tint = if (isActive) themePrimary else themeSubText,
+                                modifier = Modifier.size(20.dp)
+                            )
                         }
 
                         IconButton(
@@ -1199,8 +1197,8 @@ fun ExtensionDetailSheetContent(
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = Color.Transparent,
                 unfocusedBorderColor = Color.Transparent,
-                focusedContainerColor = themeCard.copy(alpha = 0.6f),
-                unfocusedContainerColor = themeCard.copy(alpha = 0.6f)
+                focusedContainerColor = themeBg.copy(alpha = 0.6f),
+                unfocusedContainerColor = themeBg.copy(alpha = 0.6f)
             ),
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
             keyboardActions = KeyboardActions(onSearch = { keyboardController?.hide() })

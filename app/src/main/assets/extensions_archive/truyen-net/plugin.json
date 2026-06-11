@@ -1,0 +1,23 @@
+{
+    "metadata": {
+        "name": "Truyện Net",
+        "author": "Will Sun",
+        "version": 3,
+        "source": "https:\/\/truyennet.vn",
+        "regexp": "https?:\/\/(?:www\\.)?truyennet\\.vn\/[a-zA-Z0-9-]+\/?$",
+        "description": "Đọc truyện trên trang truyennet.vn",
+        "locale": "vi_VN",
+        "type": "novel",
+        "language": "javascript",
+        "encrypt": true
+    },
+    "script": {
+        "detail": "detail.js",
+        "toc": "toc.js",
+        "page": "page.js",
+        "chap": "chap.js",
+        "search": "search.js",
+        "home": "home.js",
+        "genre": "genre.js"
+    }
+}

@@ -1,0 +1,18 @@
+h1 {
+  text-align: center;
+}
+
+p {
+  text-indent: 20pt;
+  line-height: 140%;
+  font-size: 100%;
+  text-align: justify;
+}
+
+a {
+  color: #666633;
+}
+
+img {
+  width: 100%;
+}

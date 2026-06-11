@@ -1,0 +1,23 @@
+{
+  "metadata": {
+    "name": "Matt Reading Translations",
+    "author": "ivanzzz",
+    "version": 1,
+    "source": "https://mattreadingtranslations.com/",
+    "regexp": "(www\\.)?mattreadingtranslations\\.com/([^/]+/)?[a-z0-9-]+(/(page/[0-9]+)?)?/?$",
+    "description": "Doc truyen tu MattReadingTranslations",
+    "locale": "en_US",
+    "language": "javascript",
+    "type": "novel",
+    "encrypt": false
+  },
+  "script": {
+    "home": "home.js",
+    "detail": "detail.js",
+    "page": "page.js",
+    "toc": "toc.js",
+    "chap": "chap.js",
+    "search": "search.js",
+    "genre": "genre.js"
+  }
+}

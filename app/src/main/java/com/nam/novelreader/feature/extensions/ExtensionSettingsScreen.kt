@@ -59,6 +59,7 @@ class ExtensionSettingsViewModel @Inject constructor(
     private val extensionLoader: ExtensionLoader,
     val appPreferences: AppPreferences,
     private val repository: NovelRepository,
+    private val extensionRunner: com.nam.novelreader.extension.runtime.VBookJsExtensionRunner,
 ) : ViewModel() {
     private val _extension = MutableStateFlow<ExtensionEntity?>(null)
     val extension: StateFlow<ExtensionEntity?> = _extension
@@ -71,6 +72,12 @@ class ExtensionSettingsViewModel @Inject constructor(
 
     private val _isTestingConnection = MutableStateFlow(false)
     val isTestingConnection: StateFlow<Boolean> = _isTestingConnection
+
+    private val _fullTestLog = MutableStateFlow<String?>(null)
+    val fullTestLog: StateFlow<String?> = _fullTestLog
+
+    private val _isRunningFullTest = MutableStateFlow(false)
+    val isRunningFullTest: StateFlow<Boolean> = _isRunningFullTest
 
     fun loadExtension(id: String) {
         viewModelScope.launch {
@@ -125,6 +132,247 @@ class ExtensionSettingsViewModel @Inject constructor(
         }
     }
 
+    fun runFullTest(extensionId: String) {
+        viewModelScope.launch {
+            _isRunningFullTest.value = true
+            val log = StringBuilder()
+            log.append("=== BẮT ĐẦU KIỂM TRA TIỆN ÍCH ===\n")
+            _fullTestLog.value = log.toString()
+            
+            try {
+                val extension = extensionLoader.loadExtension(extensionId)
+                if (extension == null) {
+                    log.append("❌ LỖI: Không tìm thấy tiện ích $extensionId.\n")
+                    _fullTestLog.value = log.toString()
+                    return@launch
+                }
+                
+                log.append("🟢 Nạp tiện ích: ${extension.pluginJson.metadata.name}\n")
+                log.append("🔗 Trang nguồn: ${extension.pluginJson.metadata.source}\n")
+                _fullTestLog.value = log.toString()
+                
+                // 1. HOME
+                log.append("\n[Bước 1] Đang tải Trang chủ...\n")
+                _fullTestLog.value = log.toString()
+                
+                val homeScript = extension.pluginJson.script["home"]
+                if (homeScript.isNullOrBlank()) {
+                    log.append("❌ LỖI: Tiện ích không định nghĩa script 'home'.\n")
+                    _fullTestLog.value = log.toString()
+                    return@launch
+                }
+                
+                val homeRes = extensionRunner.execute(extension, homeScript, "1")
+                if (homeRes !is ExtensionResult.Success) {
+                    val errMsg = (homeRes as ExtensionResult.Error).message
+                    log.append("❌ LỖI: Tải trang chủ thất bại.\nChi tiết: $errMsg\n")
+                    _fullTestLog.value = log.toString()
+                    return@launch
+                }
+                
+                val homeData = homeRes.data
+                log.append("  -> Kết quả Trang chủ: Tải thành công (${homeData.length} ký tự JSON).\n")
+                
+                val homeArray = try {
+                    org.json.JSONArray(homeData)
+                } catch (e: Exception) {
+                    log.append("❌ LỖI: Dữ liệu trang chủ không hợp lệ (không phải JSON Array).\n")
+                    _fullTestLog.value = log.toString()
+                    return@launch
+                }
+                
+                if (homeArray.length() == 0) {
+                    log.append("❌ LỖI: Trang chủ trả về 0 mục.\n")
+                    _fullTestLog.value = log.toString()
+                    return@launch
+                }
+                
+                log.append("  -> Tìm thấy ${homeArray.length()} mục ở trang chủ.\n")
+                _fullTestLog.value = log.toString()
+                
+                var novelUrl: String? = null
+                val firstItem = homeArray.getJSONObject(0)
+                
+                fun getUrlFromItem(item: org.json.JSONObject): String? {
+                    for (field in listOf("url", "input", "link", "path", "href")) {
+                        val v = item.optString(field)
+                        if (v.isNotEmpty() && v.length > 3) return v
+                    }
+                    return null
+                }
+                
+                val catUrl = getUrlFromItem(firstItem)
+                val secScript = firstItem.optString("script")
+                
+                if (secScript.isNotEmpty() && secScript != "home.js" && catUrl != null) {
+                    log.append("  -> Phát hiện danh mục: '${firstItem.optString("title")}' (URL: $catUrl). Đang nạp danh sách truyện qua script phụ '$secScript'...\n")
+                    _fullTestLog.value = log.toString()
+                    
+                    val secRes = extensionRunner.execute(extension, secScript, catUrl)
+                    if (secRes is ExtensionResult.Success) {
+                        val secArray = try { org.json.JSONArray(secRes.data) } catch (e: Exception) { org.json.JSONArray() }
+                        if (secArray.length() > 0) {
+                            for (i in 0 until secArray.length()) {
+                                val u = getUrlFromItem(secArray.getJSONObject(i))
+                                if (u != null) {
+                                    novelUrl = u
+                                    break
+                                }
+                            }
+                        }
+                    } else {
+                        log.append("⚠️ Cảnh báo: Gọi script phụ '$secScript' thất bại. Thử lấy URL trực tiếp...\n")
+                    }
+                }
+                
+                if (novelUrl == null && catUrl != null) {
+                    novelUrl = catUrl
+                }
+                
+                if (novelUrl == null) {
+                    for (i in 0 until homeArray.length()) {
+                        val u = getUrlFromItem(homeArray.getJSONObject(i))
+                        if (u != null) {
+                            novelUrl = u
+                            break
+                        }
+                    }
+                }
+                
+                if (novelUrl.isNullOrBlank()) {
+                    log.append("❌ LỖI: Không trích xuất được link truyện (novelUrl) nào từ trang chủ.\n")
+                    _fullTestLog.value = log.toString()
+                    return@launch
+                }
+                
+                log.append("  -> Lấy được link truyện test: $novelUrl\n")
+                _fullTestLog.value = log.toString()
+                
+                // 2. DETAIL
+                val detailScript = extension.pluginJson.script["detail"]
+                if (!detailScript.isNullOrBlank()) {
+                    log.append("\n[Bước 2] Đang tải chi tiết truyện...\n")
+                    _fullTestLog.value = log.toString()
+                    
+                    val detailRes = extensionRunner.execute(extension, detailScript, novelUrl)
+                    if (detailRes is ExtensionResult.Success) {
+                        val detailObj = try { org.json.JSONObject(detailRes.data) } catch (e: Exception) { null }
+                        val name = detailObj?.optString("name") ?: detailObj?.optString("title") ?: ""
+                        log.append("  -> Chi tiết truyện: Tải thành công! Tên truyện: '$name'\n")
+                    } else {
+                        val errMsg = (detailRes as ExtensionResult.Error).message
+                        log.append("⚠️ Cảnh báo: Tải chi tiết truyện thất bại: $errMsg. Vẫn tiếp tục kiểm tra mục lục...\n")
+                    }
+                    _fullTestLog.value = log.toString()
+                }
+                
+                // 3. TOC
+                log.append("\n[Bước 3] Đang tải Mục lục chương...\n")
+                _fullTestLog.value = log.toString()
+                
+                val tocScript = extension.pluginJson.script["toc"]
+                if (tocScript.isNullOrBlank()) {
+                    log.append("❌ LỖI: Tiện ích không định nghĩa script 'toc'.\n")
+                    _fullTestLog.value = log.toString()
+                    return@launch
+                }
+                
+                val tocRes = extensionRunner.execute(extension, tocScript, novelUrl, "1")
+                if (tocRes !is ExtensionResult.Success) {
+                    val errMsg = (tocRes as ExtensionResult.Error).message
+                    log.append("❌ LỖI: Tải mục lục thất bại.\nChi tiết: $errMsg\n")
+                    _fullTestLog.value = log.toString()
+                    return@launch
+                }
+                
+                val tocArray = try {
+                    org.json.JSONArray(tocRes.data)
+                } catch (e: Exception) {
+                    log.append("❌ LỖI: Dữ liệu mục lục không hợp lệ.\n")
+                    _fullTestLog.value = log.toString()
+                    return@launch
+                }
+                
+                if (tocArray.length() == 0) {
+                    log.append("❌ LỖI: Mục lục trả về 0 chương.\n")
+                    _fullTestLog.value = log.toString()
+                    return@launch
+                }
+                
+                log.append("  -> Tải mục lục thành công! Tìm thấy ${tocArray.length()} chương.\n")
+                _fullTestLog.value = log.toString()
+                
+                var chapUrl: String? = null
+                for (i in 0 until tocArray.length()) {
+                    val u = getUrlFromItem(tocArray.getJSONObject(i))
+                    if (u != null) {
+                        chapUrl = u
+                        break
+                    }
+                }
+                
+                if (chapUrl.isNullOrBlank()) {
+                    log.append("❌ LỖI: Không trích xuất được link chương nào từ mục lục.\n")
+                    _fullTestLog.value = log.toString()
+                    return@launch
+                }
+                
+                log.append("  -> Lấy được link chương test: $chapUrl\n")
+                _fullTestLog.value = log.toString()
+                
+                // 4. CHAP
+                log.append("\n[Bước 4] Đang tải Nội dung chương...\n")
+                _fullTestLog.value = log.toString()
+                
+                val chapScript = extension.pluginJson.script["chap"]
+                if (chapScript.isNullOrBlank()) {
+                    log.append("❌ LỖI: Tiện ích không định nghĩa script 'chap'.\n")
+                    _fullTestLog.value = log.toString()
+                    return@launch
+                }
+                
+                val chapRes = extensionRunner.execute(extension, chapScript, chapUrl)
+                if (chapRes !is ExtensionResult.Success) {
+                    val errMsg = (chapRes as ExtensionResult.Error).message
+                    log.append("❌ LỖI: Tải nội dung chương thất bại.\nChi tiết: $errMsg\n")
+                    _fullTestLog.value = log.toString()
+                    return@launch
+                }
+                
+                val chapData = chapRes.data
+                val chapObj = try { org.json.JSONObject(chapData) } catch (e: Exception) { null }
+                val contentText = chapObj?.optString("data") ?: chapData
+                
+                val textLen = contentText.length
+                val isBlocked = contentText.contains("cloudflare", ignoreCase = true) ||
+                        contentText.contains("ddos", ignoreCase = true) ||
+                        contentText.contains("captcha", ignoreCase = true) ||
+                        contentText.contains("403 Forbidden", ignoreCase = true) ||
+                        contentText.contains("access denied", ignoreCase = true)
+                
+                if (textLen < 150) {
+                    log.append("❌ LỖI: Nội dung chương quá ngắn ($textLen ký tự). Nguồn bị lỗi hoặc chương rỗng.\n")
+                } else if (isBlocked) {
+                    log.append("❌ LỖI: Phát hiện trang chặn Cloudflare trong nội dung chương.\n")
+                } else {
+                    log.append("🟢 Tải chương thành công! Độ dài văn bản: $textLen ký tự.\n")
+                    log.append("\n🎉 KẾT LUẬN: TIỆN ÍCH HOẠT ĐỘNG TỐT (OK)! 🎉\n")
+                }
+                _fullTestLog.value = log.toString()
+                
+            } catch (e: Exception) {
+                log.append("\n💥 LỖI HỆ THỐNG: ${e.message ?: e.toString()}\n")
+                _fullTestLog.value = log.toString()
+            } finally {
+                _isRunningFullTest.value = false
+            }
+        }
+    }
+
+    fun clearFullTestLog() {
+        _fullTestLog.value = null
+    }
+
     fun clearConnectionTestResult() {
         _connectionTestResult.value = null
     }
@@ -142,6 +390,8 @@ fun ExtensionSettingsScreen(
     val loadedExtension by viewModel.loadedExtension.collectAsStateWithLifecycle()
     val connectionTestResult by viewModel.connectionTestResult.collectAsStateWithLifecycle()
     val isTestingConnection by viewModel.isTestingConnection.collectAsStateWithLifecycle()
+    val fullTestLog by viewModel.fullTestLog.collectAsStateWithLifecycle()
+    val isRunningFullTest by viewModel.isRunningFullTest.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
 
     // Preferences
@@ -255,12 +505,15 @@ fun ExtensionSettingsScreen(
                             .padding(16.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        // Icon
+                        // Icon — chỉ load file raster (PNG/JPG/WEBP), bỏ qua SVG để tránh crash
                         val iconFile = remember(ext.iconPath, ext.localPath) {
                             val path = ext.iconPath ?: "${ext.localPath}/icon.png"
                             File(path)
                         }
-                        if (iconFile.exists()) {
+                        val isSupportedIcon = remember(iconFile) {
+                            iconFile.exists() && iconFile.extension.lowercase() in listOf("png", "jpg", "jpeg", "webp", "bmp")
+                        }
+                        if (isSupportedIcon) {
                             AsyncImage(
                                 model = iconFile,
                                 contentDescription = ext.cleanName,
@@ -416,63 +669,73 @@ fun ExtensionSettingsScreen(
 
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        // Nút Kiểm tra kết nối
+                        // Nút Kiểm tra toàn diện
                         Button(
-                            onClick = { viewModel.testConnection(extensionId) },
-                            enabled = !isTestingConnection,
+                            onClick = { viewModel.runFullTest(extensionId) },
+                            enabled = !isRunningFullTest,
                             modifier = Modifier.fillMaxWidth(),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = if (isTestingConnection) Color.Gray else accentGold,
+                                containerColor = if (isRunningFullTest) Color.Gray else accentGold,
                                 contentColor = Color(0xFF1F1A17)
                             ),
                             shape = RoundedCornerShape(12.dp)
                         ) {
-                            if (isTestingConnection) {
+                            if (isRunningFullTest) {
                                 CircularProgressIndicator(
                                     modifier = Modifier.size(16.dp),
                                     color = Color.DarkGray,
                                     strokeWidth = 2.dp
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
+                                Text("Đang kiểm tra toàn diện...", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                            } else {
+                                Text("Kiểm tra toàn diện", fontSize = 13.sp, fontWeight = FontWeight.Bold)
                             }
-                            Text("Kiểm tra kết nối", fontSize = 13.sp, fontWeight = FontWeight.Bold)
                         }
 
-                        // Hiển thị kết quả chẩn đoán
-                        connectionTestResult?.let { result ->
+                        // Hiển thị console log kiểm tra toàn diện
+                        fullTestLog?.let { logText ->
                             Spacer(modifier = Modifier.height(12.dp))
-                            val isSuccess = result.startsWith("SUCCESS")
-                            val isWarning = result.startsWith("WARNING")
-                            val isError = result.startsWith("ERROR")
-                            
-                            val displayMsg = when {
-                                isSuccess -> result.substringAfter("SUCCESS: ")
-                                isWarning -> result.substringAfter("WARNING: ")
-                                isError -> result.substringAfter("ERROR: ")
-                                else -> result
-                            }
-                            
-                            val textColor = when {
-                                isSuccess -> Color(0xFF8BC34A)
-                                isWarning -> Color(0xFFFFB74D)
-                                isError -> Color(0xFFE57373)
-                                else -> MaterialTheme.colorScheme.onBackground
-                            }
-                            
-                            Box(
+                            Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(textColor.copy(alpha = 0.1f))
-                                    .border(1.dp, textColor.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
-                                    .padding(horizontal = 12.dp, vertical = 8.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(Color(0xFF0F0B08)) // Dark terminal background
+                                    .border(1.dp, Color(0xFF3A302A), RoundedCornerShape(12.dp))
+                                    .padding(12.dp)
                             ) {
-                                Text(
-                                    text = displayMsg,
-                                    color = textColor,
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Medium
-                                )
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "Nhật ký kiểm tra (Console Log)",
+                                        color = accentGold,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        text = "Xóa log",
+                                        color = Color(0xFFE57373),
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        modifier = Modifier.clickable { viewModel.clearFullTestLog() }
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(8.dp))
+                                androidx.compose.foundation.text.selection.SelectionContainer {
+                                    Text(
+                                        text = logText,
+                                        color = Color(0xFFE0E0E0),
+                                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                                        fontSize = 11.sp,
+                                        lineHeight = 16.sp,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .wrapContentHeight()
+                                    )
+                                }
                             }
                         }
                     }

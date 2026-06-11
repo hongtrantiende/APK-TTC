@@ -1,0 +1,22 @@
+{
+  "metadata": {
+    "name": "quanwenyuedu",
+    "author": "Đường đen",
+    "version": 2,
+    "source": "https://www.quanwenyuedu.io",
+    "regexp": "(https?://)?(www\\.)?quanwenyuedu\\.io/n/[a-zA-Z0-9-]+(/(xiaoshuo|\\d+)\\.html)?/?",
+    "description": "Đọc sách trên quanwenyuedu.io",
+    "locale": "zh_CN",
+    "language": "javascript",
+    "type": "chinese_novel",
+    "encrypt": true
+  },
+  "script": {
+    "home": "home.js",
+    "genre": "genre.js",
+    "detail": "detail.js",
+    "search": "search.js",
+    "toc": "toc.js",
+    "chap": "chap.js"
+  }
+}

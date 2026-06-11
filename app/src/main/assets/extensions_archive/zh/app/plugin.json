@@ -1,0 +1,22 @@
+{
+  "metadata": {
+    "name": "Xianqihaotiami APP",
+    "author": "QuocBao",
+    "version": 2,
+    "source": "http://www.xianqihaotianmi.org/",
+    "regexp": "(xianqihaotianmi.org/book/\\d+.html|api.(basusan|anwaben|daislou|fabacen|guxinge).com(:\\d+)?/novel/[^/?#]+(?:\\?[^\\s]*)?)",
+    "description": "Đọc truyện trên App xianqihaotiami",
+    "locale": "zh_CN",
+    "language": "javascript",
+    "type": "chinese_novel",
+    "encrypt": true
+  },
+  "script": {
+    "home": "home.js",
+    "genre": "genre.js",
+    "detail": "detail.js",
+    "search": "search.js",
+    "toc": "toc.js",
+    "chap": "chap.js"
+  }
+}

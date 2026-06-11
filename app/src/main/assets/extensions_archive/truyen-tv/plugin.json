@@ -1,0 +1,22 @@
+{
+  "metadata": {
+    "name": "Truyện TV",
+    "author": "Đường đen",
+    "version": 1,
+    "source": "https://truyentv.site",
+    "regexp": "^(?:https?:\\/\\/)?truyentv\\.site\\/truyen\\/[0-9a-z-]+\\/?$",
+    "description": "Đọc truyện trên trang Truyện TV",
+    "locale": "vi_VN",
+    "type": "novel",
+    "language": "javascript",
+    "encrypt": true
+  },
+  "script": {
+    "home": "home.js",
+    "genre": "genre.js",
+    "detail": "detail.js",
+    "search": "search.js",
+    "toc": "toc.js",
+    "chap": "chap.js"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "metadata": {
+    "name": "Lnovel",
+    "author": "Vearn",
+    "version": 4,
+    "source": "https://lnovel.org",
+    "regexp": "(www.|m.)?lnovel.org/books-\\d+",
+    "description": "Đọc truyện trên trang lnovel.org",
+    "locale": "zh_CN",
+    "language": "javascript",
+    "type": "chinese_novel"
+  },
+  "script": {
+    "home": "home.js",
+    "detail": "detail.js",
+    "toc": "toc.js",
+    "chap": "chap.js"
+  }
+}

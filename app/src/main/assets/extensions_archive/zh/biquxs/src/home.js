@@ -1,0 +1,1 @@
+function execute() {    return Response.success([        {title: "好看的小说最近更新列表", input: "/", script: "updates.js"},        {title: "最新入库小说", input: "/", script: "updates1.js"},    ]);}

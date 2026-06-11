@@ -1,0 +1,22 @@
+{
+  "metadata": {
+    "name": "sohu",
+    "author": "Đường đen",
+    "version": 1,
+    "source": "https://www.sohu.com",
+    "regexp": "https?:\\/\\/(?:www\\.|m\\.)?sohu\\.com\\/a\\/\\d+_\\d+.*",
+    "description": "Đọc bài viết trên Sohu",
+    "locale": "zh_CN",
+    "language": "javascript",
+    "type": "chinese_novel",
+    "encrypt": true
+  },
+  "script": {
+    "home": "home.js",
+    "genre": "genre.js",
+    "detail": "detail.js",
+    "search": "search.js",
+    "toc": "toc.js",
+    "chap": "chap.js"
+  }
+}

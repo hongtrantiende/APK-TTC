@@ -1,0 +1,22 @@
+{
+  "metadata": {
+    "name": "Mộng Truyện",
+    "author": "HieuDM",
+    "version": 2,
+    "source": "https://mongtruyen.com/",
+    "regexp": "mongtruyen.com/[a-zA-Z0-9-]+/?$",
+    "description": "Nguồn truyện chữ tổng hợp mongtruyen.com",
+    "local": "vi-VN",
+    "language": "javascript",
+    "type": "novel"
+  },
+  "script": {
+    "home": "home.js",
+    "genre": "genre.js",
+    "detail": "detail.js",
+    "search": "search.js",
+    "toc": "toc.js",
+    "chap": "chap.js",
+    "gen": "gen.js"
+  }
+}

@@ -1,0 +1,22 @@
+{
+    "metadata": {
+        "name": "Boylove Bất Tử",
+        "author": "QuocBao",
+        "version": 3,
+        "source": "https://boylovebattu.com/",
+        "regexp": "https://boylovebattu.com/truyen/[^/]+(/[^/]+)?/?$",
+        "description": "Đọc truyện trên trang Boylove Bất Tử",
+        "locale": "vi_VN",
+        "language": "javascript",
+        "type": "novel",
+        "encrypt": true
+    },
+    "script": {
+        "home": "home.js",
+        "detail": "detail.js",
+        "genre": "genre.js",
+        "search": "search.js",
+        "toc": "toc.js",
+        "chap": "chap.js"
+    }
+}

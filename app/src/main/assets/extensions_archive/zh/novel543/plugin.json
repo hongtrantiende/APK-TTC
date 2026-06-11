@@ -1,0 +1,24 @@
+{
+  "metadata": {
+    "name": "Novel543",
+    "author": "Gold2k2k2k",
+    "version": 1,
+    "source": "https://www.novel543.com",
+    "regexp": "(www\\.)?novel543\\.com\\/\\d{4,}\\d+\\/?$",
+    "description": "稷下書院 - Truyện chữ Tiếng Trung online",
+    "locale": "zh_TW",
+    "type": "chinese_novel"
+  },
+  "script": {
+    "home": "home.js",
+    "homecontent": "homecontent.js",
+    "genre": "genre.js",
+    "genrecontent": "genrecontent.js",
+    "detail": "detail.js",
+    "search": "search.js",
+    "toc": "toc.js",
+    "chap": "chap.js",
+    "suggest": "suggest.js",
+    "comment": "comment.js"
+  }
+}

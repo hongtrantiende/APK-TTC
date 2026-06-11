@@ -1,0 +1,19 @@
+{
+  "metadata": {
+    "name": "ilwxs",
+    "author": "Vearn",
+    "version": 1,
+    "source": "https://www.ilwxs.com/",
+    "regexp": "(www.|m.)?ilwxs.com//(info-|shu//)\\d+.html",
+    "description": "Đọc truyện trên trang https://www.ilwxs.com/",
+    "locale": "zh_CN",
+    "language": "javascript",
+    "type": "chinese_novel"
+  },
+  "script": {
+    "home": "home.js",
+    "detail": "detail.js",
+    "toc": "toc.js",
+    "chap": "chap.js"
+  }
+}

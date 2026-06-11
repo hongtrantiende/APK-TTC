@@ -1,0 +1,24 @@
+{
+  "metadata": {
+    "name": "WanwanSekai -18+",
+    "author": "Meo",
+    "version": 9,
+    "source": "https://wanwansekai.com",
+    "regexp": "wanwansekai\\\\.com\\\\/novel\\\\/[^\\\\/]+\\\\/?$",
+    "description": "WanwanSekai - Đọc web novel tiếng Việt 18+",
+    "locale": "vi_VN",
+    "tag": "18+",
+    "type": "novel"
+  },
+  "script": {
+    "home": "home.js",
+    "homecontent": "homecontent.js",
+    "genre": "genre.js",
+    "genrecontent": "genrecontent.js",
+    "detail": "detail.js",
+    "search": "search.js",
+    "toc": "toc.js",
+    "chap": "chap.js",
+    "suggest": "suggest.js"
+  }
+}

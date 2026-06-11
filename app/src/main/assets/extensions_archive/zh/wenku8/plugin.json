@@ -1,0 +1,19 @@
+{
+  "metadata": {
+    "name": "wenku8 📖🔑",
+    "author": "Moleys",
+    "version": 7,
+    "source": "http://www.wenku8.net/index.php",
+    "regexp": "(www.|m.)?wenku8.net/(novel|book)/\\d+(/?|\\.htm)",
+    "description": "Đọc truyện trên trang http://www.wenku8.net",
+    "locale": "zh_CN",
+    "language": "javascript",
+    "type": "chinese_novel"
+  },
+  "script": {
+    "home": "home.js",
+    "detail": "detail.js",
+    "toc": "toc.js",
+    "chap": "chap.js"
+  }
+}

@@ -1,0 +1,33 @@
+{
+    "metadata": {
+        "name": "[APP] TYT",
+        "author": "QuocBao",
+        "version": 8,
+        "source": "https://tytnovel.org/",
+        "regexp": "^(tyt://story/|https?://(www\\.)?(tytnovel\\.(app|org)|noveltyt\\.(app|xyz))/).+",
+        "description": "Đọc truyện từ app TYT.",
+        "locale": "vi_VN",
+        "language": "javascript",
+        "type": "novel",
+        "encrypt": true
+    },
+    "script": {
+        "home": "home.js",
+        "genre": "genre.js",
+        "gen": "gen.js",
+        "search": "search.js",
+        "detail": "detail.js",
+        "toc": "toc.js",
+        "chap": "chap.js"
+    },
+    "config": {
+        "thread_num": 1,
+        "delay": 1000,
+        "tytAppApiHost": {
+            "title": "TYT App API host",
+            "mode": "input",
+            "format": "text",
+            "default": "http://127.0.0.1:18768"
+        }
+    }
+}

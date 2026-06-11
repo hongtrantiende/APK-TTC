@@ -1,0 +1,21 @@
+{
+  "metadata": {
+    "name": "Novest",
+    "author": "HieuDM",
+    "version": 1,
+    "source": "https://novest.me",
+    "regexp": "^https:\\/\\/novest\\.me\\/truyen\\/[^\\/]+\\/?$",
+    "description": "Đọc truyện từ trang novest.me",
+    "local": "vi-VN",
+    "language": "javascript",
+    "type": "novel"
+  },
+  "script": {
+    "home": "home.js",
+    "detail": "detail.js",
+    "search": "search.js",
+    "toc": "toc.js",
+    "chap": "chap.js",
+    "gen" : "gen.js"
+  }
+}

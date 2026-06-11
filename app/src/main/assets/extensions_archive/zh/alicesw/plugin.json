@@ -1,0 +1,23 @@
+{
+  "metadata": {
+    "name": "alicesw",
+    "author": "3690",
+    "version": 46,
+    "source": "https://www.alicesw.com/",
+    "regexp": "(www\\.)?alicesw\\.com.*",
+    "description": "Đọc truyện trên alicesw.com",
+    "locale": "zh_CN",
+    "language": "javascript",
+    "type": "chinese_novel",
+    "tag": "nsfw",
+    "encrypt": true
+  },
+  "script": {
+    "home": "home.js",
+    "detail": "detail.js",
+    "genre": "genre.js",
+    "search": "search.js",
+    "toc": "toc.js",
+    "chap": "chap.js"
+  }
+}

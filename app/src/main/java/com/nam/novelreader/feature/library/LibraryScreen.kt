@@ -297,7 +297,7 @@ fun NovelGridItem(
         ) {
             Box {
                 AsyncImage(
-                    model = novel.cover,
+                    model = com.nam.novelreader.feature.components.buildNovelImageRequest(novel),
                     contentDescription = novel.title,
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop,
@@ -344,3 +344,4 @@ fun NovelGridItem(
         }
     }
 }
+

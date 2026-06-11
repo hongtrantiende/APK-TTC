@@ -1,0 +1,30 @@
+{
+    "metadata": {
+        "name": "Sói Xám (Fanqie)",
+        "author": "Will Sun",
+        "version": 19,
+        "source": "https:\/\/api.langge.cf\/user",
+        "regexp": "https?:\/\/(?:www\\.)?(?:(?:v2|20|v4|v5|api|v7|v8|v9|v10)\\.(?:czyl|langge)\\.(?:cf|tk)\/online_detail\\?book_id=[^&]+|sangtacviet\\.[^\/]+\/truyen\/fanqie\/1\/\\d+|fanqienovel\\.com\/page\/\\d+).*",
+        "description": "Đọc truyện Fanqie trên Sói Xám. Vui lòng vào trang nguồn đăng nhập để sử dụng. Có hỗ trợ share link truyện từ Fanqie và STV.",
+        "locale": "zh_CN",
+        "type": "chinese_novel",
+        "language": "javascript",
+        "encrypt": true
+    },
+    "script": {
+        "detail": "detail.js",
+        "toc": "toc.js",
+        "chap": "chap.js",
+        "search": "search.js",
+        "home": "home.js",
+        "genre": "genre.js"
+    },
+    "config": {
+        "config_url": {
+            "title": "Tên miền",
+            "mode": "input",
+            "format": "text",
+            "default": "https:\/\/api.langge.cf"
+        }
+    }
+}

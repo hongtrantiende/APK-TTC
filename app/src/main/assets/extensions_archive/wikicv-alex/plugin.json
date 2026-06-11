@@ -1,0 +1,25 @@
+{
+  "metadata": {
+    "name": "WikiCV",
+    "author": "Alex",
+    "version": 1,
+    "source": "https://wikicv.net",
+    "regexp": "(www\\.)?(.*?)wikicv\\.net/truyen/[^/]+/?$",
+    "description": "WikiCV",
+    "locale": "vi_VN",
+    "type": "novel",
+    "language": "javascript"
+  },
+  "script": {
+    "home": "home.js",
+    "genre": "genre.js",
+    "detail": "detail.js",
+    "search": "search.js",
+    "toc": "toc.js",
+    "chap": "chap.js"
+  },
+  "config": {
+    "thread_num": 1,
+    "delay": 3000
+  }
+}

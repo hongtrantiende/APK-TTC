@@ -41,7 +41,8 @@ fun ReaderTocBottomSheet(
     extensionId: String,
     novelUrl: String,
     onRefreshToc: () -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    isOffline: Boolean = false
 ) {
     // Đồng bộ màu sắc dựa trên theme đọc sách
     val (bgColor, textColor, primaryColor, cardColor) = when (themeIndex) {
@@ -165,24 +166,28 @@ fun ReaderTocBottomSheet(
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        IconButton(onClick = onRefreshToc) {
-                            Icon(Icons.Filled.Refresh, "Làm mới", tint = textColor, modifier = Modifier.size(20.dp))
+                        if (!isOffline) {
+                            IconButton(onClick = onRefreshToc) {
+                                Icon(Icons.Filled.Refresh, "Làm mới", tint = textColor, modifier = Modifier.size(20.dp))
+                            }
                         }
                         IconButton(onClick = {}) {
                             Icon(Icons.Filled.RateReview, "Đánh giá", tint = textColor, modifier = Modifier.size(20.dp))
                         }
-                        IconButton(onClick = {
-                            val intent = Intent(context, com.nam.novelreader.service.DownloadService::class.java).apply {
-                                action = com.nam.novelreader.service.DownloadService.ACTION_DOWNLOAD
-                                putExtra(com.nam.novelreader.service.DownloadService.EXTRA_EXTENSION_ID, extensionId)
-                                putExtra(com.nam.novelreader.service.DownloadService.EXTRA_NOVEL_URL, novelUrl)
-                                putExtra(com.nam.novelreader.service.DownloadService.EXTRA_NOVEL_TITLE, novel?.title ?: "")
-                                putExtra(com.nam.novelreader.service.DownloadService.EXTRA_COVER_URL, novel?.cover ?: "")
+                        if (!isOffline) {
+                            IconButton(onClick = {
+                                val intent = Intent(context, com.nam.novelreader.service.DownloadService::class.java).apply {
+                                    action = com.nam.novelreader.service.DownloadService.ACTION_DOWNLOAD
+                                    putExtra(com.nam.novelreader.service.DownloadService.EXTRA_EXTENSION_ID, extensionId)
+                                    putExtra(com.nam.novelreader.service.DownloadService.EXTRA_NOVEL_URL, novelUrl)
+                                    putExtra(com.nam.novelreader.service.DownloadService.EXTRA_NOVEL_TITLE, novel?.title ?: "")
+                                    putExtra(com.nam.novelreader.service.DownloadService.EXTRA_COVER_URL, novel?.cover ?: "")
+                                }
+                                context.startService(intent)
+                                android.widget.Toast.makeText(context, "Bắt đầu tải toàn bộ chương ngoại tuyến...", android.widget.Toast.LENGTH_SHORT).show()
+                            }) {
+                                Icon(Icons.Filled.CloudDownload, "Tải xuống", tint = textColor, modifier = Modifier.size(20.dp))
                             }
-                            context.startService(intent)
-                            android.widget.Toast.makeText(context, "Bắt đầu tải toàn bộ chương ngoại tuyến...", android.widget.Toast.LENGTH_SHORT).show()
-                        }) {
-                            Icon(Icons.Filled.CloudDownload, "Tải xuống", tint = textColor, modifier = Modifier.size(20.dp))
                         }
                     }
                 }
@@ -313,20 +318,26 @@ fun ReaderTocBottomSheet(
                                     tint = if (isCurrent) primaryColor else if (ch.isDownloaded) primaryColor.copy(alpha = 0.7f) else textColor.copy(alpha = 0.4f),
                                     modifier = Modifier
                                         .size(20.dp)
-                                        .clickable(enabled = !ch.isDownloaded) {
-                                            val intent = Intent(context, com.nam.novelreader.service.DownloadService::class.java).apply {
-                                                action = com.nam.novelreader.service.DownloadService.ACTION_DOWNLOAD
-                                                putExtra(com.nam.novelreader.service.DownloadService.EXTRA_EXTENSION_ID, extensionId)
-                                                putExtra(com.nam.novelreader.service.DownloadService.EXTRA_NOVEL_URL, novelUrl)
-                                                putExtra(com.nam.novelreader.service.DownloadService.EXTRA_NOVEL_TITLE, novel?.title ?: "")
-                                                putExtra(com.nam.novelreader.service.DownloadService.EXTRA_COVER_URL, novel?.cover ?: "")
-                                                putStringArrayListExtra(
-                                                    com.nam.novelreader.service.DownloadService.EXTRA_CHAPTER_URLS,
-                                                    arrayListOf(ch.url)
-                                                )
+                                        .let { modifier ->
+                                            if (isOffline || ch.isDownloaded) {
+                                                modifier
+                                            } else {
+                                                modifier.clickable {
+                                                    val intent = Intent(context, com.nam.novelreader.service.DownloadService::class.java).apply {
+                                                        action = com.nam.novelreader.service.DownloadService.ACTION_DOWNLOAD
+                                                        putExtra(com.nam.novelreader.service.DownloadService.EXTRA_EXTENSION_ID, extensionId)
+                                                        putExtra(com.nam.novelreader.service.DownloadService.EXTRA_NOVEL_URL, novelUrl)
+                                                        putExtra(com.nam.novelreader.service.DownloadService.EXTRA_NOVEL_TITLE, novel?.title ?: "")
+                                                        putExtra(com.nam.novelreader.service.DownloadService.EXTRA_COVER_URL, novel?.cover ?: "")
+                                                        putStringArrayListExtra(
+                                                            com.nam.novelreader.service.DownloadService.EXTRA_CHAPTER_URLS,
+                                                            arrayListOf(ch.url)
+                                                        )
+                                                    }
+                                                    context.startService(intent)
+                                                    android.widget.Toast.makeText(context, "Đang tải chương: ${ch.title}...", android.widget.Toast.LENGTH_SHORT).show()
+                                                }
                                             }
-                                            context.startService(intent)
-                                            android.widget.Toast.makeText(context, "Đang tải chương: ${ch.title}...", android.widget.Toast.LENGTH_SHORT).show()
                                         }
                                 )
                             }

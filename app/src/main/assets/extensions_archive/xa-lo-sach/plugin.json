@@ -1,0 +1,23 @@
+{
+    "metadata": {
+        "name": "Xa Lộ Sách",
+        "author": "ivanzzz",
+        "version": 3,
+        "source": "https:\/\/xalosach.com",
+        "regexp": "https:\/\/xalosach.com\/(.*?)$",
+        "description": "Xalosach.com là nền tảng đọc truyện chữ online, truyện dịch hay nhiều thể loại.",
+        "locale": "vi_VN",
+        "language": "javascript",
+        "type": "novel",
+        "encrypt": false
+    },
+    "script": {
+        "home": "home.js",
+        "genre": "genre.js",
+        "detail": "detail.js",
+        "search": "search.js",
+        "page": "page.js",
+        "toc": "toc.js",
+        "chap": "chap.js"
+    }
+}

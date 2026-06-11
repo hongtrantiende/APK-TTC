@@ -1,0 +1,21 @@
+{
+  "metadata": {
+    "name": "Hướng dẫn sử dụng VBook",
+    "author": "ngatngay,duongden - repo kychi",
+    "version": 6,
+    "source": "https://vbookapp.gitbook.io/huong-dan-su-dung",
+    "regexp": "vbookapp\\.gitbook\\.io/huong-dan-su-dung",
+    "description": "Hướng dẫn sử dụng Vbook. Đóng góp bởi ngatngay, duongden",
+    "locale": "vi_VN",
+    "language": "vi",
+    "type": "novel"
+  },
+  "script": {
+    "home": "home.js",
+    "gen": "gen.js",
+    "detail": "detail.js",
+    "toc": "toc.js",
+    "chap": "chap.js",
+    "search": "search.js"
+  }
+}

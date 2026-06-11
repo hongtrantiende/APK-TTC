@@ -118,7 +118,7 @@ fun HistoryScreen(
                                 .padding(12.dp),
                         ) {
                             AsyncImage(
-                                model = novel.cover,
+                                model = com.nam.novelreader.feature.components.buildNovelImageRequest(novel),
                                 contentDescription = novel.title,
                                 modifier = Modifier
                                     .width(60.dp)
@@ -192,3 +192,4 @@ private fun formatRelativeTime(timestamp: Long): String {
         else -> "${days / 30} tháng trước"
     }
 }
+

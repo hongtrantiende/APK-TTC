@@ -1,0 +1,26 @@
+[
+  {
+    "title": "Hanzii",
+    "url": "https://hanzii.net/search/word/%s?hl=vi-VN"
+  },
+  {
+    "title": "G.Translate",
+    "url": "https://translate.google.com/?sl=zh-CN&tl=en&text=%s&translate"
+  },
+  {
+    "title": "G.Search",
+    "url": "https://www.google.com/search?q=%s"
+  },
+  {
+    "title": "Fanyi",
+    "url": "https://fanyi.baidu.com/#zh/en/%s"
+  },
+  {
+    "title": "iCIBA",
+    "url": "https://www.iciba.com/word?w=%s"
+  },
+  {
+    "title": "Baidu",
+    "url": "http://www.baidu.com/s?wd=%s"
+  }
+]

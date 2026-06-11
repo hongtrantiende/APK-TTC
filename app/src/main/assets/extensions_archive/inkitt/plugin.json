@@ -1,0 +1,22 @@
+{
+  "metadata": {
+    "name": "Inkitt",
+    "author": "HieuDM",
+    "version": 1,
+    "source": "https://www.inkitt.com",
+    "regexp": "(www\\.)?inkitt\\.com\\/stories\\/.*",
+    "description": "Đọc truyện tiếng Anh trên Inkitt.",
+    "local": "en_US",
+    "language": "javascript",
+    "type": "novel"
+  },
+  "script": {
+    "home": "home.js",
+    "search": "search.js",
+    "detail": "detail.js",
+    "toc": "toc.js",
+    "chap": "chap.js",
+    "genre": "genre.js",
+    "gen": "gen.js"
+  }
+}

@@ -1,0 +1,1 @@
+function execute() {    return Response.success([        {title: "主页", input: "/", script: "up.js"},        {title: "猜你喜欢", input: "/h5/index-rank-rank_type-like", script: "up1.js"},    ]);}

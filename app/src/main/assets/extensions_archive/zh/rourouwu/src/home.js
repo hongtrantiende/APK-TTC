@@ -1,0 +1,1 @@
+function execute() {    return Response.success([        {title: "最新更新", input: "/", script: "up.js"},    ]);}

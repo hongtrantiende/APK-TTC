@@ -73,8 +73,6 @@ object AppModule {
             .followSslRedirects(true)
             .cookieJar(com.nam.novelreader.data.network.WebViewCookieJar())
             .addInterceptor(logging)
-            .addInterceptor(RetryInterceptor(context))
-            .addInterceptor(com.nam.novelreader.data.network.ProxyRotationInterceptor(context))
 
         // === Tên miền tùy chỉnh (Domain Override) ===
         val overrideJson = prefs.getString("connection_url_override", "{}") ?: "{}"
@@ -161,7 +159,12 @@ object AppModule {
             // "balanced" → keep defaults
         }
 
-        val pureClient = baseBuilder.build()
+        val vbookPureClient = baseBuilder.build()
+
+        val pureClientBuilder = baseBuilder.build().newBuilder()
+        pureClientBuilder.addInterceptor(RetryInterceptor(context))
+        pureClientBuilder.addInterceptor(com.nam.novelreader.data.network.ProxyRotationInterceptor(context))
+        val pureClient = pureClientBuilder.build()
 
         val useCronet = protocol == "cronet" && !(proxyEnabled && proxyHost.isNotBlank() && proxyPort > 0)
         var cronetInterceptorAdded = false
@@ -251,6 +254,33 @@ object AppModule {
                                     host.contains("103.82.20.93") || 
                                     host.contains("stv-appdomain", ignoreCase = true)
                                     
+                        val isExtension = !extensionId.isNullOrBlank()
+                        val isImage = original.header("X-Is-Coil") == "true"
+                        
+                        if (isExtension || isImage) {
+                            android.util.Log.d("OkHttpDebug", "Extension/Image using VBook Pure Client for $host. URL: ${request.url}")
+                            requestBuilder.removeHeader("X-Is-Coil") // Remove header before sending
+                            val cleanRequest = requestBuilder.build()
+                            val response = vbookPureClient.newCall(cleanRequest).execute()
+                            
+                            // Đồng bộ ngược Set-Cookie về CookieManager và SharedPreferences
+                            val setCookies = response.headers("Set-Cookie")
+                            if (setCookies.isNotEmpty()) {
+                                setCookies.forEach { cookieHeader ->
+                                    cookieManager.setCookie(baseDomainUrl, cookieHeader)
+                                }
+                                cookieManager.flush()
+
+                                val updatedWebViewCookie = cookieManager.getCookie(baseDomainUrl)
+                                val updatedSavedCookie = prefs.getString("ext_cookies_$extensionId", null)
+                                val newMerged = mergeCookies(updatedWebViewCookie, updatedSavedCookie)
+                                if (newMerged.isNotBlank()) {
+                                    prefs.edit().putString("ext_cookies_$extensionId", newMerged).apply()
+                                }
+                            }
+                            return@addInterceptor response
+                        }
+                        
                         if (host.contains("nae.vn", ignoreCase = true) || isSupabase || isGoogle || isStv) {
                             android.util.Log.d("OkHttpDebug", "Bypassing Cronet for $host. URL: ${request.url}")
                             
@@ -385,6 +415,17 @@ object AppModule {
                     .header("Sec-Ch-Ua-Platform", "\"Android\"")
             }
             val request = requestBuilder.build()
+            
+            val isExtensionReq = !extensionId.isNullOrBlank()
+            val isImageReq = original.header("X-Is-Coil") == "true"
+            
+            if (isExtensionReq || isImageReq) {
+                var finalRequest = request
+                if (isImageReq) {
+                    finalRequest = request.newBuilder().removeHeader("X-Is-Coil").build()
+                }
+                return@addInterceptor vbookPureClient.newCall(finalRequest).execute()
+            }
             
             if (com.nam.novelreader.data.network.AdBlocker.isAd(request.url.toString(), checkStaticResources = false)) {
                 android.util.Log.d("AdBlocker", "Blocked ad in OkHttp: ${request.url}")

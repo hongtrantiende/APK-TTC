@@ -1,0 +1,21 @@
+{
+  "metadata": {
+    "name": "Truyen CodeTheoYeuCau",
+    "author": "B",
+    "version": 1,
+    "source": "https://truyen.codetheoyeucau.online",
+    "regexp": "truyen\\.codetheoyeucau\\.online/truyen/[^/]+/?$",
+    "description": "Đọc truyện từ truyen.codetheoyeucau.online",
+    "locale": "vi_VN",
+    "language": "javascript",
+    "type": "novel"
+  },
+  "script": {
+    "home": "home.js",
+    "gen": "gen.js",
+    "search": "search.js",
+    "detail": "detail.js",
+    "toc": "toc.js",
+    "chap": "chap.js"
+  }
+}

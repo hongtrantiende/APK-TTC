@@ -1,0 +1,12 @@
+{
+  "client_id": "564805706021-sp721ioc3maggc6f1vta0td6ggk821b9.apps.googleusercontent.com",
+  "redirect_uri": "com.vbook.app:/oauth2callback",
+  "end_session_redirect_uri": "com.vbook.app:/oauth2callback",
+  "authorization_scope": "openid email profile",
+  "discovery_uri": "",
+  "authorization_endpoint_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_endpoint_uri": "https://oauth2.googleapis.com/token",
+  "registration_endpoint_uri": "",
+  "user_info_endpoint_uri": "",
+  "https_required": true
+}

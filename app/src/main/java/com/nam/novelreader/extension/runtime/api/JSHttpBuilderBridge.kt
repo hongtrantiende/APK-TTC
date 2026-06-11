@@ -354,10 +354,7 @@ object JSHttpBuilderBridge {
                     (body ?: "").toRequestBody(contentType.toMediaType())
                 }
                 
-                val contentLength = rBody.contentLength()
-                if (contentLength >= 0 && headersBuilder["Content-Length"] == null && headersBuilder["content-length"] == null) {
-                    headersBuilder.add("Content-Length", contentLength.toString())
-                }
+                // Không tự thêm Content-Length — để OkHttp tự quản lý (VBook gốc)
                 rBody
             } else {
                 null
@@ -381,7 +378,7 @@ object JSHttpBuilderBridge {
                 httpClient
             }
 
-            headersBuilder.add("X-Extension-Id", extensionId)
+            // Không thêm X-Extension-Id — VBook gốc không thêm (API reject header lạ → 422)
 
             val request = Request.Builder()
                 .url(urlBuilder.build())

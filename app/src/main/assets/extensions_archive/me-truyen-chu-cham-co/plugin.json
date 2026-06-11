@@ -1,0 +1,21 @@
+{
+  "metadata": {
+    "name": "Mê Truyện Chữ chấm CO",
+    "author": "HieuDM",
+    "version": 2,
+    "source": "https://metruyenchu.co",
+    "regexp": "^https:\\/\\/metruyenchu\\.co\\/truyen\\/([a-z0-9-]+)$",
+    "description": "Đọc truyện từ trang metruyenchu.co",
+    "local": "vi-VN",
+    "language": "javascript",
+    "type": "novel"
+  },
+  "script": {
+    "home": "home.js",
+    "detail": "detail.js",
+    "search": "search.js",
+    "toc": "toc.js",
+    "chap": "chap.js",
+    "gen" : "gen.js"
+  }
+}

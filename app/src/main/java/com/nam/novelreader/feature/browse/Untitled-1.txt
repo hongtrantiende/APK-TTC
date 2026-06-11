@@ -1,0 +1,1092 @@
+<!DOCTYPE html>
+<html id="XF" lang="vi-VN" dir="LTR"
+	data-app="public"
+	data-template="thread_view"
+	data-container-key="node-242"
+	data-content-key="thread-16279"
+	data-logged-in="false"
+	data-cookie-prefix="xf_"	 
+	class="has-no-js template-thread_view"
+	>
+<head>
+	<meta charset="utf-8" />
+	<meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+	<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+	<link rel="preload" href="/forum/styles/default/xenforo/bns_name-new-s.png" as="image">
+	
+	
+	
+	
+	<title>Thông Báo - :::[Design Team] Tuyển nhân sự::: | Bạch Ngọc Sách</title>
+
+	
+		
+		<meta name="description" content="@Shinn design
+
+I: MỞ ĐẦU
+
+Hallo everybody" />
+		<meta property="og:description" content="@Shinn design
+
+I: MỞ ĐẦU
+
+Hallo everybody" />
+		<meta property="twitter:description" content="@Shinn design
+
+I: MỞ ĐẦU
+
+Hallo everybody" />
+	
+	
+		<meta property="og:url" content="https://bachngocsach.cc/forum/threads/16279/" />
+	
+		<link rel="canonical" href="https://bachngocsach.cc/forum/threads/16279/" />
+	
+		<link rel="next" href="/forum/threads/16279/page-2" />
+	
+		
+<script>document.documentElement.className+=' has-no-fa-brands';</script>
+
+	
+
+	
+		
+	
+	
+	<meta property="og:site_name" content="Bạch Ngọc Sách" />
+
+
+	
+	
+		
+	
+	
+	<meta property="og:type" content="website" />
+
+
+	
+	
+		
+	
+	
+	
+		<meta property="og:title" content="Thông Báo - :::[Design Team] Tuyển nhân sự:::" />
+		<meta property="twitter:title" content="Thông Báo - :::[Design Team] Tuyển nhân sự:::" />
+	
+
+
+	
+	
+	
+	
+
+	
+		<meta name="theme-color" content="#185886" />
+	
+
+	
+	
+
+	
+
+
+
+	
+
+
+
+
+	<link rel="stylesheet" href="/forum/css.php?css=public%3Anormalize.css%2Cpublic%3Afa.css%2Cpublic%3Acore.less%2Cpublic%3Aapp.less&amp;s=110&amp;l=4&amp;d=1778083506&amp;k=c9bb1a6f6fc4781e796bfd9fb3a92414e7ef0946" />
+
+	<link rel="stylesheet" href="/forum/css.php?css=public%3Abb_code.less%2Cpublic%3Adbtech_shop_signature_image.less%2Cpublic%3Alightbox.less%2Cpublic%3Amessage.less%2Cpublic%3Anotices.less%2Cpublic%3Ashare_controls.less%2Cpublic%3AsvLazyImageLoader.less%2Cpublic%3Aextra.less&amp;s=110&amp;l=4&amp;d=1778083506&amp;k=f3bb8948f5c183eb36e50f862977afeaf8aea9ea" />
+
+	
+		<script src="/forum/js/xf/preamble.min.js?_v=c857fcc0"></script>
+	
+
+		
+	
+		<link rel="icon" type="image/png" href="/favicon.ico" sizes="32x32" />
+	
+	
+	
+	
+	
+		<!-- Global site tag (gtag.js) - Google Analytics -->
+	<script async src="https://www.googletagmanager.com/gtag/js?id=G-3H8QW2ZLHD"></script>
+	<script>		
+	  window.dataLayer = window.dataLayer || [];
+	  function gtag(){dataLayer.push(arguments);}
+	  gtag('js', new Date());
+	  gtag('config', 'G-3H8QW2ZLHD');
+	</script>
+	
+	
+	
+	
+	<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7352769724128832"
+     crossorigin="anonymous"></script>
+
+</head>
+	
+		
+<body data-template="thread_view">
+	
+<div class="p-pageWrapper" id="top">
+
+
+
+<header class="p-header" id="header">
+	<div class="p-header-inner">
+		<div class="p-header-content">
+
+			<div class="p-header-logo p-header-logo--image">
+				<a href="/forum/">
+					<img src="/forum/styles/default/xenforo/bns_name-new-s.png"
+						alt="Bạch Ngọc Sách"
+						 class="lazyload" />
+				</a>
+			</div>
+			<div class="p-header-message">
+				<p>"Quân tử kính mà không lỗi, đối xử người khiêm cung mà không vô lễ. Trong bốn biển đều là anh em một nhà cả" - Luận Ngữ</p>
+			</div>
+			
+		</div>
+	</div>
+</header>
+
+
+
+
+
+	<div class="p-navSticky p-navSticky--primary" data-xf-init="sticky-header">
+		
+	<nav class="p-nav">
+		<div class="p-nav-inner">
+<div class="th_holiday__categoryStrip__left"></div>
+<div class="th_holiday__categoryStrip__center"></div>
+<div class="th_holiday__categoryStrip__right"></div>
+			<a class="p-nav-menuTrigger" data-xf-click="off-canvas" data-menu=".js-headerOffCanvasMenu" role="button" tabindex="0">
+				<i aria-hidden="true"></i>
+				<span class="p-nav-menuText">Menu</span>
+			</a>
+
+			<div class="p-nav-smallLogo">
+				<a href="/forum/">
+					<img src="/forum/styles/default/xenforo/bns_name-new-s.png"
+						alt="Bạch Ngọc Sách"
+					 class="lazyload" />
+				</a>
+			</div>
+
+			<div class="p-nav-scroller hScroller" data-xf-init="h-scroller" data-auto-scroll=".p-navEl.is-selected">
+				<div class="hScroller-scroll">
+					<ul class="p-nav-list js-offCanvasNavSource">
+					
+						<li>
+							
+
+
+	<div class="p-navEl " >
+		
+
+			
+	
+	<a href="https://tacgiaviet.com"
+		class="p-navEl-link "
+		
+		data-xf-key="1"
+		data-nav-id="TacGiaViet">TacGiaViet.com</a>
+
+
+			
+
+		
+		
+	</div>
+
+
+
+						</li>
+					
+						<li>
+							
+
+
+	<div class="p-navEl is-selected" data-has-children="true">
+		
+
+			
+	
+	<a href="/forum/"
+		class="p-navEl-link p-navEl-link--splitMenu "
+		
+		
+		data-nav-id="forums">Diễn Đàn</a>
+
+
+			<a data-xf-key="2"
+				data-xf-click="menu"
+				data-menu-pos-ref="< .p-navEl"
+				class="p-navEl-splitTrigger"
+				role="button"
+				tabindex="0"
+				aria-label="Toggle expanded"
+				aria-expanded="false"
+				aria-haspopup="true"></a>
+
+		
+		
+			<div class="menu menu--structural" data-menu="menu" aria-hidden="true">
+				<div class="menu-content">
+					
+						
+	
+	
+	<a href="/forum/watched/threads"
+		class="menu-linkRow u-indentDepth0 js-offCanvasCopy "
+		
+		
+		data-nav-id="dangtheodoi">Đang theo dõi</a>
+
+	
+		
+			
+	
+	
+	<a href="/forum/watched/threads"
+		class="menu-linkRow u-indentDepth1 js-offCanvasCopy "
+		
+		
+		data-nav-id="chudedangtheodoi">Chủ đề đang theo dõi</a>
+
+	
+
+		
+			
+	
+	
+	<a href="/forum/watched/forums"
+		class="menu-linkRow u-indentDepth1 js-offCanvasCopy "
+		
+		
+		data-nav-id="forumwatches">Chuyên mục đang theo dõi</a>
+
+	
+
+		
+			
+	
+	
+	<a href="/forum/watched/usertagging-hashes"
+		class="menu-linkRow u-indentDepth1 js-offCanvasCopy "
+		
+		
+		data-nav-id="watcheshastag">Watched hash tags</a>
+
+	
+
+		
+		
+			<hr class="menu-separator" />
+		
+	
+
+					
+						
+	
+	
+	<a href="/forum/whats-new/posts/"
+		class="menu-linkRow u-indentDepth0 js-offCanvasCopy "
+		
+		
+		data-nav-id="newPosts">Bài viết mới</a>
+
+	
+
+					
+				</div>
+			</div>
+		
+	</div>
+
+
+
+						</li>
+					
+						<li>
+							
+
+
+	<div class="p-navEl " data-has-children="true">
+		
+
+			
+	
+	<a href="/forum/whats-new/"
+		class="p-navEl-link p-navEl-link--splitMenu "
+		
+		
+		data-nav-id="whatsNew">Có gì mới</a>
+
+
+			<a data-xf-key="3"
+				data-xf-click="menu"
+				data-menu-pos-ref="< .p-navEl"
+				class="p-navEl-splitTrigger"
+				role="button"
+				tabindex="0"
+				aria-label="Toggle expanded"
+				aria-expanded="false"
+				aria-haspopup="true"></a>
+
+		
+		
+			<div class="menu menu--structural" data-menu="menu" aria-hidden="true">
+				<div class="menu-content">
+					
+						
+	
+	
+	<a href="/forum/whats-new/posts/"
+		class="menu-linkRow u-indentDepth0 js-offCanvasCopy "
+		 rel="nofollow"
+		
+		data-nav-id="whatsNewPosts">Bài viết mới</a>
+
+	
+
+					
+				</div>
+			</div>
+		
+	</div>
+
+
+
+						</li>
+					
+						<li>
+							
+
+
+	<div class="p-navEl " data-has-children="true">
+		
+
+			
+	
+	<a href="/forum/members/"
+		class="p-navEl-link p-navEl-link--splitMenu "
+		
+		
+		data-nav-id="members">Thành viên</a>
+
+
+			<a data-xf-key="4"
+				data-xf-click="menu"
+				data-menu-pos-ref="< .p-navEl"
+				class="p-navEl-splitTrigger"
+				role="button"
+				tabindex="0"
+				aria-label="Toggle expanded"
+				aria-expanded="false"
+				aria-haspopup="true"></a>
+
+		
+		
+			<div class="menu menu--structural" data-menu="menu" aria-hidden="true">
+				<div class="menu-content">
+					
+						
+	
+	
+	<a href="/forum/online/"
+		class="menu-linkRow u-indentDepth0 js-offCanvasCopy "
+		
+		
+		data-nav-id="currentVisitors">Ai đang online?</a>
+
+	
+
+					
+				</div>
+			</div>
+		
+	</div>
+
+
+
+						</li>
+					
+					</ul>
+				</div>
+			</div>
+
+			<div class="p-nav-opposite">
+				<div class="p-navgroup p-account p-navgroup--guest">
+					
+						<a href="/forum/login/" class="p-navgroup-link p-navgroup-link--textual p-navgroup-link--logIn"
+							data-xf-click="overlay" data-follow-redirects="on">
+							<span class="p-navgroup-linkText">Đăng nhập</span>
+						</a>
+						
+							<a href="/forum/register/" class="p-navgroup-link p-navgroup-link--textual p-navgroup-link--register"
+								data-xf-click="overlay" data-follow-redirects="on">
+								<span class="p-navgroup-linkText">Đăng ký</span>
+							</a>
+						
+					
+					
+					<a href="/forum/forums/-/list" class="p-navgroup-link p-navgroup-link--chat" aria-label="Thư Mục" title="Thu Muc">
+							<img src="/forum/styles/default/xenforo/folder24.png" alt="Thu Muc" width="20" height="20" style="vertical-align:middle" class="lazyload">			
+					</a>
+					
+				</div>
+				
+				
+				<div class="p-navgroup p-discovery p-discovery--noSearch">
+					<a href="/forum/whats-new/"
+						class="p-navgroup-link p-navgroup-link--iconic p-navgroup-link--whatsnew"
+						aria-label="Có gì mới"
+						title="Có gì mới">
+						<i aria-hidden="true"></i>
+						<span class="p-navgroup-linkText">Có gì mới</span>
+					</a>
+
+					
+				</div>
+			</div>
+		</div>
+	</nav>
+
+	</div>
+	
+	
+		<div class="p-sectionLinks">
+			<div class="p-sectionLinks-inner hScroller" data-xf-init="h-scroller">
+				<div class="hScroller-scroll">
+					<ul class="p-sectionLinks-list">
+					
+						<li>
+							
+
+
+	<div class="p-navEl " data-has-children="true">
+		
+
+			
+	
+	<a href="/forum/watched/threads"
+		class="p-navEl-link p-navEl-link--splitMenu "
+		
+		
+		data-nav-id="dangtheodoi">Đang theo dõi</a>
+
+
+			<a data-xf-key="alt+1"
+				data-xf-click="menu"
+				data-menu-pos-ref="< .p-navEl"
+				class="p-navEl-splitTrigger"
+				role="button"
+				tabindex="0"
+				aria-label="Toggle expanded"
+				aria-expanded="false"
+				aria-haspopup="true"></a>
+
+		
+		
+			<div class="menu menu--structural" data-menu="menu" aria-hidden="true">
+				<div class="menu-content">
+					
+						
+	
+	
+	<a href="/forum/watched/threads"
+		class="menu-linkRow u-indentDepth0 js-offCanvasCopy "
+		
+		
+		data-nav-id="chudedangtheodoi">Chủ đề đang theo dõi</a>
+
+	
+
+					
+						
+	
+	
+	<a href="/forum/watched/forums"
+		class="menu-linkRow u-indentDepth0 js-offCanvasCopy "
+		
+		
+		data-nav-id="forumwatches">Chuyên mục đang theo dõi</a>
+
+	
+
+					
+						
+	
+	
+	<a href="/forum/watched/usertagging-hashes"
+		class="menu-linkRow u-indentDepth0 js-offCanvasCopy "
+		
+		
+		data-nav-id="watcheshastag">Watched hash tags</a>
+
+	
+
+					
+				</div>
+			</div>
+		
+	</div>
+
+
+
+						</li>
+					
+						<li>
+							
+
+
+	<div class="p-navEl " >
+		
+
+			
+	
+	<a href="/forum/whats-new/posts/"
+		class="p-navEl-link "
+		
+		data-xf-key="alt+2"
+		data-nav-id="newPosts">Bài viết mới</a>
+
+
+			
+
+		
+		
+	</div>
+
+
+
+						</li>
+					
+					</ul>
+				</div>
+			</div>
+		</div>
+	
+
+
+
+<div class="offCanvasMenu offCanvasMenu--nav js-headerOffCanvasMenu" data-menu="menu" aria-hidden="true" data-ocm-builder="navigation">
+	<div class="offCanvasMenu-backdrop" data-menu-close="true"></div>
+	<div class="offCanvasMenu-content">
+		<div class="offCanvasMenu-header">
+			Menu
+			<a class="offCanvasMenu-closer" data-menu-close="true" role="button" tabindex="0" aria-label="Close"></a>
+		</div>
+		
+			<div class="p-offCanvasRegisterLink">
+				<div class="offCanvasMenu-linkHolder">
+					<a href="/forum/login/" class="offCanvasMenu-link" data-xf-click="overlay" data-menu-close="true">
+						Đăng nhập
+					</a>
+				</div>
+				<hr class="offCanvasMenu-separator" />
+				
+					<div class="offCanvasMenu-linkHolder">
+						<a href="/forum/register/" class="offCanvasMenu-link" data-xf-click="overlay" data-menu-close="true">
+							Đăng ký
+						</a>
+					</div>
+					<hr class="offCanvasMenu-separator" />
+				
+			</div>
+		
+		<div class="js-offCanvasNavTarget"></div>
+	</div>
+</div>
+
+<div class="p-body">
+	<div class="p-body-inner">
+		<!--XF:EXTRA_OUTPUT-->
+		
+			
+	
+		
+		
+		
+
+		<ul class="notices notices--block  js-notices"
+			data-xf-init="notices"
+			data-type="block"
+			data-scroll-interval="5">
+
+			
+				
+					
+	<li class="notice js-notice notice--primary"
+		data-notice-id="72"
+		data-delay-duration="0"
+		data-display-duration="0"
+		data-auto-dismiss=""
+		data-visibility="">
+
+		
+		<div class="notice-content">
+			
+			<div style="font-size: 120%; text-align: center; color: brown; background-color: lightyellow; padding: 1em; border: 1px solid; border-radius: .5em;"><center><b><a href="https://tacgiaviet.com" style="color: purple;">  
+tacgiaviet.com - Nơi đăng tác phẩm tự sáng tác
+<img src="/forum/styles/default/xenforo/smilies/1/khac/hoa.gif" style="display: inline-block; max-height: 2em; margin-bottom: -.25em;" alt=":hoa:">
+	</a></b></center></div>
+		</div>
+	</li>
+
+				
+			
+		</ul>
+	
+
+		
+
+		
+
+		
+		
+	
+		<ul class="p-breadcrumbs "
+			itemscope itemtype="https://schema.org/BreadcrumbList">
+		
+			
+
+			
+			
+
+			
+				
+				
+	<li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+		<a href="/forum/" itemprop="item">
+			<span itemprop="name">Diễn Đàn</span>
+		</a>
+		<meta itemprop="position" content="1" />
+	</li>
+
+			
+			
+				
+				
+	<li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+		<a href="/forum/#bach-ng-c.34" itemprop="item">
+			<span itemprop="name">Bách Ngọc</span>
+		</a>
+		<meta itemprop="position" content="2" />
+	</li>
+
+			
+				
+				
+	<li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+		<a href="/forum/forums/242/" itemprop="item">
+			<span itemprop="name">Thiết Kế</span>
+		</a>
+		<meta itemprop="position" content="3" />
+	</li>
+
+			
+
+		
+		</ul>
+	
+	
+
+		
+	
+
+		
+	<noscript><div class="blockMessage blockMessage--important blockMessage--iconic u-noJsOnly">JavaScript is disabled. For a better experience, please enable JavaScript in your browser before proceeding.</div></noscript>
+
+		
+	<div class="blockMessage blockMessage--important blockMessage--iconic js-browserWarning" style="display: none">You are using an out of date browser. It  may not display this or other websites correctly.<br />You should upgrade or use an <a href="https://www.google.com/chrome/browser/" target="_blank">alternative browser</a>.</div>
+
+
+		
+			<div class="p-body-header">
+			
+				
+					<div class="p-title ">
+					
+						
+							<h1 class="p-title-value"><span class="label label--red" dir="auto">Thông Báo</span><span class="label-append">&nbsp;</span>:::[Design Team] Tuyển nhân sự:::
+	
+	
+
+	
+
+</h1>
+						
+						
+					
+					</div>
+				
+
+				
+					<div class="p-description">
+	<ul class="listInline listInline--bullet">
+		<li>
+			<i class="fa--xf far fa-user" aria-hidden="true" title="Thread starter"></i>
+			<span class="u-srOnly">Thread starter</span>
+
+			<a href="/forum/members/56564/" class="username  u-concealed" dir="auto" data-user-id="56564" data-xf-init="member-tooltip">JMia</a>
+		</li>
+		<li>
+			<i class="fa--xf far fa-clock" aria-hidden="true" title="Start date"></i>
+			<span class="u-srOnly">Start date</span>
+
+			<a href="/forum/threads/16279/" class="u-concealed"><time  class="u-dt" dir="auto" datetime="2017-06-08T15:28:03+0700" data-time="1496910483" data-date-string="8/6/17" data-time-string="15:28" title="8/6/17 lúc 15:28">8/6/17</time></a>
+		</li>
+		
+		
+	</ul>
+</div>
+				
+			
+			</div>
+		
+
+		<div class="p-body-main  ">
+			
+
+			<div class="p-body-content">
+				
+				<div class="p-body-pageContent">
+
+
+
+
+
+
+
+
+
+
+	
+	
+	
+		
+	
+	
+	
+
+
+	
+	
+	
+		
+	
+	
+	
+
+
+	
+	
+		
+	
+	
+	
+
+
+	
+	
+
+
+
+
+
+
+
+
+
+
+	
+
+
+
+	
+
+	
+		
+	
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div class="block block--messages" data-xf-init="" data-type="post" data-href="/forum/inline-mod/" data-search-target="*">
+
+	<span class="u-anchorTarget" id="posts"></span>
+
+	
+		
+	
+
+	
+
+	<div class="block-outer"><div class="block-outer-main"><nav class="pageNavWrapper pageNavWrapper--mixed ">
+
+
+
+<div class="pageNav  pageNav--skipEnd">
+	
+
+	<ul class="pageNav-main">
+		
+
+	
+		<li class="pageNav-page pageNav-page--current "><a href="/forum/threads/16279/">1</a></li>
+	
+
+
+		
+
+		
+			
+
+	
+		<li class="pageNav-page pageNav-page--later"><a href="/forum/threads/16279/page-2">2</a></li>
+	
+
+		
+			
+
+	
+		<li class="pageNav-page pageNav-page--later"><a href="/forum/threads/16279/page-3">3</a></li>
+	
+
+		
+
+		
+			
+				<li class="pageNav-page pageNav-page--skip pageNav-page--skipEnd">
+					<a data-xf-init="tooltip" title="Go to page"
+						data-xf-click="menu"
+						role="button" tabindex="0" aria-expanded="false" aria-haspopup="true">...</a>
+					
+
+	<div class="menu menu--pageJump" data-menu="menu" aria-hidden="true">
+		<div class="menu-content">
+			<h4 class="menu-header">Go to page</h4>
+			<div class="menu-row" data-xf-init="page-jump" data-page-url="/forum/threads/16279/page-%page%">
+				<div class="inputGroup inputGroup--numbers">
+					<div class="inputGroup inputGroup--numbers inputNumber" data-xf-init="number-box"><input type="number" pattern="\d*" class="input input--number js-numberBoxTextInput input input--numberNarrow js-pageJumpPage" value="4"  min="1" max="10" step="1" required="required" data-menu-autofocus="true" /></div>
+					<span class="inputGroup-text"><button type="button" class="js-pageJumpGo button"><span class="button-text">Thực hiện</span></button></span>
+				</div>
+			</div>
+		</div>
+	</div>
+
+				</li>
+			
+		
+
+		
+
+	
+		<li class="pageNav-page "><a href="/forum/threads/16279/page-10">10</a></li>
+	
+
+	</ul>
+
+	
+		<a href="/forum/threads/16279/page-2" class="pageNav-jump pageNav-jump--next">Next</a>
+	
+</div>
+
+<div class="pageNavSimple">
+	
+
+	<a class="pageNavSimple-el pageNavSimple-el--current"
+		data-xf-init="tooltip" title="Go to page"
+		data-xf-click="menu" role="button" tabindex="0" aria-expanded="false" aria-haspopup="true">
+		1 of 10
+	</a>
+	
+
+	<div class="menu menu--pageJump" data-menu="menu" aria-hidden="true">
+		<div class="menu-content">
+			<h4 class="menu-header">Go to page</h4>
+			<div class="menu-row" data-xf-init="page-jump" data-page-url="/forum/threads/16279/page-%page%">
+				<div class="inputGroup inputGroup--numbers">
+					<div class="inputGroup inputGroup--numbers inputNumber" data-xf-init="number-box"><input type="number" pattern="\d*" class="input input--number js-numberBoxTextInput input input--numberNarrow js-pageJumpPage" value="1"  min="1" max="10" step="1" required="required" data-menu-autofocus="true" /></div>
+					<span class="inputGroup-text"><button type="button" class="js-pageJumpGo button"><span class="button-text">Thực hiện</span></button></span>
+				</div>
+			</div>
+		</div>
+	</div>
+
+
+	
+		<a href="/forum/threads/16279/page-2" class="pageNavSimple-el pageNavSimple-el--next">
+			Next <i aria-hidden="true"></i>
+		</a>
+		<a href="/forum/threads/16279/page-10"
+			class="pageNavSimple-el pageNavSimple-el--last"
+			data-xf-init="tooltip" title="Last">
+			<i aria-hidden="true"></i> <span class="u-srOnly">Last</span>
+		</a>
+	
+</div>
+
+</nav>
+
+
+
+</div></div>
+
+	
+
+	
+		
+	<div class="block-outer js-threadStatusField"></div>
+
+	
+
+	<div class="block-container lbContainer"
+		data-xf-init="lightbox select-to-quote"
+		data-message-selector=".js-post"
+		data-lb-id="thread-16279"
+		data-lb-universal="0">
+
+		<div class="block-body js-replyNewMessageContainer">
+			
+				
+
+					
+
+					
+						
+
+	
+
+	
+
+	
+	<article class="message message--post js-post js-inlineModContainer  "
+		data-author="JMia"
+		data-content="post-1407157"
+		id="js-post-1407157">
+
+		<span class="u-anchorTarget" id="post-1407157"></span>
+
+		
+			<div class="message-inner">
+				
+					<div class="message-cell message-cell--user" style="">
+						
+
+	<section itemscope itemtype="https://schema.org/Person" class="message-user">
+		<div class="message-avatar ">
+			<div class="message-avatar-wrapper">
+				<a href="/forum/members/56564/" class="avatar avatar--m" data-user-id="56564" data-xf-init="member-tooltip">
+			<img src="/forum/data/avatars/m/56/56564.jpg?1603939184" srcset="/forum/data/avatars/l/56/56564.jpg?1603939184 2x" alt="JMia" class="avatar-u56564-m" width="96" height="96" loading="lazy" itemprop="image" /> 
+		</a>
+				
+			</div>
+		</div>
+		<div class="message-userDetails">
+			<h4 class="message-name"><a href="/forum/members/56564/" class="username " dir="auto" data-user-id="56564" data-xf-init="member-tooltip" itemprop="name">JMia</a></h4>
+			<h5 class="userTitle message-userTitle" dir="auto" itemprop="jobTitle">Phàm Nhân</h5><div class="bns-html-usertitle"><div style =" font-size: 13px; color: blue ">Giải Nhì Giọng Ca Vàng BNS 2019</div></div>
+			
+		</div>
+		
+			
+			
+				<div class="message-userExtras">
+				
+					
+					
+					
+					
+					
+					
+					
+					
+					
+
+
+	
+	<dl class="pairs pairs--justified">
+		<dt title="Ngọc">Ngọc</dt>
+		<dd>
+			<a href="/forum/dbtech-credits/currency/1/?user_id=56564" data-xf-click="overlay" class="fauxBlockLink-blockLink u-concealed">
+				3.500,75
+			</a>
+		</dd>
+	</dl>
+	
+	<dl class="pairs pairs--justified">
+		<dt title="Tu vi">Tu vi</dt>
+		<dd>
+			<a href="/forum/dbtech-credits/currency/6/?user_id=56564" data-xf-click="overlay" class="fauxBlockLink-blockLink u-concealed">
+				0,00
+			</a>
+		</dd>
+	</dl>
+	
+
+	
+	
+
+	
+		
+	
+
+	
+
+	
+
+	
+				
+				</div>
+			
+		
+		<span class="message-userArrow"></span>
+	</section>
+
+							<div id="div-post-1407157" width="100%" style="height: fit-content;">
+								<canvas id="canvas-post-1407157" height="0"></canvas>
+							</div>
+							
+							
+					</div>
+				
+
+				
+					<div class="message-cell message-cell--main" style="">
+					
+						<div class="message-main js-quickEditTarget">
+
+							
+								
+
+	<header class="message-attribution message-attribution--split">
+		<ul class="message-attribution-main listInline ">
+			
+			
+			<li class="u-concealed">
+				<a href="/forum/th

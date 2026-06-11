@@ -1,0 +1,24 @@
+{
+  "metadata": {
+    "name": "Spiderum",
+    "author": "Đường đen",
+    "version": 1,
+    "source": "https://spiderum.com",
+    "regexp": "https?:\\/\\/(?:www\\.)?spiderum\\.com\\/bai-dang\\/[A-Za-z0-9_-]+\\/?$",
+    "description": "Đọc bài viết trên Spiderum",
+    "locale": "vi_VN",
+    "language": "javascript",
+    "type": "novel",
+    "encrypt": true
+  },
+  "script": {
+    "home": "home.js",
+    "genre": "genre.js",
+    "detail": "detail.js",
+    "search": "search.js",
+    "page": "page.js",
+    "toc": "toc.js",
+    "chap": "chap.js",
+    "gen": "gen.js"
+  }
+}

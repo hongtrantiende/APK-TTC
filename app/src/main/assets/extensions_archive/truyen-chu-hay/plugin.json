@@ -1,0 +1,23 @@
+{
+    "metadata": {
+        "name": "Truyện Chữ Hay",
+        "author": "ivanzzz",
+        "version": 2,
+        "source": "https:\/\/truyenchuhay.org",
+        "regexp": "(www.)?truyenchuhay.org\/[0-9a-z-]+\/?$",
+        "description": "Truyện Chữ Hay Online",
+        "locale": "vi_VN",
+        "language": "javascript",
+        "type": "novel",
+        "encrypt": false
+    },
+    "script": {
+        "home": "home.js",
+        "genre": "gen.js",
+        "detail": "detail.js",
+        "search": "search.js",
+        "page": "page.js",
+        "toc": "toc.js",
+        "chap": "chap.js"
+    }
+}

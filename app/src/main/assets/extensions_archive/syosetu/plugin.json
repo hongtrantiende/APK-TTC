@@ -1,0 +1,22 @@
+{
+  "metadata": {
+    "name": "Syosetu",
+    "author": "Beast666",
+    "version": 6,
+    "source": "https://yomou.syosetu.com",
+    "regexp": "((yomou)|(ncode)).syosetu.com/(.*)$",
+    "description": "小説を読もう！",
+    "type": "novel",
+    "locale": "ja-JP",
+    "language": "javascript"
+  },
+  "script": {
+    "home": "home.js",
+    "genre": "genre.js",
+    "search": "search.js",
+    "detail": "detail.js",
+    "toc": "toc.js",
+    "chap": "chap.js",
+    "page": "page.js"
+  }
+}

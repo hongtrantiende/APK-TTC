@@ -1,0 +1,22 @@
+{
+    "metadata": {
+        "name": "NetTruyen",
+        "author": "Will Sun",
+        "version": 2,
+        "source": "https:\/\/nettruyen.com.vn",
+        "regexp": "https?:\/\/(?:www\\.)?nettruyen\\.com\\.vn\/doc-(?:truyen|convert)-[a-zA-Z0-9-]+\/?$",
+        "description": "Đọc truyện trên trang nettruyen.com.vn",
+        "locale": "vi_VN",
+        "type": "novel",
+        "language": "javascript",
+        "encrypt": true
+    },
+    "script": {
+        "detail": "detail.js",
+        "toc": "toc.js",
+        "chap": "chap.js",
+        "search": "search.js",
+        "home": "home.js",
+        "genre": "genre.js"
+    }
+}

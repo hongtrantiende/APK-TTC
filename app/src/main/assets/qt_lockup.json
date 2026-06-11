@@ -1,0 +1,32 @@
+[
+  {
+    "id": "hanzii",
+    "name": "Hanzii",
+    "url": "https://hanzii.net/search/word/%s?hl=vi-VN"
+  },
+  {
+    "id": "G.Translate",
+    "name": "G.Translate",
+    "url": "https://translate.google.com/?sl=zh-CN&tl=en&text=%s&translate"
+  },
+  {
+    "id": "G.Search",
+    "name": "G.Search",
+    "url": "https://www.google.com/search?q=%s"
+  },
+  {
+    "id": "Fanyi",
+    "name": "Fanyi",
+    "url": "https://fanyi.baidu.com/#zh/en/%s"
+  },
+  {
+    "id": "iCIBA",
+    "name": "iCIBA",
+    "url": "https://www.iciba.com/word?w=%s"
+  },
+  {
+    "id": "Baidu",
+    "name": "Baidu",
+    "url": "http://www.baidu.com/s?wd=%s"
+  }
+]

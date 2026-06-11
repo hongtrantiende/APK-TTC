@@ -1,0 +1,23 @@
+{
+    "metadata": {
+        "name": "TruyenCV.io",
+        "author": "Will Sun",
+        "version": 2,
+        "source": "https:\/\/truyencv.io",
+        "regexp": "https?:\/\/(?:www\\.)?truyencv\\.io\/truyen\/[a-zA-Z0-9-]+\/?$",
+        "description": "Đọc truyện trên trang truyencv.io",
+        "locale": "vi_VN",
+        "type": "novel",
+        "language": "javascript",
+        "encrypt": true
+    },
+    "script": {
+        "detail": "detail.js",
+        "toc": "toc.js",
+        "page": "page.js",
+        "chap": "chap.js",
+        "search": "search.js",
+        "home": "home.js",
+        "genre": "genre.js"
+    }
+}

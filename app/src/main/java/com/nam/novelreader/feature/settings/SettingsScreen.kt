@@ -230,6 +230,62 @@ fun SettingsScreen(
     // Settings details
     var appLanguage by remember { mutableStateOf(prefs.getString("app_language", "vi") ?: "vi") }
 
+    // === WARP VPN state ===
+    var warpEnabled by remember { mutableStateOf(com.nam.novelreader.vpn.WarpVpnService.isRunning) }
+    var warpAutoIntervalSeconds by remember {
+        mutableIntStateOf(prefs.getInt("warp_auto_interval", 0))
+    }
+    var showWarpIntervalDialog by remember { mutableStateOf(false) }
+    val vpnPermissionLauncher = rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+            // Permission granted — start WARP
+            val intent = android.content.Intent(context, com.nam.novelreader.vpn.WarpVpnService::class.java).apply {
+                action = com.nam.novelreader.vpn.WarpVpnService.ACTION_START
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(intent)
+            } else {
+                context.startService(intent)
+            }
+            warpEnabled = true
+        }
+    }
+    // Auto-reconnect timer job
+    val warpAutoJob = remember { androidx.compose.runtime.mutableStateOf<kotlinx.coroutines.Job?>(null) }
+    LaunchedEffect(warpEnabled, warpAutoIntervalSeconds) {
+        warpAutoJob.value?.cancel()
+        if (warpEnabled && warpAutoIntervalSeconds > 0) {
+            warpAutoJob.value = scope.launch {
+                while (true) {
+                    delay(warpAutoIntervalSeconds * 1000L)
+                    if (com.nam.novelreader.vpn.WarpVpnService.isRunning) {
+                        val intent = android.content.Intent(context, com.nam.novelreader.vpn.WarpVpnService::class.java)
+                            .setAction(com.nam.novelreader.vpn.WarpVpnService.ACTION_RECONNECT)
+                        context.startService(intent)
+                    }
+                }
+            }
+        }
+    }
+    // Sync WARP state from broadcast
+    DisposableEffect(Unit) {
+        val receiver = object : android.content.BroadcastReceiver() {
+            override fun onReceive(ctx: android.content.Context?, intent: android.content.Intent?) {
+                warpEnabled = intent?.getBooleanExtra(com.nam.novelreader.vpn.WarpVpnService.EXTRA_CONNECTED, false) ?: false
+            }
+        }
+        val filter = android.content.IntentFilter(com.nam.novelreader.vpn.WarpVpnService.BROADCAST_STATE)
+        // Android 13+ yêu cầu flag RECEIVER_NOT_EXPORTED cho local broadcasts
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            context.registerReceiver(receiver, filter, android.content.Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            context.registerReceiver(receiver, filter)
+        }
+        onDispose { context.unregisterReceiver(receiver) }
+    }
+
     val restoreBackupLauncher = rememberLauncherForActivityResult(
         contract = androidx.activity.result.contract.ActivityResultContracts.GetContent()
     ) { uri ->
@@ -456,8 +512,78 @@ fun SettingsScreen(
                     showChevron = true,
                     onClick = { navController.navigate(Routes.SETTINGS_CONNECTION) }
                 )
+            VBookSettingsDivider()
+
+            // ===== WARP VPN Section =====
+            var warpIntervalLabel by remember(warpAutoIntervalSeconds) {
+                mutableStateOf(
+                    when (warpAutoIntervalSeconds) {
+                        0 -> "Tắt tự động"
+                        10 -> "10 giây"
+                        30 -> "30 giây"
+                        60 -> "1 phút"
+                        300 -> "5 phút"
+                        else -> "${warpAutoIntervalSeconds}s"
+                    }
+                )
+            }
+            VBookSettingsItem(
+                title = "Cloudflare WARP",
+                subtitle = if (warpEnabled) "🟢 Đang bảo vệ — DNS: 1.1.1.1" else "🔴 Tắt — Bật để bypass chặn IP",
+                icon = Icons.Outlined.VpnLock,
+                content = {
+                    VBookSwitch(
+                        checked = warpEnabled,
+                        onCheckedChange = { checked ->
+                            if (checked) {
+                                // Request VPN permission
+                                val vpnIntent = android.net.VpnService.prepare(context)
+                                if (vpnIntent != null) {
+                                    vpnPermissionLauncher.launch(vpnIntent)
+                                } else {
+                                    // Already permitted
+                                    val intent = android.content.Intent(context, com.nam.novelreader.vpn.WarpVpnService::class.java)
+                                        .setAction(com.nam.novelreader.vpn.WarpVpnService.ACTION_START)
+                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+                                        context.startForegroundService(intent)
+                                    else context.startService(intent)
+                                    warpEnabled = true
+                                }
+                            } else {
+                                val intent = android.content.Intent(context, com.nam.novelreader.vpn.WarpVpnService::class.java)
+                                    .setAction(com.nam.novelreader.vpn.WarpVpnService.ACTION_STOP)
+                                context.startService(intent)
+                                warpEnabled = false
+                            }
+                        }
+                    )
+                }
+            )
+            if (warpEnabled) {
                 VBookSettingsDivider()
-                var isDevModeEnabled by remember {
+                VBookSettingsItem(
+                    title = "Tự động đổi IP",
+                    subtitle = "Reconnect định kỳ để lấy IP mới: $warpIntervalLabel",
+                    icon = Icons.Outlined.Autorenew,
+                    showChevron = true,
+                    onClick = { showWarpIntervalDialog = true }
+                )
+                VBookSettingsDivider()
+                VBookSettingsItem(
+                    title = "Đổi IP ngay",
+                    subtitle = "Reconnect WARP để lấy IP Cloudflare mới",
+                    icon = Icons.Outlined.Refresh,
+                    onClick = {
+                        val intent = android.content.Intent(context, com.nam.novelreader.vpn.WarpVpnService::class.java)
+                            .setAction(com.nam.novelreader.vpn.WarpVpnService.ACTION_RECONNECT)
+                        context.startService(intent)
+                        Toast.makeText(context, "Đang đổi IP...", Toast.LENGTH_SHORT).show()
+                    }
+                )
+            }
+            VBookSettingsDivider()
+
+            var isDevModeEnabled by remember {
                     mutableStateOf(AndroidTestServerService.isServiceRunning)
                 }
                 LaunchedEffect(Unit) {
@@ -546,6 +672,42 @@ fun SettingsScreen(
 
     // === Dialogs Tree ===
 
+    // WARP Auto-Reconnect Interval Dialog
+    if (showWarpIntervalDialog) {
+        AlertDialog(
+            onDismissRequest = { showWarpIntervalDialog = false },
+            containerColor = VBookTheme.cardColor(),
+            title = { Text("Tự động đổi IP", fontWeight = FontWeight.Bold, color = VBookTheme.textColor()) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("Chọn tần suất reconnect WARP để lấy IP mới:", color = VBookTheme.subTextColor(), fontSize = 14.sp)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    listOf(0 to "Tắt tự động", 10 to "10 giây", 30 to "30 giây", 60 to "1 phút", 300 to "5 phút").forEach { (seconds, label) ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(if (warpAutoIntervalSeconds == seconds) VBookTheme.primaryColor().copy(alpha = 0.15f) else Color.Transparent)
+                                .clickable {
+                                    warpAutoIntervalSeconds = seconds
+                                    prefs.edit().putInt("warp_auto_interval", seconds).apply()
+                                    showWarpIntervalDialog = false
+                                }
+                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(label, color = VBookTheme.textColor(), fontSize = 15.sp)
+                            if (warpAutoIntervalSeconds == seconds) {
+                                Icon(Icons.Filled.Check, null, tint = VBookTheme.primaryColor(), modifier = Modifier.size(18.dp))
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {}
+        )
+    }
 
     if (showProfileEditDialog) {
         var tempName by remember { mutableStateOf(displayName) }
@@ -695,6 +857,43 @@ fun SettingsScreen(
                         visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
                         modifier = Modifier.fillMaxWidth()
                     )
+
+                    // Google Sign-In separator
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Divider(modifier = Modifier.weight(1f), color = VBookTheme.subTextColor().copy(alpha = 0.3f))
+                        Text("  hoặc  ", color = VBookTheme.subTextColor(), fontSize = 12.sp)
+                        Divider(modifier = Modifier.weight(1f), color = VBookTheme.subTextColor().copy(alpha = 0.3f))
+                    }
+
+                    // Nút Đăng nhập bằng Google
+                    Button(
+                        onClick = {
+                            if (!authManager.isConfigured()) {
+                                android.widget.Toast.makeText(context, "Chưa cấu hình Supabase URL!", android.widget.Toast.LENGTH_SHORT).show()
+                                return@Button
+                            }
+                            val url = authManager.getGoogleSignInUrl()
+                            val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
+                            context.startActivity(intent)
+                            showLoginDialog = false
+                        },
+                        enabled = !isLoading,
+                        modifier = Modifier.fillMaxWidth().height(46.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = androidx.compose.ui.graphics.Color(0xFF4285F4)),
+                        shape = androidx.compose.foundation.shape.RoundedCornerShape(23.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.AccountCircle,
+                            contentDescription = null,
+                            tint = androidx.compose.ui.graphics.Color.White,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Đăng nhập bằng Google", color = androidx.compose.ui.graphics.Color.White, fontWeight = FontWeight.Medium)
+                    }
                 }
             },
             confirmButton = {

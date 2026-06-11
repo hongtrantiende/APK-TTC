@@ -1,0 +1,23 @@
+{
+  "metadata": {
+    "name": "Sinodan",
+    "author": "3690",
+    "version": 17,
+    "source": "https://www.sinodan.link/",
+    "regexp": "(www.)?sinodan.link/[^/]+",
+    "description": "Đọc truyện trên sinodan.link",
+    "locale": "zh_CN",
+    "language": "javascript",
+    "type": "novel",
+    "tag": "nsfw",
+    "encrypt": true
+  },
+  "script": {
+    "home": "home.js",
+    "detail": "detail.js",
+    "search": "search.js",
+    "page": "page.js",
+    "toc": "toc.js",
+    "chap": "chap.js"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "metadata": {
+    "name": "bqg9527",
+    "author": "Nahona",
+    "version": 1,
+    "source": "https://www.bqg9527.net/",
+    "regexp": "(www.)?bqg9527.net/book/\\d+/?$",
+    "description": "",
+    "local": "zh-CN",
+    "language": "javascript",
+    "type": "chinese_novel"
+  },
+  "script": {
+    "home": "home.js",
+    "detail": "detail.js",
+    "genre": "genre.js",
+    "toc": "toc.js",
+    "chap": "chap.js"
+  }
+}

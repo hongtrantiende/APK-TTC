@@ -1,0 +1,23 @@
+{
+  "metadata": {
+    "name": "dualeotruyenfull",
+    "author": "Meo",
+    "version": 5,
+    "description": "Dưa Leo Truyện Full - Đọc truyện chữ online",
+    "type": "novel",
+    "locale": "vi_VN",
+    "source": "https://dualeotruyenfull.net",
+    "regexp": "dualeotruyenfull\\.net/doc-truyen/"
+  },
+  "script": {
+    "home": "home.js",
+    "homecontent": "homecontent.js",
+    "genre": "genre.js",
+    "genrecontent": "genrecontent.js",
+    "detail": "detail.js",
+    "toc": "toc.js",
+    "chap": "chap.js",
+    "search": "search.js",
+    "suggest": "suggest.js"
+  }
+}

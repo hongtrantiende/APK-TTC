@@ -1,0 +1,21 @@
+{
+    "metadata": {
+        "name": "iTruyenChu",
+        "author": "vBook",
+        "version": 16,
+        "source": "https://itruyenchu.org/",
+        "regexp": "(www\\.)?itruyenchu\\.org/truyen/[^/]+$",
+        "description": "Đọc truyện trên trang iTruyenChu",
+        "locale": "vi_VN",
+        "language": "javascript",
+        "type": "novel"
+    },
+    "script": {
+        "home": "home.js",
+        "genre": "genre.js",
+        "detail": "detail.js",
+        "search": "search.js",
+        "toc": "toc.js",
+        "chap": "chap.js"
+    }
+}

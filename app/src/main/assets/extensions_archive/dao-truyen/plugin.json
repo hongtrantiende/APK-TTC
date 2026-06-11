@@ -1,0 +1,26 @@
+{
+  "metadata": {
+    "name": "Đảo truyện",
+    "author": "Đường đen",
+    "version": 2,
+    "source": "https://daotruyen.me",
+    "regexp": "https://daotruyen.me/[a-z-0-9]+/?$",
+    "description": "Đọc truyện trên trang Đảo truyện",
+    "locale": "vi_VN",
+    "type": "novel",
+    "language": "javascript",
+    "encrypt": true
+  },
+  "script": {
+    "home": "home.js",
+    "detail": "detail.js",
+    "search": "search.js",
+    "toc": "toc.js",
+    "genre": "genre.js",
+    "chap": "chap.js"
+  },
+  "config": {
+    "thread_num": 1,
+    "delay": 10000
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "metadata": {
+    "name": "Đồng nhân tiểu thuyết",
+    "author": "Vearn",
+    "version": 1,
+    "source": "https://www.qbtr.cc/",
+    "regexp": "(www.|m.)?qbtr.cc/(tongren|changgui)/\\d+.html",
+    "description": "Đọc truyện trên trang https://www.qbtr.cc/",
+    "locale": "zh_CN",
+    "language": "javascript",
+    "type": "chinese_novel"
+  },
+  "script": {
+    "home": "home.js",
+    "detail": "detail.js",
+    "toc": "toc.js",
+    "chap": "chap.js"
+  }
+}

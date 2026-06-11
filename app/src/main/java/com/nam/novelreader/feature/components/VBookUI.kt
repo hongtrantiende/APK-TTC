@@ -46,8 +46,11 @@ data class VBookThemeState(
     val dynamicColor: Boolean = false,
     val einkMode: Boolean = false,
     val themeColorHex: String = "#D4A574",
+    val accentColorHex: String = "",
     val settingsItemBgColorHex: String = "",
     val settingsItemTextColorHex: String = "",
+    val settingsGroupTitleColorHex: String = "",
+    val settingsIconColorHex: String = "",
     val fontScale: Float = 1.0f,
     val densityScale: Float = 1.0f,
     val fontFamily: String = "system",
@@ -171,6 +174,26 @@ object VBookTheme {
     }
 
     @Composable
+    fun settingsGroupTitleColor(): Color {
+        val state = themeState()
+        return if (state.settingsGroupTitleColorHex.isEmpty()) {
+            primaryColor()
+        } else {
+            try { Color(android.graphics.Color.parseColor(state.settingsGroupTitleColorHex)) } catch (_: Exception) { primaryColor() }
+        }
+    }
+
+    @Composable
+    fun settingsIconColor(): Color {
+        val state = themeState()
+        return if (state.settingsIconColorHex.isEmpty()) {
+            primaryColor()
+        } else {
+            try { Color(android.graphics.Color.parseColor(state.settingsIconColorHex)) } catch (_: Exception) { primaryColor() }
+        }
+    }
+
+    @Composable
     fun primaryColor(): Color {
         val state = themeState()
         if (state.einkMode) {
@@ -179,7 +202,29 @@ object VBookTheme {
         if (state.dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             return MaterialTheme.colorScheme.primary
         }
-        return MaterialTheme.colorScheme.primary
+        // Use user-chosen theme color when not using dynamic color
+        return try {
+            Color(android.graphics.Color.parseColor(state.themeColorHex))
+        } catch (_: Exception) {
+            MaterialTheme.colorScheme.primary
+        }
+    }
+
+    /** Màu nhấn khi chọn tab/nút — fallback sang primaryColor nếu chưa tùy chỉnh */
+    @Composable
+    fun accentColor(): Color {
+        val state = themeState()
+        if (state.einkMode) {
+            return if (state.isDark) Color(0xFFFFFFFF) else Color(0xFF000000)
+        }
+        if (state.accentColorHex.isNotEmpty()) {
+            return try {
+                Color(android.graphics.Color.parseColor(state.accentColorHex))
+            } catch (_: Exception) {
+                primaryColor()
+            }
+        }
+        return primaryColor()
     }
 
     @Composable
@@ -279,16 +324,20 @@ fun VBookSettingsGroup(
             .padding(horizontal = 20.dp)
             .padding(bottom = 24.dp)
     ) {
-        Text(
-            text = title,
-            color = VBookTheme.primaryColor(),
-            fontSize = 15.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 12.dp, start = 4.dp)
-        )
+        if (title.isNotBlank()) {
+            Text(
+                text = title,
+                color = VBookTheme.settingsGroupTitleColor(),
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(bottom = 8.dp, start = 12.dp)
+            )
+        }
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .clip(RoundedCornerShape(20.dp))
+                .background(VBookTheme.settingsItemBgColor())
         ) {
             content()
         }
@@ -307,20 +356,26 @@ fun VBookSettingsItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp)
-            .clip(RoundedCornerShape(16.dp))
-            .background(VBookTheme.settingsItemBgColor())
+            .background(Color.Transparent)
             .then(if (onClick != null) Modifier.clickable { onClick() } else Modifier)
             .padding(horizontal = 16.dp, vertical = 16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         if (icon != null) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = VBookTheme.subTextColor(),
-                modifier = Modifier.size(24.dp)
-            )
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .background(VBookTheme.settingsIconColor().copy(alpha = 0.1f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = VBookTheme.settingsIconColor(),
+                    modifier = Modifier.size(20.dp)
+                )
+            }
             Spacer(modifier = Modifier.width(16.dp))
         }
         
@@ -328,7 +383,8 @@ fun VBookSettingsItem(
             Text(
                 text = title,
                 color = VBookTheme.settingsItemTextColor(),
-                fontSize = 16.sp
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Medium
             )
             if (subtitle != null) {
                 Spacer(modifier = Modifier.height(2.dp))
@@ -343,11 +399,12 @@ fun VBookSettingsItem(
         if (content != null) {
             Spacer(modifier = Modifier.width(16.dp))
             content()
-        } else if (showChevron) {
+        }
+        if (showChevron) {
             Icon(
                 imageVector = Icons.Filled.ChevronRight,
                 contentDescription = null,
-                tint = VBookTheme.settingsItemTextColor().copy(alpha = 0.7f),
+                tint = VBookTheme.settingsItemTextColor().copy(alpha = 0.4f),
                 modifier = Modifier.size(20.dp)
             )
         }
@@ -356,8 +413,68 @@ fun VBookSettingsItem(
 
 @Composable
 fun VBookSettingsDivider() {
-    // Replaced with an empty spacer because items are now individually rounded
-    Spacer(modifier = Modifier.height(4.dp))
+    Divider(
+        modifier = Modifier.padding(horizontal = 16.dp),
+        thickness = 0.5.dp,
+        color = VBookTheme.subTextColor().copy(alpha = 0.15f)
+    )
 }
 
 
+
+@androidx.compose.runtime.Composable
+fun buildNovelImageRequest(novel: com.nam.novelreader.domain.model.Novel): coil.request.ImageRequest {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    return androidx.compose.runtime.remember(novel.cover, novel.extensionId, novel.url) {
+        val builder = coil.request.ImageRequest.Builder(context)
+            .data(novel.cover)
+            .crossfade(true)
+            .diskCachePolicy(coil.request.CachePolicy.ENABLED)
+            .memoryCachePolicy(coil.request.CachePolicy.ENABLED)
+        if (novel.extensionId.isNotBlank()) {
+            builder.addHeader("X-Extension-Id", novel.extensionId)
+        }
+        if (novel.url.isNotBlank()) {
+            builder.addHeader("Referer", novel.url)
+        }
+        builder.build()
+    }
+}
+
+@androidx.compose.runtime.Composable
+fun buildNovelImageRequest(novel: com.nam.novelreader.data.local.entity.NovelEntity): coil.request.ImageRequest {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    return androidx.compose.runtime.remember(novel.cover, novel.extensionId, novel.url) {
+        val builder = coil.request.ImageRequest.Builder(context)
+            .data(novel.cover)
+            .crossfade(true)
+            .diskCachePolicy(coil.request.CachePolicy.ENABLED)
+            .memoryCachePolicy(coil.request.CachePolicy.ENABLED)
+        if (novel.extensionId.isNotBlank()) {
+            builder.addHeader("X-Extension-Id", novel.extensionId)
+        }
+        if (novel.url.isNotBlank()) {
+            builder.addHeader("Referer", novel.url)
+        }
+        builder.build()
+    }
+}
+
+@androidx.compose.runtime.Composable
+fun buildNovelImageRequest(recentNovel: com.nam.novelreader.data.local.dao.RecentNovelWithInfo): coil.request.ImageRequest {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    return androidx.compose.runtime.remember(recentNovel.cover, recentNovel.extensionId, recentNovel.novelUrl) {
+        val builder = coil.request.ImageRequest.Builder(context)
+            .data(recentNovel.cover)
+            .crossfade(true)
+            .diskCachePolicy(coil.request.CachePolicy.ENABLED)
+            .memoryCachePolicy(coil.request.CachePolicy.ENABLED)
+        if (!recentNovel.extensionId.isNullOrBlank()) {
+            builder.addHeader("X-Extension-Id", recentNovel.extensionId)
+        }
+        if (!recentNovel.novelUrl.isNullOrBlank()) {
+            builder.addHeader("Referer", recentNovel.novelUrl)
+        }
+        builder.build()
+    }
+}

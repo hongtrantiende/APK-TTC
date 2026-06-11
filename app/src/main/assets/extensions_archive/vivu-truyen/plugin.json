@@ -1,0 +1,23 @@
+{
+  "metadata": {
+    "name": "Vivu Truyện",
+    "author": "kychi",
+    "version": 1,
+    "source": "https://vivutruyen.net/",
+    "regexp": "(?:www\\.)?vivutruyen\\.net/[^/]+/?$",
+    "description": "Trang đọc truyện online - vivutruyen",
+    "locale": "vi_VN",
+    "language": "javascript",
+    "type": "novel"
+  },
+  "script": {
+    "home": "home.js",
+    "genre": "genre.js",
+    "gen": "gen.js",
+    "page": "page.js",
+    "detail": "detail.js",
+    "search": "search.js",
+    "toc": "toc.js",
+    "chap": "chap.js"
+  }
+}

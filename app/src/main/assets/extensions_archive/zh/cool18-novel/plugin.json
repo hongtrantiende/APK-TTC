@@ -1,0 +1,22 @@
+{
+  "metadata": {
+    "name": "Cool18 Novel",
+    "author": "hieu05",
+    "version": 1,
+    "source": "https://www.cool18.com/bbs4/",
+    "regexp": "https://www.cool18.com/bbs4/.+",
+    "description": "Đọc truyện trên trang Cool18",
+    "locale": "zh_CN",
+    "tag": "nsfw",
+    "type": "chinese_novel",
+    "language": "javascript"
+  },
+  "script": {
+    "home": "home.js",
+    "genre": "genre.js",
+    "detail": "detail.js",
+    "toc": "toc.js",
+    "chap": "chap.js",
+    "search": "search.js"
+  }
+}

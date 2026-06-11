@@ -1,0 +1,19 @@
+{
+  "metadata": {
+    "name": "quanben",
+    "author": "hajljnopera",
+    "version": 3,
+    "source": "http://quanben.io",
+    "regexp": "quanben\\.io/n/[^/]+/?$",
+    "description": "Đọc truyện trên trang http://quanben.io",
+    "local": "vi-VN",
+    "language": "javascript",
+    "type": "chinese_novel"
+  },
+  "script": {
+    "home": "home.js",
+    "detail": "detail.js",
+    "toc": "toc.js",
+    "chap": "chap.js"
+  }
+}

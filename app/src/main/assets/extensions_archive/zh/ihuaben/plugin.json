@@ -1,0 +1,20 @@
+{
+	"metadata": {
+		"name": "ihuaben",
+		"author": "mizhm",
+		"version": 3,
+		"source": "https://www.ihuaben.com",
+		"regexp": "https://www.ihuaben.com/(.*?)$",
+		"description": "ihuaben",
+		"locale": "zh_CN",
+		"type": "chinese_novel"
+	},
+	"script": {
+		"home": "home.js",
+		"genre": "genre.js",
+		"detail": "detail.js",
+		"search": "search.js",
+		"toc": "toc.js",
+		"chap": "chap.js"
+	}
+}

@@ -59,7 +59,7 @@ fun ExtensionListScreen(
 ) {
     val installedExtensions by viewModel.installedExtensions.collectAsStateWithLifecycle(initialValue = emptyList())
     var selectedFilter by remember { mutableStateOf("Tất cả") }
-    val filters = listOf("Tất cả", "Truyện chữ", "Truyện tranh", "Phim")
+    val filters = listOf("Tất cả", "Truyện chữ", "Truyện chữ Trung", "Truyện tranh", "Phim")
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val isResumed = navBackStackEntry?.lifecycle?.currentState?.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED) == true
 
@@ -69,10 +69,16 @@ fun ExtensionListScreen(
         } else {
             installedExtensions.filter { ext ->
                 val type = ext.type.lowercase(Locale.ROOT)
+                val locale = ext.locale.lowercase(Locale.ROOT)
+                val isChinese = type.contains("chinese") || locale.startsWith("zh") || locale.startsWith("cn") || locale == "chi" || locale == "zho"
+                val isNovel = type.contains("novel") || type.contains("text")
+                val isComic = type.contains("comic") || type.contains("manga") || type.contains("image")
+                val isVideo = type.contains("video") || type.contains("movie") || type.contains("anime")
                 when (selectedFilter) {
-                    "Truyện chữ" -> type == "novel" || type == "text"
-                    "Truyện tranh" -> type == "comic" || type == "manga" || type == "image"
-                    "Phim" -> type == "video" || type == "movie" || type == "anime"
+                    "Truyện chữ" -> isNovel && !isChinese
+                    "Truyện chữ Trung" -> isNovel && isChinese
+                    "Truyện tranh" -> isComic
+                    "Phim" -> isVideo
                     else -> true
                 }
             }
@@ -89,9 +95,9 @@ fun ExtensionListScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
-                    titleContentColor = MaterialTheme.colorScheme.onBackground,
-                    actionIconContentColor = MaterialTheme.colorScheme.onBackground
+                    containerColor = com.nam.novelreader.feature.components.VBookTheme.backgroundColor(),
+                    titleContentColor = com.nam.novelreader.feature.components.VBookTheme.textColor(),
+                    actionIconContentColor = com.nam.novelreader.feature.components.VBookTheme.textColor()
                 )
             )
         }
@@ -115,8 +121,8 @@ fun ExtensionListScreen(
                         onClick = { selectedFilter = filter },
                         label = { Text(filter) },
                         colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
+                            selectedContainerColor = com.nam.novelreader.feature.components.VBookTheme.primaryColor().copy(alpha = 0.2f),
+                            selectedLabelColor = com.nam.novelreader.feature.components.VBookTheme.primaryColor()
                         )
                     )
                 }
@@ -135,13 +141,13 @@ fun ExtensionListScreen(
                         Text(
                             text = if (installedExtensions.isEmpty()) "Chưa có tiện ích mở rộng nào" else "Không có tiện ích thuộc loại này",
                             style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = com.nam.novelreader.feature.components.VBookTheme.subTextColor(),
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = if (installedExtensions.isEmpty()) "Thêm kho lưu trữ để cài đặt và cập nhật nội dung bạn quan tâm nhé!" else "Hãy chọn bộ lọc khác hoặc cài đặt thêm tiện ích mới.",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = com.nam.novelreader.feature.components.VBookTheme.subTextColor(),
                             modifier = Modifier.padding(horizontal = 32.dp),
                             textAlign = TextAlign.Center
                         )
@@ -193,7 +199,10 @@ fun InstalledExtensionItem(ext: ExtensionEntity, isResumed: Boolean, onClick: ()
             val path = ext.iconPath ?: "${ext.localPath}/icon.png"
             File(path)
         }
-        if (iconFile.exists()) {
+        val isSupportedIcon = remember(iconFile) {
+            iconFile.exists() && iconFile.extension.lowercase() in listOf("png", "jpg", "jpeg", "webp", "bmp")
+        }
+        if (isSupportedIcon) {
             AsyncImage(
                 model = iconFile,
                 contentDescription = ext.cleanName,
@@ -206,14 +215,14 @@ fun InstalledExtensionItem(ext: ExtensionEntity, isResumed: Boolean, onClick: ()
             Surface(
                 modifier = Modifier.size(40.dp),
                 shape = RoundedCornerShape(10.dp),
-                color = MaterialTheme.colorScheme.primaryContainer,
+                color = com.nam.novelreader.feature.components.VBookTheme.primaryColor().copy(alpha = 0.15f),
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
                         Icons.Filled.Extension,
                         contentDescription = null,
                         modifier = Modifier.size(24.dp),
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        tint = com.nam.novelreader.feature.components.VBookTheme.primaryColor(),
                     )
                 }
             }
@@ -230,7 +239,7 @@ fun InstalledExtensionItem(ext: ExtensionEntity, isResumed: Boolean, onClick: ()
                     text = ext.cleanName,
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onBackground,
+                    color = com.nam.novelreader.feature.components.VBookTheme.textColor(),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f, fill = false)
@@ -249,7 +258,7 @@ fun InstalledExtensionItem(ext: ExtensionEntity, isResumed: Boolean, onClick: ()
                 Text(
                     text = ext.source.replace("https://", "").replace("http://", "").trimEnd('/'),
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                    color = com.nam.novelreader.feature.components.VBookTheme.subTextColor().copy(alpha = 0.7f),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -425,12 +434,15 @@ fun ExtensionsTab(viewModel: ExtensionViewModel, navController: NavHostControlle
             filteredInstalled.filter { ext ->
                 val type = ext.type.lowercase(Locale.ROOT)
                 val locale = ext.locale.lowercase(Locale.ROOT)
-                val isChinese = locale.startsWith("zh") || locale.startsWith("cn") || locale == "chi" || locale == "zho"
+                val isChinese = type.contains("chinese") || locale.startsWith("zh") || locale.startsWith("cn") || locale == "chi" || locale == "zho"
+                val isNovel = type.contains("novel") || type.contains("text")
+                val isComic = type.contains("comic") || type.contains("manga") || type.contains("image")
+                val isVideo = type.contains("video") || type.contains("movie") || type.contains("anime")
                 when (selectedFilter) {
-                    "Truyện chữ" -> (type == "novel" || type == "text") && !isChinese
-                    "Truyện chữ Trung" -> (type == "novel" || type == "text") && isChinese
-                    "Truyện tranh" -> type == "comic" || type == "manga" || type == "image"
-                    "Phim" -> type == "video" || type == "movie" || type == "anime"
+                    "Truyện chữ" -> isNovel && !isChinese
+                    "Truyện chữ Trung" -> isNovel && isChinese
+                    "Truyện tranh" -> isComic
+                    "Phim" -> isVideo
                     else -> true
                 }
             }
@@ -444,12 +456,15 @@ fun ExtensionsTab(viewModel: ExtensionViewModel, navController: NavHostControlle
             notInstalled.filter { info ->
                 val type = info.type.lowercase(Locale.ROOT)
                 val locale = info.locale.lowercase(Locale.ROOT)
-                val isChinese = locale.startsWith("zh") || locale.startsWith("cn") || locale == "chi" || locale == "zho"
+                val isChinese = type.contains("chinese") || locale.startsWith("zh") || locale.startsWith("cn") || locale == "chi" || locale == "zho"
+                val isNovel = type.contains("novel") || type.contains("text")
+                val isComic = type.contains("comic") || type.contains("manga") || type.contains("image")
+                val isVideo = type.contains("video") || type.contains("movie") || type.contains("anime")
                 when (selectedFilter) {
-                    "Truyện chữ" -> (type == "novel" || type == "text") && !isChinese
-                    "Truyện chữ Trung" -> (type == "novel" || type == "text") && isChinese
-                    "Truyện tranh" -> type == "comic" || type == "manga" || type == "image"
-                    "Phim" -> type == "video" || type == "movie" || type == "anime"
+                    "Truyện chữ" -> isNovel && !isChinese
+                    "Truyện chữ Trung" -> isNovel && isChinese
+                    "Truyện tranh" -> isComic
+                    "Phim" -> isVideo
                     else -> true
                 }
             }
@@ -584,7 +599,10 @@ fun ExtensionsTab(viewModel: ExtensionViewModel, navController: NavHostControlle
                                     val path = ext.iconPath ?: "${ext.localPath}/icon.png"
                                     File(path)
                                 }
-                                if (iconFile.exists()) {
+                                val isSupportedIcon = remember(iconFile) {
+                                    iconFile.exists() && iconFile.extension.lowercase() in listOf("png", "jpg", "jpeg", "webp", "bmp")
+                                }
+                                if (isSupportedIcon) {
                                     AsyncImage(
                                         model = iconFile,
                                         contentDescription = ext.cleanName,

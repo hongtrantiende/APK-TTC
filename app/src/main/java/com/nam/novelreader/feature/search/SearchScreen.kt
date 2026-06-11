@@ -230,7 +230,7 @@ fun NovelListItem(novel: Novel, onClick: () -> Unit) {
                 .padding(12.dp),
         ) {
             AsyncImage(
-                model = novel.cover,
+                model = com.nam.novelreader.feature.components.buildNovelImageRequest(novel),
                 contentDescription = novel.title,
                 modifier = Modifier
                     .width(80.dp)
@@ -274,3 +274,4 @@ fun NovelListItem(novel: Novel, onClick: () -> Unit) {
         }
     }
 }
+

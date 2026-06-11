@@ -1,0 +1,22 @@
+{
+    "metadata": {
+        "name": "po18sm",
+        "author": "Will Sun",
+        "version": 4,
+        "source": "https:\/\/www.po18sm.com",
+        "regexp": "https?:\/\/(?:www\\.)?po18sm\\.com\/[0-9]+\/[0-9]+.html\/?$",
+        "description": "Đọc truyện trên trang po18sm.com",
+        "locale": "zh_CN",
+        "type": "chinese_novel",
+        "language": "javascript",
+        "encrypt": true
+    },
+    "script": {
+        "detail": "detail.js",
+        "toc": "toc.js",
+        "chap": "chap.js",
+        "search": "search.js",
+        "home": "home.js",
+        "genre": "genre.js"
+    }
+}

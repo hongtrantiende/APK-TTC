@@ -1,0 +1,19 @@
+{
+  "metadata": {
+    "name": "xbiquge",
+    "author": "hajljnopera",
+    "version": 2,
+    "source": "https://www.xbiquge.so",
+    "regexp": "(www|m)\\.xbiquge\\.so/v?book/\\d+/?$",
+    "description": "Đọc truyện trên trang https://www.xbiquge.so",
+    "local": "vi-VN",
+    "language": "javascript",
+    "type": "chinese_novel"
+  },
+  "script": {
+    "home": "home.js",
+    "detail": "detail.js",
+    "toc": "toc.js",
+    "chap": "chap.js"
+  }
+}

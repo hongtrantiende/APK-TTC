@@ -1,0 +1,19 @@
+{
+  "metadata": {
+    "name": "Đồng nhân xã",
+    "author": "Vearn",
+    "version": 4,
+    "source": "https://tongrenshe.cc/",
+    "regexp": "(www.|m.)?tongrenshe.cc/tongren/\\d+.html",
+    "description": "Đọc truyện trên trang https://tongrenshe.cc/",
+    "locale": "zh_CN",
+    "language": "javascript",
+    "type": "chinese_novel"
+  },
+  "script": {
+    "home": "home.js",
+    "detail": "detail.js",
+    "toc": "toc.js",
+    "chap": "chap.js"
+  }
+}

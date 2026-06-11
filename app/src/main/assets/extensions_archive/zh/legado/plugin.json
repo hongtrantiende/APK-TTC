@@ -1,0 +1,28 @@
+{
+  "metadata": {
+    "name": "Legado",
+    "author": "Moleys",
+    "version": 16,
+    "source": "https://github.com/gedoor/legado",
+    "regexp": "((\\d+)[.](\\d+)[.](\\d+)[.](\\d+)|localhost):1122/(.*?)",
+    "description": "Đọc truyện qua app Legado, chi tiết vui lòng xem hướng dẫn trong Thảo luận",
+    "locale": "zh_CN",
+    "language": "javascript",
+    "type": "chinese_novel"
+  },
+  "script": {
+    "home": "home.js",
+    "detail": "detail.js",
+    "toc": "toc.js",
+    "search": "search.js",
+    "chap": "chap.js"
+  },
+  "config": {
+  "host": {
+    "title": "Host Legado",
+    "mode": "input",
+    "format": "text",
+    "default": "http://localhost:1122"
+  }
+}
+}

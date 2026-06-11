@@ -802,39 +802,29 @@ fun HomeScreen(
                         .fillMaxWidth()
                         .background(ScreenBg)
                         .statusBarsPadding()
-                        .height(48.dp)
+                        .height(44.dp)
                         .padding(horizontal = 16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Tiêu đề "Trang chủ" bên trái — giống y vBook
+                    // Tiêu đề
                     Text(
                         "Trang chủ",
                         fontWeight = FontWeight.Bold,
-                        fontSize = 22.sp,
+                        fontSize = 20.sp,
                         color = com.nam.novelreader.feature.components.VBookTheme.textColor(),
                         modifier = Modifier.weight(1f)
                     )
 
-                    // 3 action icons bên phải: Search, Filter, Message
-                    IconButton(onClick = { isSearching = true }, modifier = Modifier.size(40.dp)) {
-                        Icon(Icons.Filled.Search, contentDescription = "Tìm kiếm", tint = com.nam.novelreader.feature.components.VBookTheme.textColor(), modifier = Modifier.size(22.dp))
+                    // Search
+                    IconButton(onClick = { isSearching = true }, modifier = Modifier.size(36.dp)) {
+                        Icon(Icons.Filled.Search, contentDescription = "Tìm kiếm", tint = com.nam.novelreader.feature.components.VBookTheme.textColor(), modifier = Modifier.size(20.dp))
                     }
-                    IconButton(onClick = { showBottomSheet = true }, modifier = Modifier.size(40.dp)) {
-                        Icon(Icons.Filled.FilterList, contentDescription = "Bộ lọc", tint = com.nam.novelreader.feature.components.VBookTheme.textColor(), modifier = Modifier.size(22.dp))
-                    }
-                    IconButton(
-                        onClick = { /* TODO: Tin nhắn */ }, 
-                        modifier = Modifier.size(40.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.ChatBubbleOutline, 
-                            contentDescription = "Tin nhắn", 
-                            tint = com.nam.novelreader.feature.components.VBookTheme.textColor(), 
-                            modifier = Modifier.size(20.dp)
-                        )
+                    // Filter
+                    IconButton(onClick = { showBottomSheet = true }, modifier = Modifier.size(36.dp)) {
+                        Icon(Icons.Filled.FilterList, contentDescription = "Bộ lọc", tint = com.nam.novelreader.feature.components.VBookTheme.textColor(), modifier = Modifier.size(20.dp))
                     }
                     
-                    // Avatar tròn hiển thị ảnh đại diện thật của người dùng
+                    // Avatar
                     val avatarFile = remember(userAvatarPath) {
                         if (userAvatarPath.isNotBlank()) java.io.File(userAvatarPath) else null
                     }
@@ -842,12 +832,10 @@ fun HomeScreen(
 
                     Box(
                         modifier = Modifier
-                            .size(28.dp)
+                            .size(26.dp)
                             .clip(CircleShape)
                             .background(Color(0xFFE5C09F))
-                            .clickable {
-                                onNavigateToTab(3) // Chuyển sang tab Cài đặt ("Thêm")
-                            },
+                            .clickable { onNavigateToTab(3) },
                         contentAlignment = Alignment.Center
                     ) {
                         if (hasAvatar) {
@@ -868,7 +856,7 @@ fun HomeScreen(
                                     text = displayChar,
                                     color = Color(0xFF4E3629),
                                     fontWeight = FontWeight.Bold,
-                                    fontSize = 12.sp,
+                                    fontSize = 11.sp,
                                     textAlign = TextAlign.Center
                                 )
                             } else {
@@ -876,7 +864,7 @@ fun HomeScreen(
                                     imageVector = Icons.Filled.Person,
                                     contentDescription = "Cá nhân",
                                     tint = Color(0xFF4E3629),
-                                    modifier = Modifier.size(16.dp)
+                                    modifier = Modifier.size(14.dp)
                                 )
                             }
                         }
@@ -902,18 +890,20 @@ fun HomeScreen(
                     .fillMaxSize()
                     .padding(padding)
             ) {
-                // === 1. Hàng chức năng & Chips (Image 1) ===
+                // === Filter chips row — gọn gàng, capsule shape ===
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                        .padding(horizontal = 16.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                        // Nút chuyển Night/Light mode
+                        // Nút Dark/Light mode nhỏ gọn
                         Box(
                             modifier = Modifier
-                                .size(36.dp)
+                                .size(32.dp)
                                 .clip(CircleShape)
+                                .background(CardBg)
                                 .clickable {
                                     val isDark = !prefs.getBoolean("theme_is_dark", true)
                                     prefs.edit().putBoolean("theme_is_dark", isDark).apply()
@@ -922,65 +912,52 @@ fun HomeScreen(
                         ) {
                             Icon(
                                 imageVector = if (com.nam.novelreader.feature.components.VBookTheme.isDarkTheme()) Icons.Outlined.LightMode else Icons.Outlined.DarkMode,
-                                contentDescription = "Chế độ ban đêm",
-                                tint = com.nam.novelreader.feature.components.VBookTheme.textColor(),
-                                modifier = Modifier.size(20.dp)
+                                contentDescription = "Chế độ",
+                                tint = com.nam.novelreader.feature.components.VBookTheme.subTextColor(),
+                                modifier = Modifier.size(16.dp)
                             )
                         }
 
-                        Spacer(modifier = Modifier.width(4.dp))
-
-                        // Nút kho lưu trữ
-                        Box(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(CircleShape)
-                                .background(CardBg)
-                                .clickable {
-                                    navController.navigate(Routes.DOWNLOAD)
-                                },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(Icons.Outlined.Inventory2, contentDescription = "Kho", tint = com.nam.novelreader.feature.components.VBookTheme.textColor(), modifier = Modifier.size(18.dp))
-                        }
-
-                        Spacer(modifier = Modifier.width(8.dp))
-
-                        // Scrollable Row of chips lọc
+                        // Scrollable chips
                         Row(
                             modifier = Modifier
                                 .weight(1f)
                                 .horizontalScroll(rememberScrollState()),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            // Chip "Tất cả" (có mũi tên trỏ xuống)
                             CustomHomeChip(
                                 label = "Tất cả",
                                 selected = selectedFilter == 0,
                                 hasDropdown = true,
                                 onClick = { scope.launch { pagerState.animateScrollToPage(0) } }
                             )
-
-                            // Chip "Lịch sử"
                             CustomHomeChip(
                                 label = "Lịch sử",
                                 selected = selectedFilter == 3,
                                 onClick = { scope.launch { pagerState.animateScrollToPage(3) } }
                             )
-
-                            // Chip "Theo dõi"
                             CustomHomeChip(
                                 label = "Theo dõi",
                                 selected = selectedFilter == 4,
                                 onClick = { scope.launch { pagerState.animateScrollToPage(4) } }
                             )
-
-                            // Chip "Cộng đồng"
                             CustomHomeChip(
-                                label = "Cộng đồng",
+                                label = "Đã tải",
                                 selected = selectedFilter == 5,
                                 onClick = { scope.launch { pagerState.animateScrollToPage(5) } }
                             )
+                        }
+
+                        // Nút kho tải
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(CircleShape)
+                                .background(CardBg)
+                                .clickable { navController.navigate(Routes.DOWNLOAD) },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Outlined.Inventory2, contentDescription = "Kho", tint = com.nam.novelreader.feature.components.VBookTheme.subTextColor(), modifier = Modifier.size(16.dp))
                         }
                     }
 
@@ -1702,8 +1679,119 @@ fun HomeScreen(
                     }
 
                     5 -> {
-                        // === TAB CỘNG ĐỒNG ===
-                        CommunityScreen(navController)
+                        // === TAB TRUYỆN ĐÃ TẢI OFFLINE ===
+                        LazyVerticalGrid(
+                            state = stateTabDownloaded,
+                            columns = GridCells.Fixed(columnsCount),
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(bottom = 90.dp)
+                        ) {
+                            if (sortedDownloadedLibrary.isEmpty()) {
+                                item(span = { GridItemSpan(maxLineSpan) }) {
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 120.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.Center
+                                    ) {
+                                        Icon(
+                                            Icons.Filled.Download,
+                                            contentDescription = null,
+                                            tint = PrimaryAccent.copy(0.4f),
+                                            modifier = Modifier.size(90.dp)
+                                        )
+                                        Spacer(modifier = Modifier.height(16.dp))
+                                        Text(
+                                            "Chưa tải truyện nào",
+                                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                            color = com.nam.novelreader.feature.components.VBookTheme.textColor()
+                                        )
+                                        Spacer(modifier = Modifier.height(6.dp))
+                                        Text(
+                                            "Tải truyện offline để có thể đọc mọi lúc mọi nơi ngay cả khi mất mạng nhé!",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = GreyText,
+                                            textAlign = TextAlign.Center,
+                                            modifier = Modifier.padding(horizontal = 32.dp)
+                                        )
+                                    }
+                                }
+                            } else {
+                                item(span = { GridItemSpan(maxLineSpan) }) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Text(
+                                            "Các truyện đã tải về (${sortedDownloadedLibrary.size})",
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 18.sp,
+                                            color = com.nam.novelreader.feature.components.VBookTheme.textColor()
+                                        )
+                                        IconButton(
+                                            onClick = { navController.navigate(Routes.DOWNLOAD) },
+                                            modifier = Modifier.size(24.dp)
+                                        ) {
+                                            Icon(
+                                                Icons.Filled.Settings,
+                                                contentDescription = "Quản lý tiến trình tải ngầm",
+                                                tint = SecondaryAccent,
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                        }
+                                    }
+                                }
+
+                                // Grid items thư viện đã tải (2 hoặc 3 cột)
+                                if (layoutStyle == 0 || layoutStyle == 1) {
+                                    items(
+                                        items = sortedDownloadedLibrary,
+                                        key = { it.url }
+                                    ) { novel ->
+                                        LibraryGridCard(
+                                            novel = novel,
+                                            coverSize = coverSize,
+                                            showProgress = showProgress,
+                                            showTotal = showTotalChapters,
+                                            isDownloaded = downloadedNovelUrls.contains(novel.url),
+                                            currentReadChapter = readProgressMap[novel.url] ?: 0,
+                                            onClick = {
+                                                navController.navigate(Routes.detail(novel.extensionId, novel.url, isOffline = true))
+                                            },
+                                            onLongClick = {
+                                                selectedNovelForAction = novel
+                                            }
+                                        )
+                                    }
+                                } else {
+                                    // List hoặc Compact List
+                                    items(
+                                        items = sortedDownloadedLibrary,
+                                        key = { it.url }
+                                    ) { novel ->
+                                        LibraryListCard(
+                                            novel = novel,
+                                            coverSize = coverSize,
+                                            isCompact = layoutStyle == 3,
+                                            showProgress = showProgress,
+                                            showTotal = showTotalChapters,
+                                            isDownloaded = downloadedNovelUrls.contains(novel.url),
+                                            currentReadChapter = readProgressMap[novel.url] ?: 0,
+                                            onClick = {
+                                                navController.navigate(Routes.detail(novel.extensionId, novel.url, isOffline = true))
+                                            },
+                                            onLongClick = {
+                                                selectedNovelForAction = novel
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -1883,7 +1971,7 @@ fun HomeScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         AsyncImage(
-                            model = novel.cover,
+                            model = com.nam.novelreader.feature.components.buildNovelImageRequest(novel),
                             contentDescription = novel.title,
                             modifier = Modifier
                                 .width(64.dp)
@@ -2763,7 +2851,7 @@ fun RecentCard(
             .bounceClick(onClick = onClick)
     ) {
         AsyncImage(
-            model = novel.cover,
+            model = com.nam.novelreader.feature.components.buildNovelImageRequest(novel),
             contentDescription = novel.title,
             modifier = Modifier.fillMaxSize(),
             contentScale = ContentScale.Crop
@@ -2859,7 +2947,7 @@ fun LibraryGridCard(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .combinedClickable(
+            .bounceClick(
                 onClick = onClick,
                 onLongClick = onLongClick
             )
@@ -2869,10 +2957,11 @@ fun LibraryGridCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(0.7f)
-                .clip(RoundedCornerShape(6.dp))
+                .shadow(2.dp, RoundedCornerShape(12.dp))
+                .clip(RoundedCornerShape(12.dp))
         ) {
             AsyncImage(
-                model = novel.cover,
+                model = com.nam.novelreader.feature.components.buildNovelImageRequest(novel),
                 contentDescription = novel.title,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop
@@ -2943,7 +3032,7 @@ fun LibraryListCard(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .combinedClickable(
+            .bounceClick(
                 onClick = onClick,
                 onLongClick = onLongClick
             )
@@ -2951,16 +3040,16 @@ fun LibraryListCard(
         verticalAlignment = Alignment.CenterVertically
     ) {
         AsyncImage(
-            model = novel.cover,
+            model = com.nam.novelreader.feature.components.buildNovelImageRequest(novel),
             contentDescription = novel.title,
             modifier = Modifier
                 .width(imageWidth)
                 .height(height)
-                .clip(RoundedCornerShape(6.dp)),
+                .clip(RoundedCornerShape(12.dp)),
             contentScale = ContentScale.Crop
         )
 
-        Spacer(modifier = Modifier.width(12.dp))
+        Spacer(modifier = Modifier.width(16.dp))
 
         Column(modifier = Modifier.weight(1f)) {
             Text(
@@ -3046,7 +3135,7 @@ fun HistoryCardItem(
                 .clip(RoundedCornerShape(6.dp))
         ) {
             AsyncImage(
-                model = novel.cover,
+                model = com.nam.novelreader.feature.components.buildNovelImageRequest(novel),
                 contentDescription = novel.title,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop
@@ -3114,7 +3203,7 @@ fun FollowCardItem(
             verticalAlignment = Alignment.CenterVertically
         ) {
             AsyncImage(
-                model = novel.cover,
+                model = com.nam.novelreader.feature.components.buildNovelImageRequest(novel),
                 contentDescription = novel.title,
                 modifier = Modifier
                     .width(64.dp)
@@ -3348,7 +3437,7 @@ fun LocalSearchScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         AsyncImage(
-                            model = novel.cover,
+                            model = com.nam.novelreader.feature.components.buildNovelImageRequest(novel),
                             contentDescription = novel.title,
                             modifier = Modifier
                                 .size(36.dp, 54.dp)
@@ -3386,7 +3475,7 @@ fun LocalSearchScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         AsyncImage(
-                            model = novel.cover,
+                            model = com.nam.novelreader.feature.components.buildNovelImageRequest(novel),
                             contentDescription = novel.title,
                             modifier = Modifier
                                 .size(36.dp, 54.dp)
@@ -3510,3 +3599,4 @@ private fun parseBackupJson(json: String): List<com.nam.novelreader.data.local.e
     }
     return list
 }
+

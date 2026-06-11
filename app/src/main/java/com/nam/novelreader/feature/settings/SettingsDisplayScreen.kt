@@ -54,8 +54,11 @@ fun SettingsDisplayScreen(
     var dynamicColor by remember { mutableStateOf(prefs.dynamicColor) }
     var einkMode by remember { mutableStateOf(prefs.einkMode) }
     var themeColor by remember { mutableStateOf(prefs.themeColorHex) }
+    var accentColor by remember { mutableStateOf(prefs.accentColorHex) }
     var settingsItemBgColor by remember { mutableStateOf(prefs.settingsItemBgColorHex) }
     var settingsItemTextColor by remember { mutableStateOf(prefs.settingsItemTextColorHex) }
+    var settingsGroupTitleColor by remember { mutableStateOf(prefs.settingsGroupTitleColorHex) }
+    var settingsIconColor by remember { mutableStateOf(prefs.settingsIconColorHex) }
     var displayBackground by remember { mutableStateOf(prefs.displayBackground) }
     var liquidGlass by remember { mutableStateOf(prefs.liquidGlass) }
 
@@ -68,12 +71,20 @@ fun SettingsDisplayScreen(
     var showColorPalette by remember { mutableStateOf(false) }
     var showBackgroundDialog by remember { mutableStateOf(false) }
 
-    // Colors from VBook's theme
+    // Colors from VBook's theme + many more diverse colors
     val themeColors = listOf(
-        "#D4A574", "#D32F2F", "#C2185B", "#7B1FA2", "#512DA8",
-        "#303F9F", "#1976D2", "#0288D1", "#0097A7", "#00796B",
-        "#388E3C", "#689F38", "#AFB42B", "#FBC02D", "#FFA000",
-        "#F57C00", "#E64A19", "#5D4037", "#616161", "#455A64"
+        // Gold / Browns
+        "#D4A574", "#FFC107", "#FF9800", "#FF5722", "#795548", "#8D6E63",
+        // Reds / Pinks
+        "#F44336", "#E53935", "#D32F2F", "#B71C1C", "#E91E63", "#C2185B", "#880E4F", "#F06292",
+        // Purples
+        "#9C27B0", "#7B1FA2", "#4A148C", "#673AB7", "#512DA8", "#311B92", "#B39DDB",
+        // Blues / Cyan
+        "#3F51B5", "#303F9F", "#1A237E", "#2196F3", "#1976D2", "#0D47A1", "#03A9F4", "#0288D1", "#01579B", "#00BCD4", "#0097A7", "#006064",
+        // Greens / Teal
+        "#009688", "#00796B", "#004D40", "#4CAF50", "#388E3C", "#1B5E20", "#8BC34A", "#689F38", "#33691E", "#CDDC39", "#AFB42B", "#827717",
+        // Grays / Black
+        "#9E9E9E", "#616161", "#212121", "#607D8B", "#455A64", "#263238"
     )
 
     Scaffold(
@@ -132,12 +143,13 @@ fun SettingsDisplayScreen(
                     enter = expandVertically(),
                     exit = shrinkVertically()
                 ) {
-                    Row(
+                    @OptIn(ExperimentalLayoutApi::class)
+                    FlowRow(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState())
                             .padding(horizontal = 16.dp, vertical = 8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         themeColors.forEach { hex ->
                             val color = try { Color(android.graphics.Color.parseColor(hex)) } catch (_: Exception) { accentGold }
@@ -172,37 +184,39 @@ fun SettingsDisplayScreen(
                 
                 VBookSettingsDivider()
 
-                var showSettingsBgColorPalette by remember { mutableStateOf(false) }
+                // === MÀU NHẤN KHI CHỌN (Accent Color for tabs/buttons) ===
+                var showAccentColorPalette by remember { mutableStateOf(false) }
                 VBookSettingsItem(
-                    title = "Màu nền nút cài đặt",
-                    subtitle = if (settingsItemBgColor.isEmpty()) "Mặc định" else "Tùy chỉnh",
-                    onClick = { showSettingsBgColorPalette = !showSettingsBgColorPalette }
+                    title = "Màu nhấn khi chọn",
+                    subtitle = if (accentColor.isEmpty()) "Theo màu chủ đề" else "Tùy chỉnh",
+                    onClick = { showAccentColorPalette = !showAccentColorPalette }
                 ) {
                     Box(
                         modifier = Modifier
                             .size(24.dp)
                             .clip(CircleShape)
-                            .background(if (settingsItemBgColor.isEmpty()) VBookTheme.cardColor() else try { Color(android.graphics.Color.parseColor(settingsItemBgColor)) } catch(_: Exception) { VBookTheme.cardColor() })
+                            .background(if (accentColor.isEmpty()) VBookTheme.primaryColor() else try { Color(android.graphics.Color.parseColor(accentColor)) } catch(_: Exception) { VBookTheme.primaryColor() })
                             .border(1.dp, Color.Gray.copy(alpha=0.3f), CircleShape)
                     )
                 }
 
                 AnimatedVisibility(
-                    visible = showSettingsBgColorPalette,
+                    visible = showAccentColorPalette,
                     enter = androidx.compose.animation.expandVertically(),
                     exit = androidx.compose.animation.shrinkVertically()
                 ) {
-                    Row(
+                    @OptIn(ExperimentalLayoutApi::class)
+                    FlowRow(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState())
                             .padding(horizontal = 16.dp, vertical = 8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        val bgOptions = listOf("") + themeColors
-                        bgOptions.forEach { hex ->
-                            val color = if (hex.isEmpty()) VBookTheme.cardColor() else try { Color(android.graphics.Color.parseColor(hex)) } catch (_: Exception) { Color.Gray }
-                            val isSelected = settingsItemBgColor.equals(hex, ignoreCase = true)
+                        val accentOptions = listOf("") + themeColors
+                        accentOptions.forEach { hex ->
+                            val color = if (hex.isEmpty()) VBookTheme.primaryColor() else try { Color(android.graphics.Color.parseColor(hex)) } catch (_: Exception) { Color.Gray }
+                            val isSelected = accentColor.equals(hex, ignoreCase = true)
                             Box(
                                 modifier = Modifier
                                     .size(40.dp)
@@ -213,13 +227,13 @@ fun SettingsDisplayScreen(
                                         else Modifier.border(1.dp, Color.Gray.copy(alpha = 0.3f), CircleShape)
                                     )
                                     .bounceClick {
-                                        settingsItemBgColor = hex
-                                        prefs.settingsItemBgColorHex = hex
+                                        accentColor = hex
+                                        prefs.accentColorHex = hex
                                     },
                                 contentAlignment = Alignment.Center
                             ) {
                                 if (isSelected) {
-                                    Icon(Icons.Filled.Check, contentDescription = null, tint = if (hex.isEmpty()) VBookTheme.textColor() else VBookTheme.backgroundColor(), modifier = Modifier.size(18.dp))
+                                    Icon(Icons.Filled.Check, contentDescription = null, tint = if (hex.isEmpty()) VBookTheme.backgroundColor() else VBookTheme.backgroundColor(), modifier = Modifier.size(18.dp))
                                 }
                             }
                         }
@@ -228,49 +242,107 @@ fun SettingsDisplayScreen(
 
                 VBookSettingsDivider()
 
-                var showSettingsTextColorPalette by remember { mutableStateOf(false) }
+                var showSettingsGroupTitleColorPalette by remember { mutableStateOf(false) }
                 VBookSettingsItem(
-                    title = "Màu chữ nút cài đặt",
-                    subtitle = if (settingsItemTextColor.isEmpty()) "Mặc định" else "Tùy chỉnh",
-                    onClick = { showSettingsTextColorPalette = !showSettingsTextColorPalette }
+                    title = "Màu tiêu đề nhóm cài đặt",
+                    subtitle = if (settingsGroupTitleColor.isEmpty()) "Mặc định" else "Tùy chỉnh",
+                    onClick = { showSettingsGroupTitleColorPalette = !showSettingsGroupTitleColorPalette }
                 ) {
                     Box(
                         modifier = Modifier
                             .size(24.dp)
                             .clip(CircleShape)
-                            .background(if (settingsItemTextColor.isEmpty()) VBookTheme.textColor() else try { Color(android.graphics.Color.parseColor(settingsItemTextColor)) } catch(_: Exception) { VBookTheme.textColor() })
+                            .background(if (settingsGroupTitleColor.isEmpty()) VBookTheme.primaryColor() else try { Color(android.graphics.Color.parseColor(settingsGroupTitleColor)) } catch(_: Exception) { VBookTheme.primaryColor() })
                             .border(1.dp, Color.Gray.copy(alpha=0.3f), CircleShape)
                     )
                 }
 
                 AnimatedVisibility(
-                    visible = showSettingsTextColorPalette,
+                    visible = showSettingsGroupTitleColorPalette,
                     enter = androidx.compose.animation.expandVertically(),
                     exit = androidx.compose.animation.shrinkVertically()
                 ) {
-                    Row(
+                    @OptIn(ExperimentalLayoutApi::class)
+                    FlowRow(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState())
                             .padding(horizontal = 16.dp, vertical = 8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        val textOptions = listOf("") + themeColors
-                        textOptions.forEach { hex ->
-                            val color = if (hex.isEmpty()) VBookTheme.textColor() else try { Color(android.graphics.Color.parseColor(hex)) } catch (_: Exception) { Color.Gray }
-                            val isSelected = settingsItemTextColor.equals(hex, ignoreCase = true)
+                        val titleOptions = listOf("") + themeColors
+                        titleOptions.forEach { hex ->
+                            val color = if (hex.isEmpty()) VBookTheme.primaryColor() else try { Color(android.graphics.Color.parseColor(hex)) } catch (_: Exception) { Color.Gray }
+                            val isSelected = settingsGroupTitleColor.equals(hex, ignoreCase = true)
                             Box(
                                 modifier = Modifier
                                     .size(40.dp)
                                     .clip(CircleShape)
                                     .background(color)
                                     .then(
-                                        if (isSelected) Modifier.border(3.dp, VBookTheme.primaryColor(), CircleShape)
+                                        if (isSelected) Modifier.border(3.dp, VBookTheme.textColor(), CircleShape)
                                         else Modifier.border(1.dp, Color.Gray.copy(alpha = 0.3f), CircleShape)
                                     )
                                     .bounceClick {
-                                        settingsItemTextColor = hex
-                                        prefs.settingsItemTextColorHex = hex
+                                        settingsGroupTitleColor = hex
+                                        prefs.settingsGroupTitleColorHex = hex
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (isSelected) {
+                                    Icon(Icons.Filled.Check, contentDescription = null, tint = if (hex.isEmpty()) VBookTheme.backgroundColor() else VBookTheme.backgroundColor(), modifier = Modifier.size(18.dp))
+                                }
+                            }
+                        }
+                    }
+                }
+
+                VBookSettingsDivider()
+
+                var showSettingsIconColorPalette by remember { mutableStateOf(false) }
+                VBookSettingsItem(
+                    title = "Màu Icon nhóm cài đặt",
+                    subtitle = if (settingsIconColor.isEmpty()) "Mặc định" else "Tùy chỉnh",
+                    onClick = { showSettingsIconColorPalette = !showSettingsIconColorPalette }
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(24.dp)
+                            .clip(CircleShape)
+                            .background(if (settingsIconColor.isEmpty()) VBookTheme.primaryColor() else try { Color(android.graphics.Color.parseColor(settingsIconColor)) } catch(_: Exception) { VBookTheme.primaryColor() })
+                            .border(1.dp, Color.Gray.copy(alpha=0.3f), CircleShape)
+                    )
+                }
+
+                AnimatedVisibility(
+                    visible = showSettingsIconColorPalette,
+                    enter = androidx.compose.animation.expandVertically(),
+                    exit = androidx.compose.animation.shrinkVertically()
+                ) {
+                    @OptIn(ExperimentalLayoutApi::class)
+                    FlowRow(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        val iconOptions = listOf("") + themeColors
+                        iconOptions.forEach { hex ->
+                            val color = if (hex.isEmpty()) VBookTheme.primaryColor() else try { Color(android.graphics.Color.parseColor(hex)) } catch (_: Exception) { Color.Gray }
+                            val isSelected = settingsIconColor.equals(hex, ignoreCase = true)
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(CircleShape)
+                                    .background(color)
+                                    .then(
+                                        if (isSelected) Modifier.border(3.dp, VBookTheme.textColor(), CircleShape)
+                                        else Modifier.border(1.dp, Color.Gray.copy(alpha = 0.3f), CircleShape)
+                                    )
+                                    .bounceClick {
+                                        settingsIconColor = hex
+                                        prefs.settingsIconColorHex = hex
                                     },
                                 contentAlignment = Alignment.Center
                             ) {

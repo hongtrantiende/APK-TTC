@@ -1,0 +1,23 @@
+{
+    "metadata": {
+        "name": "Truyện Mới KK",
+        "author": "ivanzzz",
+        "version": 3,
+        "source": "https:\/\/truyenmoikk.com",
+        "regexp": "https:\/\/(?:www\\.)?(?:truyenmoikk\\.com|truyenmoiss\\.com|truyenmoiii\\.org|truyenmoiyy\\.com)\/(.*?)[\/]?$",
+        "description": "Cào dữ liệu từ truyenmoikk.com",
+        "locale": "vi_VN",
+        "language": "javascript",
+        "type": "novel",
+        "encrypt": false
+    },
+    "script": {
+        "home": "home.js",
+        "genre": "genre.js",
+        "detail": "detail.js",
+        "search": "search.js",
+        "page": "page.js",
+        "toc": "toc.js",
+        "chap": "chap.js"
+    }
+}

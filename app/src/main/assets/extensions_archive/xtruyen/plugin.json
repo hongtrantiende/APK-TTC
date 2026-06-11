@@ -1,0 +1,21 @@
+{
+    "metadata": {
+        "name": "XTruyện",
+        "author": "vBook",
+        "version": 3,
+        "source": "https://xtruyen.vn/",
+        "regexp": "(www.)?xtruyen\\.vn/truyen/[^/]+/?$",
+        "description": "Đọc truyện trên trang XTruyện",
+        "locale": "vi_VN",
+        "language": "javascript",
+        "type": "novel"
+    },
+    "script": {
+        "home": "home.js",
+        "genre": "genre.js",
+        "detail": "detail.js",
+        "search": "search.js",
+        "toc": "toc.js",
+        "chap": "chap.js"
+    }
+}

@@ -1,5 +1,6 @@
 package com.nam.novelreader
 
+import android.content.Intent
 import android.content.SharedPreferences
 import android.os.Bundle
 import android.os.Build
@@ -43,8 +44,51 @@ class MainActivity : ComponentActivity() {
         onPrefsChanged?.invoke()
     }
 
+    // URI + mimeType từ intent mở file (EPUB/TXT/CBZ)
+    private val pendingUriStr = mutableStateOf<String>("")
+    private val pendingMimeType = mutableStateOf<String?>(null)
+
+    private fun handleFileIntent(intent: Intent?) {
+        val uri = intent?.data ?: return
+        // OAuth callback: novelreader://auth/callback
+        if (uri.scheme == "novelreader" && uri.host == "auth") {
+            lifecycleScope.launch {
+                val result = supabaseAuthManager.handleOAuthCallback(uri)
+                if (result.isSuccess) {
+                    android.widget.Toast.makeText(this@MainActivity, "Đăng nhập Google thành công!", android.widget.Toast.LENGTH_SHORT).show()
+                } else {
+                    android.widget.Toast.makeText(this@MainActivity, "Lỗi đăng nhập: ${result.exceptionOrNull()?.message}", android.widget.Toast.LENGTH_LONG).show()
+                }
+            }
+            return
+        }
+        // File open intent
+        if (intent.action != Intent.ACTION_VIEW) return
+        pendingUriStr.value = uri.toString()
+        pendingMimeType.value = intent.type
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleFileIntent(intent)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        // Force highest refresh rate for 90Hz/120Hz screens
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            val display = windowManager.defaultDisplay
+            val modes = display.supportedModes
+            val highestRefreshRateMode = modes.maxByOrNull { it.refreshRate }
+            if (highestRefreshRateMode != null) {
+                window.attributes = window.attributes.apply {
+                    preferredDisplayModeId = highestRefreshRateMode.modeId
+                }
+            }
+        }
+        
         enableEdgeToEdge()
         
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -53,6 +97,9 @@ class MainActivity : ComponentActivity() {
                 requestPermissions(arrayOf(permission), 101)
             }
         }
+
+        // Kiểm tra intent mở file ngay khi khởi động
+        handleFileIntent(intent)
 
         // Register the shared preference listener
         appPrefs.prefs.registerOnSharedPreferenceChangeListener(prefsListener)
@@ -80,8 +127,11 @@ class MainActivity : ComponentActivity() {
                     dynamicColor = appPrefs.dynamicColor,
                     einkMode = appPrefs.einkMode,
                     themeColorHex = appPrefs.themeColorHex,
+                    accentColorHex = appPrefs.accentColorHex,
                     settingsItemBgColorHex = appPrefs.settingsItemBgColorHex,
                     settingsItemTextColorHex = appPrefs.settingsItemTextColorHex,
+                    settingsGroupTitleColorHex = appPrefs.settingsGroupTitleColorHex,
+                    settingsIconColorHex = appPrefs.settingsIconColorHex,
                     fontScale = appPrefs.fontScale,
                     densityScale = appPrefs.densityScale,
                     fontFamily = appPrefs.fontFamily,
@@ -124,7 +174,10 @@ class MainActivity : ComponentActivity() {
                         modifier = Modifier.fillMaxSize(),
                         color = VBookTheme.backgroundColor()
                     ) {
-                        NovelReaderNavHost()
+                        NovelReaderNavHost(
+                            initialUriStr = pendingUriStr.value,
+                            initialMimeType = pendingMimeType.value,
+                        )
                     }
                 }
             }

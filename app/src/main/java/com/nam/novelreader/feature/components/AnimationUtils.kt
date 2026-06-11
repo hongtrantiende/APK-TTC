@@ -13,12 +13,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.graphics.graphicsLayer
 
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
+
 /**
  * Thêm hiệu ứng nhún (scale down) khi chạm vào.
  * Tạo cảm giác "vật lý" và mượt mà cho các nút bấm/thẻ bài.
  */
+@OptIn(ExperimentalFoundationApi::class)
 fun Modifier.bounceClick(
     scaleDown: Float = 0.95f,
+    onLongClick: (() -> Unit)? = null,
     onClick: () -> Unit
 ): Modifier = composed {
     val interactionSource = remember { MutableInteractionSource() }
@@ -37,9 +42,10 @@ fun Modifier.bounceClick(
             scaleX = scale
             scaleY = scale
         }
-        .clickable(
+        .combinedClickable(
             interactionSource = interactionSource,
             indication = LocalIndication.current,
-            onClick = onClick
+            onClick = onClick,
+            onLongClick = onLongClick
         )
 }

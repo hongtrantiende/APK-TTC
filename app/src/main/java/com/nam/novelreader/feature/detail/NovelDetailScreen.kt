@@ -70,6 +70,10 @@ class NovelDetailViewModel @Inject constructor(
     private val _extensionIconFile = MutableStateFlow<java.io.File?>(null)
     val extensionIconFile: StateFlow<java.io.File?> = _extensionIconFile
 
+    private val _extensionLocalPath = MutableStateFlow("")
+    /** localPath của extension hiện tại — dùng để đọc plugin.json defaults */
+    val extensionLocalPath: StateFlow<String> = _extensionLocalPath
+
     private val _chapters = MutableStateFlow<List<Chapter>>(emptyList())
     val chapters: StateFlow<List<Chapter>> = _chapters
 
@@ -104,6 +108,7 @@ class NovelDetailViewModel @Inject constructor(
     val isFollowed: StateFlow<Boolean> = _isFollowed
 
     private var translationJob: kotlinx.coroutines.Job? = null
+    private var loadDetailJob: kotlinx.coroutines.Job? = null
 
     fun checkFollowState(novelUrl: String) {
         _isFollowed.value = appPrefs.isNovelFollowed(novelUrl)
@@ -130,6 +135,8 @@ class NovelDetailViewModel @Inject constructor(
                 try {
                     val ext = repository.getExtension(extId)
                     _extensionIconFile.value = ext?.getIconFile()
+                    // Lưu localPath để đọc plugin.json defaults
+                    _extensionLocalPath.value = ext?.directory?.absolutePath ?: ""
                 } catch (e: Exception) {
                     android.util.Log.e("NovelDetailVM", "Failed to load extension icon: ${e.message}")
                 }
@@ -137,7 +144,7 @@ class NovelDetailViewModel @Inject constructor(
         }
     }
 
-    fun loadDetail(extensionId: String, novelUrl: String, forceRefresh: Boolean = false) {
+    fun loadDetail(extensionId: String, novelUrl: String, forceRefresh: Boolean = false, isOffline: Boolean = false) {
         checkFollowState(novelUrl)
         loadExtensionIcon(extensionId, novelUrl)
         
@@ -145,16 +152,17 @@ class NovelDetailViewModel @Inject constructor(
         if (!forceRefresh && _novel.value?.url == novelUrl && _chapters.value.isNotEmpty()) {
             val resolvedNovel = _novel.value
             val resolvedExtId = if (extensionId.isBlank()) resolvedNovel?.extensionId ?: "" else extensionId
-            if (resolvedNovel != null && resolvedNovel.author.isNotBlank()) {
-                loadAuthorNovels(resolvedExtId, resolvedNovel.author, novelUrl)
-            }
+            safeLoadAuthorNovels(resolvedExtId, resolvedNovel, novelUrl)
             checkCommentsSupport(resolvedExtId)
             loadComments(resolvedExtId, novelUrl)
             return
         }
         
-        viewModelScope.launch {
+        // Hủy job cũ nếu đang chạy — tránh duplicate calls
+        loadDetailJob?.cancel()
+        loadDetailJob = viewModelScope.launch {
             _error.value = null
+            android.util.Log.d("NovelDetailVM", "loadDetail START: ext=$extensionId, url=$novelUrl, forceRefresh=$forceRefresh")
             
             // 1. Tải nhanh từ Database nếu có (chạy ngay lập tức để tránh delay 350ms)
             val cachedNovel = repository.getNovelFromDb(novelUrl)
@@ -186,6 +194,7 @@ class NovelDetailViewModel @Inject constructor(
                     _chapters.value = cachedChapters
                     hasCache = true
                     _isLoading.value = false // Tắt loading chính ngay vì đã có cache hiển thị
+                    android.util.Log.d("NovelDetailVM", "Cache loaded: novel='${cachedNovel.title}', chapters=${cachedChapters.size}")
                     startTranslatingChapters(resolvedExtId)
                 }
             }
@@ -198,8 +207,8 @@ class NovelDetailViewModel @Inject constructor(
             _isInLibrary.value = repository.isInLibrary(novelUrl)
             val inLibrary = _isInLibrary.value
             
-            // Chỉ gọi mạng (fetch mới) khi: forceRefresh = true, HOẶC chưa có cache, HOẶC truyện CHƯA có trong thư viện (xem online)
-            val shouldFetchNetwork = forceRefresh || !hasCache || !inLibrary
+            // Chỉ gọi mạng (fetch mới) khi: (forceRefresh = true, HOẶC chưa có cache, HOẶC truyện CHƯA có trong thư viện (xem online)) và không ở chế độ offline
+            val shouldFetchNetwork = (forceRefresh || !hasCache || !inLibrary) && !isOffline
             
             if (shouldFetchNetwork) {
                 // Trì hoãn 350ms trước khi gọi mạng để tránh nghẽn luồng transition UI khi vừa mở màn hình
@@ -207,41 +216,67 @@ class NovelDetailViewModel @Inject constructor(
                     kotlinx.coroutines.delay(350)
                 }
                 
+                // FIX: Tách riêng try-catch cho detail và TOC — nếu detail throw thì TOC vẫn được gọi
                 try {
                     val remoteNovel = repository.getNovelDetail(resolvedExtId, novelUrl)
                     if (remoteNovel != null) {
                         _novel.value = remoteNovel
                         repository.updateNovelMetadata(remoteNovel)
+                        android.util.Log.d("NovelDetailVM", "Remote novel loaded: '${remoteNovel.title}'")
                     }
-                    
+                } catch (e: Exception) {
+                    android.util.Log.w("NovelDetailVM", "Failed to fetch novel detail (non-fatal if cached): ${e.message}")
+                }
+                
+                try {
                     val toc = repository.getTableOfContents(resolvedExtId, novelUrl)
                     if (toc.isNotEmpty()) {
                         _chapters.value = toc
                         repository.cacheChapters(novelUrl, toc)
+                        android.util.Log.d("NovelDetailVM", "Remote TOC loaded: ${toc.size} chapters")
                         startTranslatingChapters(resolvedExtId)
                     }
                 } catch (e: Exception) {
-                    android.util.Log.e("NovelDetailVM", "Offline or network error fetching details: ${e.message}")
+                    android.util.Log.w("NovelDetailVM", "Failed to fetch TOC (non-fatal if cached): ${e.message}")
                     if (_chapters.value.isEmpty()) {
                         _error.value = "Lỗi: ${e.localizedMessage ?: e.message ?: "Không thể tải dữ liệu truyện. Vui lòng thử lại!"}"
                     }
                 }
             }
             
-            if (_chapters.value.isEmpty() && _error.value == null) {
+            if (_chapters.value.isEmpty() && _error.value == null && _novel.value == null) {
                 _error.value = "Danh sách chương trống hoặc lỗi phân tích dữ liệu nguồn!"
             }
 
             val finalNovel = _novel.value
             if (finalNovel != null) {
-                if (finalNovel.author.isNotBlank()) {
-                    loadAuthorNovels(resolvedExtId, finalNovel.author, novelUrl)
-                }
+                safeLoadAuthorNovels(resolvedExtId, finalNovel, novelUrl)
                 checkCommentsSupport(resolvedExtId)
                 loadComments(resolvedExtId, novelUrl)
             }
             
             _isLoading.value = false
+            android.util.Log.d("NovelDetailVM", "loadDetail END: novel=${_novel.value?.title}, chapters=${_chapters.value.size}, error=${_error.value}")
+        }
+    }
+
+    /**
+     * Load truyện cùng tác giả — chỉ khi extension có search script.
+     * VBook gốc dùng suggests từ detail response, nhưng chúng ta gọi search API riêng.
+     * Phải kiểm tra script tồn tại để tránh lỗi vô nghĩa cho extension không hỗ trợ.
+     */
+    private fun safeLoadAuthorNovels(extensionId: String, novel: Novel?, novelUrl: String) {
+        if (novel == null || novel.author.isBlank()) return
+        viewModelScope.launch {
+            try {
+                val ext = repository.getExtension(extensionId)
+                val hasSearchScript = ext?.pluginJson?.script?.containsKey(ScriptType.SEARCH.key) == true
+                if (hasSearchScript) {
+                    loadAuthorNovels(extensionId, novel.author, novelUrl)
+                }
+            } catch (e: Exception) {
+                android.util.Log.w("NovelDetailVM", "Failed to check search script support: ${e.message}")
+            }
         }
     }
 
@@ -370,6 +405,7 @@ class NovelDetailViewModel @Inject constructor(
 
     override fun onCleared() {
         translationJob?.cancel()
+        loadDetailJob?.cancel()
         super.onCleared()
     }
 }
@@ -389,6 +425,7 @@ class NovelDetailViewModel @Inject constructor(
 fun NovelDetailScreen(
     extensionId: String,
     novelUrl: String,
+    isOffline: Boolean = false,
     navController: NavHostController,
     viewModel: NovelDetailViewModel = hiltViewModel(),
 ) {
@@ -399,6 +436,7 @@ fun NovelDetailScreen(
     val isFollowed by viewModel.isFollowed.collectAsStateWithLifecycle()
     val errorMsg by viewModel.error.collectAsStateWithLifecycle()
     val extensionIconFile by viewModel.extensionIconFile.collectAsStateWithLifecycle()
+    val extensionLocalPath by viewModel.extensionLocalPath.collectAsStateWithLifecycle()
     var descExpanded by remember { mutableStateOf(false) }
     var chapterSearch by remember { mutableStateOf("") }
     val context = LocalContext.current
@@ -446,9 +484,10 @@ fun NovelDetailScreen(
         index
     }
 
-    val filteredChapters = remember(chapters, chapterSearch, isAscending) {
-        val list = if (chapterSearch.isBlank()) chapters
-        else chapters.filter { it.title.contains(chapterSearch, ignoreCase = true) }
+    val filteredChapters = remember(chapters, chapterSearch, isAscending, isOffline) {
+        val baseList = if (isOffline) chapters.filter { it.isDownloaded } else chapters
+        val list = if (chapterSearch.isBlank()) baseList
+        else baseList.filter { it.title.contains(chapterSearch, ignoreCase = true) }
         val sorted = if (isAscending) list else list.reversed()
         sorted.distinctBy { it.url }
     }
@@ -466,20 +505,23 @@ fun NovelDetailScreen(
 
     LaunchedEffect(captchaPassed) {
         if (captchaPassed) {
-            viewModel.loadDetail(extensionId, novelUrl, forceRefresh = true)
+            viewModel.loadDetail(extensionId, novelUrl, forceRefresh = true, isOffline = isOffline)
             navController.currentBackStackEntry?.savedStateHandle?.set("captcha_passed", false)
         }
     }
 
-    LaunchedEffect(extensionId, novelUrl) {
+    LaunchedEffect(extensionId, novelUrl, isOffline) {
         // Trì hoãn 250ms để nhường CPU cho slide transition chạy mượt mà trước khi load dữ liệu nặng
         kotlinx.coroutines.delay(250)
-        viewModel.loadDetail(extensionId, novelUrl)
+        viewModel.loadDetail(extensionId, novelUrl, isOffline = isOffline)
     }
 
     val currentNovel = novel
 
-    if (isLoading || (currentNovel == null && errorMsg == null)) {
+    // FIX: Chỉ hiện loading spinner khi CHƯA có data nào — tránh "bụp xoay" khi đã có cache
+    val hasAnyData = currentNovel != null || chapters.isNotEmpty()
+    if (!hasAnyData && errorMsg == null) {
+        // Trạng thái initial hoặc đang loading lần đầu — chưa có bất kỳ data nào
         Box(modifier = Modifier.fillMaxSize().background(com.nam.novelreader.feature.components.VBookTheme.backgroundColor()), contentAlignment = Alignment.Center) {
             CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
         }
@@ -546,24 +588,7 @@ fun NovelDetailScreen(
                         .height(380.dp),
                 ) {
                     val context = LocalContext.current
-                    val imageRequest = remember(currentNovel.cover) {
-                        val prefs = context.getSharedPreferences("novel_reader_prefs", Context.MODE_PRIVATE)
-                        val cookie = extensionId.takeIf { it.isNotBlank() }?.let { prefs.getString("ext_cookies_$it", null) }
-                        val defaultUa = com.nam.novelreader.util.UserAgentUtils.getCleanUserAgent(context)
-            
-                        val builder = coil.request.ImageRequest.Builder(context)
-                            .data(currentNovel.cover)
-                            .crossfade(true)
-                        
-                        if (!cookie.isNullOrBlank()) {
-                            builder.addHeader("Cookie", cookie)
-                        }
-                        if (defaultUa.isNotBlank()) {
-                            builder.addHeader("User-Agent", defaultUa)
-                        }
-                        
-                        builder.build()
-                    }
+                    val imageRequest = com.nam.novelreader.feature.components.buildNovelImageRequest(currentNovel)
 
                     // Blurred background image
                     AsyncImage(
@@ -1088,7 +1113,9 @@ fun NovelDetailScreen(
                             .padding(horizontal = 10.dp, vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        if (extensionIconFile != null) {
+                        val isSupportedExtIcon = extensionIconFile != null &&
+                            extensionIconFile!!.extension.lowercase() in listOf("png", "jpg", "jpeg", "webp", "bmp")
+                        if (isSupportedExtIcon) {
                             AsyncImage(
                                 model = extensionIconFile,
                                 contentDescription = null,
@@ -1389,7 +1416,7 @@ fun NovelDetailScreen(
                                 IconButton(onClick = { showDownloadDialog = true }) {
                                     Icon(Icons.Filled.CloudDownload, "Tải offline", tint = com.nam.novelreader.feature.components.VBookTheme.primaryColor())
                                 }
-                                IconButton(onClick = { viewModel.loadDetail(extensionId, novelUrl, forceRefresh = true) }) {
+                                IconButton(onClick = { viewModel.loadDetail(extensionId, novelUrl, forceRefresh = true, isOffline = isOffline) }) {
                                     Icon(Icons.Filled.Refresh, "Làm mới mục lục", tint = com.nam.novelreader.feature.components.VBookTheme.textColor())
                                 }
                                 IconButton(onClick = { isAscending = !isAscending }) {
@@ -1467,18 +1494,33 @@ fun NovelDetailScreen(
                             .padding(vertical = 32.dp, horizontal = 16.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Text(
-                            text = errorMsg ?: "Danh sách chương trống.",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = 14.sp,
-                            textAlign = TextAlign.Center
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Button(
-                            onClick = { viewModel.loadDetail(extensionId, novelUrl) },
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                        ) {
-                            Text("Tải lại danh sách chương", color = Color.Black, fontWeight = FontWeight.Bold)
+                        if (isLoading) {
+                            CircularProgressIndicator(
+                                color = com.nam.novelreader.feature.components.VBookTheme.primaryColor(),
+                                modifier = Modifier.size(36.dp),
+                                strokeWidth = 3.dp
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(
+                                text = "Đang tải danh sách chương...",
+                                color = com.nam.novelreader.feature.components.VBookTheme.subTextColor(),
+                                fontSize = 14.sp,
+                                textAlign = TextAlign.Center
+                            )
+                        } else {
+                            Text(
+                                text = errorMsg ?: "Danh sách chương trống.",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontSize = 14.sp,
+                                textAlign = TextAlign.Center
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Button(
+                                onClick = { viewModel.loadDetail(extensionId, novelUrl) },
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                            ) {
+                                Text("Tải lại danh sách chương", color = Color.Black, fontWeight = FontWeight.Bold)
+                            }
                         }
                     }
                 }
@@ -1540,19 +1582,18 @@ fun NovelDetailScreen(
                             supportingColor = com.nam.novelreader.feature.components.VBookTheme.subTextColor()
                         ),
                         modifier = Modifier
-                            .padding(horizontal = 16.dp)
-                            .clickable {
+                            .padding(horizontal = 16.dp, vertical = 4.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(com.nam.novelreader.feature.components.VBookTheme.cardColor().copy(alpha = 0.5f))
+                            .bounceClick {
                                 val route = when (currentNovel.type) {
-                                    ContentType.COMIC -> Routes.comicReader(extensionId, currentNovel.url, chapter.url)
-                                    ContentType.VIDEO -> Routes.videoReader(extensionId, currentNovel.url, chapter.url)
-                                    else -> Routes.textReader(extensionId, currentNovel.url, chapter.url)
+                                    ContentType.COMIC -> Routes.comicReader(extensionId, currentNovel.url, chapter.url, isOffline = isOffline)
+                                    ContentType.VIDEO -> Routes.videoReader(extensionId, currentNovel.url, chapter.url, isOffline = isOffline)
+                                    else -> Routes.textReader(extensionId, currentNovel.url, chapter.url, isOffline = isOffline)
                                 }
                                 navController.navigate(route)
                             },
                     )
-                    if (index < displayChapters.lastIndex) {
-                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-                    }
                 }
 
                 if (!isChaptersExpanded && filteredChapters.size > 50 && chapterSearch.isBlank()) {
@@ -1680,14 +1721,15 @@ fun NovelDetailScreen(
             // Play/Read FAB
             FloatingActionButton(
                 onClick = {
-                    if (chapters.isNotEmpty()) {
+                    val availableChapters = if (isOffline) chapters.filter { it.isDownloaded } else chapters
+                    if (availableChapters.isNotEmpty()) {
                         val startUrl = currentNovel.lastReadChapterUrl?.takeIf { url ->
-                            url.isNotBlank() && chapters.any { it.url == url }
-                        } ?: chapters.first().url
+                            url.isNotBlank() && availableChapters.any { it.url == url }
+                        } ?: availableChapters.first().url
                         val route = when (currentNovel.type) {
-                            ContentType.COMIC -> Routes.comicReader(extensionId, currentNovel.url, startUrl)
-                            ContentType.VIDEO -> Routes.videoReader(extensionId, currentNovel.url, startUrl)
-                            else -> Routes.textReader(extensionId, currentNovel.url, startUrl)
+                            ContentType.COMIC -> Routes.comicReader(extensionId, currentNovel.url, startUrl, isOffline = isOffline)
+                            ContentType.VIDEO -> Routes.videoReader(extensionId, currentNovel.url, startUrl, isOffline = isOffline)
+                            else -> Routes.textReader(extensionId, currentNovel.url, startUrl, isOffline = isOffline)
                         }
                         navController.navigate(route)
                     }
@@ -1711,8 +1753,9 @@ fun NovelDetailScreen(
                 chapters.indexOfFirst { it.url == lastReadUrl }
             } else -1
 
-            var downloadThreads by remember { mutableIntStateOf(viewModel.appPrefs.getExtParallelConnections(extensionId)) }
-            var downloadDelay by remember { mutableIntStateOf(viewModel.appPrefs.getExtConnectionInterval(extensionId)) }
+            // Dùng plugin.json defaults nếu chưa có giá trị user-saved
+            var downloadThreads by remember { mutableIntStateOf(viewModel.appPrefs.getExtParallelConnections(extensionId, extensionLocalPath)) }
+            var downloadDelay by remember { mutableIntStateOf(viewModel.appPrefs.getExtConnectionInterval(extensionId, extensionLocalPath)) }
             var downloadTimeout by remember { mutableIntStateOf(viewModel.appPrefs.getExtConnectionTimeout(extensionId)) }
 
             val startDownloadAction = { intent: Intent ->

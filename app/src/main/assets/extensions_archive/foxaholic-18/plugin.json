@@ -1,0 +1,23 @@
+{
+  "metadata": {
+    "name": "Foxaholic 18",
+    "author": "Meo",
+    "version": 1,
+    "source": "https://18.foxaholic.com",
+    "regexp": "18\\.foxaholic\\.com\\/novel\\/[^\\/]+(?:\\/(?:chapter-[^\\/]+|\\d+|n-a))?\\/?$",
+    "description": "Foxaholic 18 - Đọc web novel 18+ tiếng Anh",
+    "locale": "en_US",
+    "tag": "NSFW",
+    "type": "novel"
+  },
+  "script": {
+    "home": "home.js",
+    "homecontent": "homecontent.js",
+    "genre": "genre.js",
+    "genrecontent": "genrecontent.js",
+    "detail": "detail.js",
+    "search": "search.js",
+    "toc": "toc.js",
+    "chap": "chap.js"
+  }
+}

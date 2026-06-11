@@ -1,0 +1,22 @@
+{
+  "metadata": {
+    "name": "Chất Xám",
+    "author": "Nahona",
+    "version": 1,
+    "source": "https://chatxam.info",
+    "regexp": "(www.)?chatxam.info/story/(.*?)/?$",
+    "description": "",
+    "locale": "vi_VN",
+    "language": "javascript",
+    "type": "novel",
+    "tag": "nsfw"
+  },
+  "script": {
+    "home": "home.js",
+    "detail": "detail.js",
+    "toc": "toc.js",
+    "genre": "genre.js",
+    "search": "search.js",
+    "chap": "chap.js"
+  }
+}

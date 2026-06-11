@@ -1,0 +1,1 @@
+function execute() {    return Response.success([        {title: "最后更新", input: "/", script: "updates.js"},        {title: "最新入库", input: "/", script: "updates1.js"}    ]);}

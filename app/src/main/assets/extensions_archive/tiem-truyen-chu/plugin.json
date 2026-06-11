@@ -1,0 +1,22 @@
+{
+    "metadata": {
+        "name": "Tiệm Truyện Chữ",
+        "author": "ivanzzz",
+        "version": 5,
+        "source": "https:\/\/www.tiemtruyenchu.com\/",
+        "regexp": "(www\\.)?tiemtruyenchu\\.com\/.*",
+        "description": "Đọc truyện chữ trên Tiệm Truyện Chữ",
+        "locale": "vi_VN",
+        "language": "javascript",
+        "type": "novel",
+        "encrypt": false
+    },
+    "script": {
+        "home": "home.js",
+        "genre": "genre.js",
+        "detail": "detail.js",
+        "search": "search.js",
+        "toc": "toc.js",
+        "chap": "chap.js"
+    }
+}

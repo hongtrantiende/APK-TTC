@@ -1,0 +1,32 @@
+{
+    "metadata": {
+        "name": "[APP] Zhihu Hỏi đáp",
+        "author": "QuocBao",
+        "version": 6,
+        "source": "zhihu.com",
+        "regexp": "(https?://)?((www\\.)?zhihu\\.com/(question/\\d+(/answer/\\d+)?|pin/\\d+|p/\\d+)|zhuanlan\\.zhihu\\.com/p/\\d+|api\\.zhihu\\.com/(questions|answers|pins|articles)/\\d+|zhihu://answer/\\d+)",
+        "description": "Đọc Zhihu bằng API Android/web đã ký, có thêm cấu hình zhihuCookie để dùng cookie đăng nhập khi cần. Hỗ trợ câu hỏi, câu trả lời, pin/想法, bài viết, trang chủ Đề xuất/热榜, bình luận và gợi ý.",
+        "locale": "zh_CN",
+        "language": "javascript",
+        "type": "chinese_novel",
+        "encrypt": true
+    },
+    "script": {
+        "home": "home.js",
+        "genre": "genre.js",
+        "search": "search.js",
+        "detail": "detail.js",
+        "toc": "toc.js",
+        "chap": "chap.js"
+    },
+    "config": {
+        "zhihuCookie": {
+            "title": "Zhihu Cookie",
+            "mode": "input",
+            "format": "text",
+            "default": ""
+        },
+        "thread_num": 1,
+        "delay": 1000
+    }
+}

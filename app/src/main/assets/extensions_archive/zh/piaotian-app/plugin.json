@@ -1,0 +1,21 @@
+{
+  "metadata": {
+    "name": "piaotian-app",
+    "author": "Đường đen",
+    "version": 3,
+    "source": "https://www.piaotianapp.com",
+    "regexp": "^(www\\.)?piaotianapp\\.com/ptinfo/\\d+\\.html$",
+    "description": "Đọc sách trên trang piaotianapp.com",
+    "locale": "zh_CN",
+    "language": "javascript",
+    "type": "chinese_novel",
+    "encrypt": true
+  },
+  "script": {
+    "home": "home.js",
+    "detail": "detail.js",
+    "search": "search.js",
+    "toc": "toc.js",
+    "chap": "chap.js"
+  }
+}

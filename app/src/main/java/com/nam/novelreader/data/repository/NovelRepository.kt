@@ -67,7 +67,8 @@ class NovelRepository @Inject constructor(
         }
 
         if (!shouldTranslate) return@withContext text
-        return@withContext com.nam.novelreader.util.QuickTranslateEngine.translate(context, text)
+        val targetMode = if (translationMode.contains("Hán Việt")) "hanviet" else "vi"
+        return@withContext com.nam.novelreader.util.QuickTranslateEngine.translate(context, text, targetMode)
     }
 
     // ========== Library ==========
@@ -293,75 +294,23 @@ class NovelRepository @Inject constructor(
             val result = executeExtension(extensionId, ScriptType.CHAP, chapterUrl)
             when (result) {
                 is ExtensionResult.Success -> {
-                    var parsedChapter = parseChapterContent(result.data, extensionId, chapterUrl)
-                    if (parsedChapter != null && parsedChapter.title.isBlank() && cached != null) {
-                        parsedChapter = parsedChapter.copy(title = cached.title)
-                    }
-                    
-                    // Hỗ trợ giải mã link video stream cho extension phim/video
                     val extension = extensionLoader.loadExtension(extensionId)
                     val isVideo = extension?.pluginJson?.metadata?.type == "video"
-                    if (isVideo && parsedChapter != null) {
-                        val serverUrl = try {
-                            val element = json.parseToJsonElement(result.data)
-                            if (element is JsonObject) {
-                                val dataElement = element["data"]
-                                if (dataElement is JsonArray) {
-                                    val firstServer = dataElement.firstOrNull()?.jsonObject
-                                    firstServer?.get("data")?.jsonPrimitive?.content 
-                                        ?: firstServer?.get("url")?.jsonPrimitive?.content
-                                        ?: firstServer?.get("link")?.jsonPrimitive?.content
-                                } else if (dataElement is JsonObject) {
-                                    dataElement["data"]?.jsonPrimitive?.content
-                                        ?: dataElement["url"]?.jsonPrimitive?.content
-                                        ?: dataElement["link"]?.jsonPrimitive?.content
-                                } else {
-                                    null
-                                }
-                            } else if (element is JsonArray) {
-                                val firstServer = element.firstOrNull()?.jsonObject
-                                firstServer?.get("data")?.jsonPrimitive?.content 
-                                    ?: firstServer?.get("url")?.jsonPrimitive?.content
-                                    ?: firstServer?.get("link")?.jsonPrimitive?.content
-                            } else {
-                                null
-                            }
-                        } catch (e: Exception) {
-                            null
-                        }
-
-                        if (!serverUrl.isNullOrBlank() && extension.pluginJson.script.containsKey(ScriptType.TRACK.key)) {
-                            android.util.Log.d("NovelRepo", "Resolving video stream URL via track.js for server: $serverUrl")
-                            val trackResult = executeExtension(extensionId, ScriptType.TRACK, serverUrl)
-                            if (trackResult is ExtensionResult.Success) {
-                                val videoUrl = try {
-                                    val trackElement = json.parseToJsonElement(trackResult.data)
-                                    if (trackElement is JsonObject) {
-                                        val dataElement = trackElement["data"]
-                                        if (dataElement is JsonObject) {
-                                            dataElement["data"]?.jsonPrimitive?.content
-                                                ?: dataElement["url"]?.jsonPrimitive?.content
-                                        } else if (dataElement is JsonPrimitive) {
-                                            dataElement.content
-                                        } else {
-                                            trackElement["data"]?.jsonPrimitive?.content
-                                        }
-                                    } else {
-                                        null
-                                    }
-                                } catch (e: Exception) {
-                                    null
-                                }
-
-                                if (!videoUrl.isNullOrBlank()) {
-                                    android.util.Log.d("NovelRepo", "Successfully resolved video stream URL: $videoUrl")
-                                    parsedChapter = parsedChapter.copy(content = videoUrl)
-                                }
-                            }
-                        } else if (!serverUrl.isNullOrBlank() && (parsedChapter.content.isNullOrBlank() || parsedChapter.content == result.data)) {
-                            // Nếu không có track.js, dùng trực tiếp serverUrl làm link video
-                            parsedChapter = parsedChapter.copy(content = serverUrl)
-                        }
+                    
+                    var parsedChapter = if (isVideo) {
+                        // Nếu là video, tạo Chapter trực tiếp với content là JSON string của các server (result.data)
+                        Chapter(
+                            url = chapterUrl,
+                            title = cached?.title ?: "Tập phim",
+                            content = result.data,
+                            isDownloaded = isOfflineDownload
+                        )
+                    } else {
+                        parseChapterContent(result.data, extensionId, chapterUrl)
+                    }
+                    
+                    if (parsedChapter != null && parsedChapter.title.isBlank() && cached != null) {
+                        parsedChapter = parsedChapter.copy(title = cached.title)
                     }
 
                     if (parsedChapter != null && (!parsedChapter.content.isNullOrBlank() || !parsedChapter.images.isNullOrEmpty())) {
@@ -382,6 +331,35 @@ class NovelRepository @Inject constructor(
             chapter = chapter.copy(title = translatedTitle, content = translatedContent)
         }
         return chapter
+    }
+
+    suspend fun getChapterContentOffline(chapterUrl: String): Chapter? = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        val cached = chapterDao.getChapterByUrl(chapterUrl) ?: return@withContext null
+        if (cached.content.isNullOrBlank() && cached.images.isNullOrBlank()) {
+            return@withContext null
+        }
+        var chapter = Chapter(
+            url = cached.url,
+            title = cached.title,
+            index = cached.index,
+            content = cached.content,
+            images = cached.images?.let {
+                try {
+                    Json.decodeFromString(it)
+                } catch (e: Exception) {
+                    null
+                }
+            },
+            isDownloaded = cached.isDownloaded
+        )
+        val novel = novelDao.getNovelByUrl(cached.novelUrl)
+        val extId = novel?.extensionId ?: ""
+        if (extId.isNotBlank()) {
+            val translatedTitle = translateTextIfNeeded(extId, chapter.title, "chapter_title") ?: chapter.title
+            val translatedContent = translateTextIfNeeded(extId, chapter.content, "chapter_content")
+            chapter = chapter.copy(title = translatedTitle, content = translatedContent)
+        }
+        chapter
     }
 
     // ========== Reading Progress ==========
@@ -694,16 +672,21 @@ class NovelRepository @Inject constructor(
             }
             items.mapIndexed { index, item ->
                 val obj = item.jsonObject
-                val rawUrl = obj["url"]?.jsonPrimitive?.content 
-                    ?: obj["link"]?.jsonPrimitive?.content
-                    ?: obj["path"]?.jsonPrimitive?.content
-                    ?: ""
-                val host = obj["host"]?.jsonPrimitive?.content ?: ""
-                val resolvedUrl = resolveUrl(rawUrl, host, sourceUrl)
+                val isSection = obj["type"]?.jsonPrimitive?.content == "section"
                 val rawTitle = obj["title"]?.jsonPrimitive?.content 
                     ?: obj["name"]?.jsonPrimitive?.content 
                     ?: "Chương ${index + 1}"
                 val title = cleanHtmlText(rawTitle)
+                val rawUrl = if (isSection) {
+                    "section://$title"
+                } else {
+                    obj["url"]?.jsonPrimitive?.content 
+                        ?: obj["link"]?.jsonPrimitive?.content
+                        ?: obj["path"]?.jsonPrimitive?.content
+                        ?: ""
+                }
+                val host = if (isSection) "" else (obj["host"]?.jsonPrimitive?.content ?: "")
+                val resolvedUrl = if (isSection) rawUrl else resolveUrl(rawUrl, host, sourceUrl)
                 Chapter(
                     url = resolvedUrl,
                     title = title,

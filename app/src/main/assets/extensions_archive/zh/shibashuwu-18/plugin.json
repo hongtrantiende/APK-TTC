@@ -1,0 +1,23 @@
+{
+  "metadata": {
+    "name": "ShiBaShuWu -18+",
+    "author": "Meo",
+    "version": 19,
+    "source": "https://www.shibashuwu.net",
+    "regexp": "https?:\\/\\/(?:www\\.)?shibashuwu\\.net\\/book\\/\\d+(?:\\/|\\/\\d+(?:_\\d+)?\\.html)?$",
+    "description": "ShiBaShuWu - Truyện chữ Trung Quốc 18+",
+    "locale": "zh_CN",
+    "tag": "18+",
+    "type": "chinese_novel"
+  },
+  "script": {
+    "home": "home.js",
+    "homecontent": "homecontent.js",
+    "genre": "genre.js",
+    "genrecontent": "genrecontent.js",
+    "detail": "detail.js",
+    "search": "search.js",
+    "toc": "toc.js",
+    "chap": "chap.js"
+  }
+}

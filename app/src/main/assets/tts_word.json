@@ -1,0 +1,18 @@
+[
+  {"word":"-","replace":"","ignoreCase":false},
+  {"word":"'","replace":"","ignoreCase":false},
+  {"word":"\"","replace":"","ignoreCase":false},
+  {"word":"-","replace":"","ignoreCase":false},
+  {"word":"=","replace":"","ignoreCase":false},
+  {"word":"~","replace":"","ignoreCase":false},
+  {"word":"!","replace":"","ignoreCase":false},
+  {"word":"@","replace":"","ignoreCase":false},
+  {"word":"#","replace":"","ignoreCase":false},
+  {"word":"^","replace":"","ignoreCase":false},
+  {"word":"&","replace":"","ignoreCase":false},
+  {"word":"*","replace":"","ignoreCase":false},
+  {"word":"(","replace":"","ignoreCase":false},
+  {"word":")","replace":"","ignoreCase":false},
+  {"word":"_","replace":"","ignoreCase":false},
+  {"word":"+","replace":"","ignoreCase":false}
+]

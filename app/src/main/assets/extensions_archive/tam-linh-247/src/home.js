@@ -1,0 +1,1 @@
+function execute() {    return Response.success([        {title: "Cập nhật", input: "/", script: "up.js"},    ]);}

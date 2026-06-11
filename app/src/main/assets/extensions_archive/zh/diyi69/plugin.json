@@ -1,0 +1,21 @@
+{
+  "metadata": {
+    "name": "diyi69",
+    "author": "Nahona",
+    "version": 1,
+    "source": "https://www.diyi69.com",
+    "regexp": "(www.)?diyi69.com/diyi/\\d+/?$",
+    "description": "diyi69",
+    "locale": "zh_CN",
+    "language": "javascript",
+    "type": "chinese_novel"
+  },
+  "script": {
+    "home": "home.js",
+    "detail": "detail.js",
+    "toc": "toc.js",
+    "genre": "genre.js",
+    "search": "search.js",
+    "chap": "chap.js"
+  }
+}

@@ -54,6 +54,16 @@ class NovelReaderApp : Application(), ImageLoaderFactory {
     override fun newImageLoader(): ImageLoader {
         return ImageLoader.Builder(this)
             .okHttpClient(okHttpClient)
+            .components {
+                add(object : coil.intercept.Interceptor {
+                    override suspend fun intercept(chain: coil.intercept.Interceptor.Chain): coil.request.ImageResult {
+                        val newRequest = chain.request.newBuilder()
+                            .setHeader("X-Is-Coil", "true")
+                            .build()
+                        return chain.proceed(newRequest)
+                    }
+                })
+            }
             .build()
     }
 }

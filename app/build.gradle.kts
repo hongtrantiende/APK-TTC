@@ -147,8 +147,9 @@ dependencies {
     implementation(libs.webkit)
     implementation(libs.androidx.browser)
 
-    // Media3 Player
+    // Media3 Player (ExoPlayer + HLS stream support)
     implementation(libs.media3.exoplayer)
+    implementation(libs.media3.exoplayer.hls)
     implementation(libs.media3.ui)
 
     // Cronet Network Stack

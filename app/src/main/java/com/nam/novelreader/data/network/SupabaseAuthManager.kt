@@ -37,6 +37,74 @@ class SupabaseAuthManager @Inject constructor(
     }
 
     /**
+     * Trả về URL để mở browser đăng nhập Google qua Supabase OAuth.
+     * Redirect về novelreader://auth/callback sau khi xác thực.
+     */
+    fun getGoogleSignInUrl(): String {
+        val redirectTo = "novelreader://auth/callback"
+        return "${getUrl()}/auth/v1/authorize?provider=google&redirect_to=${android.net.Uri.encode(redirectTo)}"
+    }
+
+    /**
+     * Xử lý callback OAuth từ browser (novelreader://auth/callback#access_token=...&refresh_token=...).
+     * Supabase trả tokens trong URL fragment (#) hoặc query params.
+     */
+    suspend fun handleOAuthCallback(uri: android.net.Uri): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            // Supabase trả token trong fragment: #access_token=...&refresh_token=...&token_type=bearer
+            val fragment = uri.fragment ?: uri.query ?: ""
+            val params = fragment.split("&").associate { part ->
+                val idx = part.indexOf('=')
+                if (idx > 0) part.substring(0, idx) to android.net.Uri.decode(part.substring(idx + 1))
+                else part to ""
+            }
+
+            val accessToken = params["access_token"] ?: ""
+            val refreshToken = params["refresh_token"] ?: ""
+
+            if (accessToken.isBlank()) {
+                return@withContext Result.failure(Exception("Không nhận được access token từ Google"))
+            }
+
+            // Giải mã JWT để lấy user info (không verify signature, chỉ lấy payload)
+            val payload = try {
+                val parts = accessToken.split(".")
+                if (parts.size >= 2) {
+                    val paddedBase64 = parts[1].padEnd((parts[1].length + 3) / 4 * 4, '=')
+                    val decoded = android.util.Base64.decode(paddedBase64, android.util.Base64.URL_SAFE or android.util.Base64.NO_WRAP)
+                    JSONObject(String(decoded))
+                } else JSONObject()
+            } catch (_: Exception) { JSONObject() }
+
+            val userId = payload.optString("sub", "")
+            val email = payload.optString("email", "")
+            val userMetadata = payload.optJSONObject("user_metadata") ?: JSONObject()
+            val displayName = userMetadata.optString("full_name", "")
+                .ifBlank { userMetadata.optString("name", email.substringBefore("@")) }
+
+            // Lưu session
+            prefs.supabaseAccessToken = accessToken
+            prefs.supabaseRefreshToken = refreshToken
+            prefs.supabaseUserId = userId
+            prefs.supabaseUserEmail = email
+            prefs.supabaseIsLoggedIn = true
+            prefs.prefs.edit()
+                .putBoolean("user_is_logged_in", true)
+                .putString("user_display_name", displayName)
+                .putString("user_subtitle", email)
+                .apply()
+
+            // Sync VIP
+            syncVipStatus()
+            android.util.Log.d("SupabaseAuthManager", "Google OAuth OK: $email")
+            Result.success(Unit)
+        } catch (e: Exception) {
+            android.util.Log.e("SupabaseAuthManager", "OAuth callback error: ${e.message}")
+            Result.failure(e)
+        }
+    }
+
+    /**
      * Đăng ký tài khoản mới.
      */
     suspend fun signUp(email: String, password: String, displayName: String): Result<Unit> = withContext(Dispatchers.IO) {
@@ -357,7 +425,41 @@ class SupabaseAuthManager @Inject constructor(
 
     private suspend fun syncVipStatus() {
         if (!prefs.supabaseIsLoggedIn || prefs.supabaseUserId.isBlank() || !isConfigured()) return
-        
+
+        // 1. Kiểm tra free_mode từ app_settings (giống web: nếu free_mode=true → mọi user đều VIP)
+        try {
+            val settingsUrl = "${getUrl()}/rest/v1/app_settings?key=eq.free_mode&select=value"
+            val settingsRequest = Request.Builder()
+                .url(settingsUrl)
+                .get()
+                .header("apikey", getAnonKey())
+                .build()
+            client.newCall(settingsRequest).execute().use { resp ->
+                if (resp.isSuccessful) {
+                    val body = resp.body?.string() ?: ""
+                    val arr = JSONArray(body)
+                    if (arr.length() > 0) {
+                        val freeMode = arr.getJSONObject(0).optString("value", "false")
+                        if (freeMode == "true") {
+                            // Free mode bật → tất cả user VIP, set expiry 100 năm
+                            prefs.vipExpiryTimestamp = System.currentTimeMillis() + 100L * 365 * 24 * 60 * 60 * 1000L
+                            android.util.Log.d("SupabaseAuthManager", "VIP: free_mode active")
+                            return
+                        }
+                    }
+                }
+            }
+        } catch (_: Exception) {}
+
+        // 2. Hardcoded admin email bypass (giống web)
+        val userEmail = prefs.supabaseUserEmail.lowercase().trim()
+        if (userEmail == "nthanhnam@gmail.com") {
+            prefs.vipExpiryTimestamp = System.currentTimeMillis() + 100L * 365 * 24 * 60 * 60 * 1000L
+            android.util.Log.d("SupabaseAuthManager", "VIP: admin email bypass")
+            return
+        }
+
+        // 3. Đọc vip_until từ profiles (logic chính)
         val url = "${getUrl()}/rest/v1/profiles?id=eq.${prefs.supabaseUserId}&select=vip_until"
         val request = Request.Builder()
             .url(url)
@@ -365,7 +467,7 @@ class SupabaseAuthManager @Inject constructor(
             .header("apikey", getAnonKey())
             .header("Authorization", "Bearer ${prefs.supabaseAccessToken}")
             .build()
-            
+
         try {
             client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) return
@@ -376,19 +478,19 @@ class SupabaseAuthManager @Inject constructor(
                     val vipUntilStr = if (item.isNull("vip_until")) null else item.optString("vip_until", null as String?)
                     if (!vipUntilStr.isNullOrBlank()) {
                         try {
-                            // Extract date part e.g. 2024-12-31 from 2024-12-31T23:59:59Z
                             val formatter = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
                             val dateStr = vipUntilStr.substringBefore("T")
                             val date = formatter.parse(dateStr)
                             if (date != null) {
-                                // Add 24h to expiration to represent end of the day, matching Supabase logic usually T23:59:59Z
                                 prefs.vipExpiryTimestamp = date.time + 24 * 60 * 60 * 1000L - 1000L
+                                android.util.Log.d("SupabaseAuthManager", "VIP until: $vipUntilStr → ${prefs.vipExpiryTimestamp}")
                             }
                         } catch (e: Exception) {
                             android.util.Log.e("SupabaseAuthManager", "Error parsing vip_until: $vipUntilStr")
                         }
                     } else {
                         prefs.vipExpiryTimestamp = 0L
+                        android.util.Log.d("SupabaseAuthManager", "VIP: vip_until is null/blank")
                     }
                 }
             }

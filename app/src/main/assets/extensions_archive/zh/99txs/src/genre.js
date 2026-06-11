@@ -1,0 +1,27 @@
+function execute() {
+    return Response.success([
+        { title: "全本", input: "/top/weekvisit/", script: "cate.js" },
+        { title: "排行", input: "/top/allvist/", script: "cate.js" },
+        { title: "更新日", input: "/top/dayvist/", script: "cate.js" },
+        { title: "全本", input: "/full/allvist/", script: "cate.js" },
+        { title: "總推薦榜", input: "/top/allvote/", script: "cate.js" },
+        { title: "月點擊榜", input: "/top/monthvisit/", script: "cate.js" },
+        { title: "月推薦榜", input: "/top/monthvote/", script: "cate.js" },
+        { title: "周點擊榜", input: "/top/weakvisit/", script: "cate.js" },
+        { title: "周推薦榜", input: "/top/weakvote/", script: "cate.js" },
+        { title: "最新入庫", input: "/top/postdate/", script: "cate.js" },
+        { title: "最近更新", input: "/top/lastupdate/", script: "cate.js" },
+        { title: "總收藏榜", input: "/top/goodnum/", script: "cate.js" },
+        { title: "字數排行", input: "/top/words/", script: "cate.js" },
+        { title: "玄幻小說", input: "/sort/1/", script: "cate.js" },
+        { title: "仙俠小說", input: "/sort/2/", script: "cate.js" },
+        { title: "都市小說", input: "/sort/3/", script: "cate.js" },
+        { title: "曆史小說", input: "/sort/4/", script: "cate.js" },
+        { title: "網遊小說", input: "/sort/5/", script: "cate.js" },
+        { title: "科幻小說", input: "/sort/6/", script: "cate.js" },
+        { title: "耽美小說", input: "/sort/7/", script: "cate.js" },
+        { title: "穿越小說", input: "/sort/8/", script: "cate.js" },
+        { title: "推理小說", input: "/sort/9/", script: "cate.js" },
+        { title: "其他小說", input: "/sort/10/", script: "cate.js" },
+    ]);
+}

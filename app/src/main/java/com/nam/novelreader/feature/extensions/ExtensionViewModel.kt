@@ -13,6 +13,7 @@ import com.nam.novelreader.data.network.GoogleDriveBackupManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import okhttp3.OkHttpClient
 import javax.inject.Inject
 
 @HiltViewModel
@@ -22,6 +23,7 @@ class ExtensionViewModel @Inject constructor(
     private val repositoryDao: RepositoryDao,
     val appPrefs: AppPreferences,
     private val googleDriveBackupManager: GoogleDriveBackupManager,
+    private val httpClient: OkHttpClient,
     @dagger.hilt.android.qualifiers.ApplicationContext private val context: android.content.Context,
 ) : ViewModel() {
 
@@ -58,17 +60,23 @@ class ExtensionViewModel @Inject constructor(
     }
 
     /**
-     * Fetch extensions từ built-in assets.
+     * Fetch extensions từ tất cả các repository đang hoạt động.
      */
     fun fetchAllExtensions() {
         viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
             try {
-                // Tải trực tiếp từ assets
-                val allExts = extensionLoader.fetchBuiltInExtensions()
-                _availableExtensions.value = allExts
-                prefetchIcons(allExts)
+                val repos = repositoryDao.getEnabledRepositories()
+                val allExts = mutableListOf<ExtensionInfo>()
+                for (repo in repos) {
+                    val exts = extensionLoader.fetchRepository(repo.url)
+                    allExts.addAll(exts)
+                }
+                // Loại bỏ trùng lặp nếu có nhiều repo chứa cùng một extension
+                val uniqueExts = allExts.distinctBy { it.name }
+                _availableExtensions.value = uniqueExts
+                prefetchIcons(uniqueExts)
             } catch (e: Exception) {
                 _error.value = e.message
             }
@@ -84,8 +92,7 @@ class ExtensionViewModel @Inject constructor(
             _isLoading.value = true
             _error.value = null
             try {
-                // Tải trực tiếp từ assets (bỏ qua url)
-                val exts = extensionLoader.fetchBuiltInExtensions()
+                val exts = extensionLoader.fetchRepository(repoUrl)
                 _availableExtensions.value = exts
                 prefetchIcons(exts)
             } catch (e: Exception) {
@@ -171,26 +178,48 @@ class ExtensionViewModel @Inject constructor(
         viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             val cacheFolder = java.io.File(context.cacheDir, "extensions_icons")
             cacheFolder.mkdirs()
-            
+
             exts.forEach { info ->
-                if (info.icon.startsWith("gdrive://")) {
-                    val filename = info.icon.substringAfter("gdrive://")
-                    val cacheFile = java.io.File(cacheFolder, filename)
-                    
-                    if (!cacheFile.exists()) {
-                        googleDriveBackupManager.downloadFileFromExtensionFolder(filename).onSuccess { bytes ->
-                            try {
-                                cacheFile.writeBytes(bytes)
-                                updateAvailableExtensionIcon(info.name, cacheFile.absolutePath)
-                            } catch (e: Exception) {
-                                android.util.Log.e("ExtVM", "Failed to write cached icon for ${info.name}", e)
-                            }
-                        }.onFailure { e ->
-                            android.util.Log.e("ExtVM", "Failed to download icon for ${info.name} from Drive", e)
+                val iconUrl = info.icon
+                if (iconUrl.isBlank()) return@forEach
+
+                val slug = info.name
+                    .let { java.text.Normalizer.normalize(it, java.text.Normalizer.Form.NFD) }
+                    .replace(Regex("[\\p{InCombiningDiacriticalMarks}]"), "")
+                    .lowercase()
+                    .replace("đ", "d")
+                    .replace(Regex("[^a-z0-9]"), "-")
+                    .replace(Regex("-+"), "-")
+                    .trim('-')
+                val cacheFile = java.io.File(cacheFolder, "${slug}_icon.png")
+
+                if (cacheFile.exists()) {
+                    updateAvailableExtensionIcon(info.name, cacheFile.absolutePath)
+                    return@forEach
+                }
+
+                try {
+                    val bytes: ByteArray? = when {
+                        iconUrl.startsWith("gdrive://") -> {
+                            val filename = iconUrl.substringAfter("gdrive://")
+                            googleDriveBackupManager.downloadFileFromExtensionFolder(filename).getOrNull()
                         }
-                    } else {
+                        iconUrl.startsWith("file:///android_asset/") -> {
+                            val assetPath = iconUrl.substringAfter("file:///android_asset/")
+                            context.assets.open(assetPath).use { it.readBytes() }
+                        }
+                        iconUrl.startsWith("http://") || iconUrl.startsWith("https://") -> {
+                            val req = okhttp3.Request.Builder().url(iconUrl).build()
+                            httpClient.newCall(req).execute().body?.bytes()
+                        }
+                        else -> null
+                    }
+                    if (bytes != null) {
+                        cacheFile.writeBytes(bytes)
                         updateAvailableExtensionIcon(info.name, cacheFile.absolutePath)
                     }
+                } catch (e: Exception) {
+                    android.util.Log.w("ExtVM", "Failed to prefetch icon for ${info.name}: ${e.message}")
                 }
             }
         }

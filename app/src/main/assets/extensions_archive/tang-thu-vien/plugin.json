@@ -1,0 +1,22 @@
+{
+    "metadata": {
+        "name": "Tàng Thư Viện",
+        "author": "ivanzzz",
+        "version": 2,
+        "source": "https:\/\/truyen.tangthuvien.vn",
+        "regexp": "(www\\.)?truyen\\.tangthuvien\\.vn\/doc-truyen\/[^\\s]+$",
+        "description": "Đọc truyện tại Tàng Thư Viện",
+        "locale": "vi_VN",
+        "language": "javascript",
+        "type": "novel",
+        "encrypt": false
+    },
+    "script": {
+        "home": "home.js",
+        "genre": "genre.js",
+        "detail": "detail.js",
+        "search": "search.js",
+        "toc": "toc.js",
+        "chap": "chap.js"
+    }
+}

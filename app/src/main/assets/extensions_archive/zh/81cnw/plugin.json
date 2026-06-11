@@ -1,0 +1,20 @@
+{
+  "metadata": {
+    "name": "81cnw",
+    "author": "Nahona",
+    "version": 2,
+    "source": "https://m.81cnw.com",
+    "regexp": "(m.)?81cnw.com/html/\\d+/?$",
+    "description": "",
+    "locale": "zh_CN",
+    "language": "javascript",
+    "type": "chinese_novel"
+  },
+  "script": {
+    "home": "home.js",
+    "detail": "detail.js",
+    "toc": "toc.js",
+    "search": "search.js",
+    "chap": "chap.js"
+  }
+}

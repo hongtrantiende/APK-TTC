@@ -2,6 +2,7 @@ package com.nam.novelreader.feature.reader
 
 import android.content.Context
 import android.content.Intent
+import android.util.Log
 import android.speech.tts.TextToSpeech
 import android.widget.Toast
 import androidx.compose.foundation.background
@@ -43,6 +44,10 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
+import kotlin.coroutines.resume
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.jsonObject
@@ -131,6 +136,24 @@ class TtsPlayerSettingsViewModel @Inject constructor(
             loadSystemVoices()
             return
         }
+        if (engine == "azure_edge") {
+            val list = listOf(
+                TtsVoice("vi-VN-NamMinhNeural", "Giọng nam trầm (NamMinh)", "vi-VN"),
+                TtsVoice("vi-VN-HoaiMyNeural", "Giọng nữ miền Nam (HoaiMy)", "vi-VN")
+            )
+            _voices.value = list
+            val currentVoice = appPrefs.ttsSelectedVoice
+            val matchedVoice = list.find { it.id == currentVoice }
+            if (matchedVoice != null) {
+                appPrefs.ttsCustomLanguage = matchedVoice.language
+            } else {
+                list.firstOrNull()?.let {
+                    appPrefs.ttsSelectedVoice = it.id
+                    appPrefs.ttsCustomLanguage = it.language
+                }
+            }
+            return
+        }
         viewModelScope.launch {
             _isLoadingVoices.value = true
             _voices.value = emptyList()
@@ -168,60 +191,111 @@ class TtsPlayerSettingsViewModel @Inject constructor(
         }
     }
 
+    private suspend fun initTtsAsync(context: Context, enginePkg: String?): TextToSpeech? = 
+        suspendCancellableCoroutine { continuation ->
+            var tts: TextToSpeech? = null
+            var hasResumed = false
+            val listener = TextToSpeech.OnInitListener { status ->
+                if (!hasResumed) {
+                    hasResumed = true
+                    if (status == TextToSpeech.SUCCESS) {
+                        continuation.resume(tts)
+                    } else {
+                        tts?.shutdown()
+                        continuation.resume(null)
+                    }
+                }
+            }
+            try {
+                tts = if (!enginePkg.isNullOrEmpty()) {
+                    TextToSpeech(context, listener, enginePkg)
+                } else {
+                    TextToSpeech(context, listener)
+                }
+            } catch (e: Exception) {
+                if (!hasResumed) {
+                    hasResumed = true
+                    continuation.resume(null)
+                }
+            }
+            continuation.invokeOnCancellation {
+                if (!hasResumed) {
+                    tts?.shutdown()
+                }
+            }
+        }
+
     private fun loadSystemVoices() {
         viewModelScope.launch {
             _isLoadingVoices.value = true
             val list = mutableListOf<TtsVoice>()
-            var tempTts: TextToSpeech? = null
             try {
                 val enginePkg = appPrefs.ttsSystemEngine
-                tempTts = if (enginePkg.isNotEmpty()) {
-                    TextToSpeech(context, null, enginePkg)
-                } else {
-                    TextToSpeech(context, null)
+                val tempTts = withContext(Dispatchers.IO) {
+                    initTtsAsync(context, enginePkg)
                 }
-                
-                val langParts = appPrefs.ttsSystemLanguage.split("-")
-                val locale = if (langParts.size >= 2) Locale(langParts[0], langParts[1]) else Locale(appPrefs.ttsSystemLanguage)
-                
-                tempTts.setLanguage(locale)
-                
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
-                    val voices = tempTts.voices
-                    if (voices != null) {
-                        var index = 1
-                        for (v in voices) {
-                            if (v.locale.language == locale.language) {
-                                val label = if (v.isNetworkConnectionRequired) "Online" else "Local"
-                                list.add(TtsVoice(
-                                    id = v.name,
-                                    name = "Giọng đọc $index (${label})",
-                                    language = v.locale.displayName
-                                ))
-                                index++
+                if (tempTts != null) {
+                    val langParts = appPrefs.ttsSystemLanguage.split("-")
+                    val locale = if (langParts.size >= 2) Locale(langParts[0], langParts[1]) else Locale(appPrefs.ttsSystemLanguage)
+                    
+                    tempTts.setLanguage(locale)
+                    
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+                        val voices = tempTts.voices
+                        if (voices != null) {
+                            var index = 1
+                            for (v in voices) {
+                                if (v.locale.language == locale.language) {
+                                    val label = if (v.isNetworkConnectionRequired) "Online" else "Local"
+                                    list.add(TtsVoice(
+                                        id = v.name,
+                                        name = "Giọng đọc $index (${label})",
+                                        language = v.locale.displayName
+                                    ))
+                                    index++
+                                }
                             }
                         }
                     }
+                    tempTts.shutdown()
                 }
             } catch (e: Exception) {
-                // Ignore
-            } finally {
-                tempTts?.shutdown()
+                Log.e("TTS", "Error getting system voices", e)
             }
             
-            if (list.isEmpty()) {
-                list.add(TtsVoice("vi-vn-x-vif-local", "Giọng đọc 1 (Miền Nam - Nữ)", "Tiếng Việt (Việt Nam)"))
-                list.add(TtsVoice("vi-vn-x-vic-local", "Giọng đọc 2 (Miền Bắc - Nam)", "Tiếng Việt (Việt Nam)"))
-                list.add(TtsVoice("vi-vn-x-vid-local", "Giọng đọc 3 (Miền Bắc - Nữ)", "Tiếng Việt (Việt Nam)"))
-                list.add(TtsVoice("vi-vn-x-vie-local", "Giọng đọc 4 (Miền Nam - Nam)", "Tiếng Việt (Việt Nam)"))
+            val defaultVoices = listOf(
+                TtsVoice("vi-vn-x-vif-local", "Giọng đọc 1 (Miền Nam - Nữ)", "Tiếng Việt (Việt Nam)"),
+                TtsVoice("vi-vn-x-vic-local", "Giọng đọc 2 (Miền Bắc - Nam)", "Tiếng Việt (Việt Nam)"),
+                TtsVoice("vi-vn-x-vid-local", "Giọng đọc 3 (Miền Bắc - Nữ)", "Tiếng Việt (Việt Nam)"),
+                TtsVoice("vi-vn-x-vie-local", "Giọng đọc 4 (Miền Nam - Nam)", "Tiếng Việt (Việt Nam)"),
+                TtsVoice("vi-vn-x-vfg-local", "Giọng đọc 5 (Địa phương - Nữ)", "Tiếng Việt (Việt Nam)"),
+                TtsVoice("vi-vn-x-vfa-local", "Giọng đọc 6 (Địa phương - Nam trầm)", "Tiếng Việt (Việt Nam)")
+            )
+            
+            val combinedList = mutableListOf<TtsVoice>()
+            combinedList.addAll(list)
+            
+            val langParts = appPrefs.ttsSystemLanguage.split("-")
+            val isVietnamese = langParts.firstOrNull()?.lowercase() == "vi"
+            
+            if (isVietnamese) {
+                for (defVoice in defaultVoices) {
+                    if (combinedList.none { it.id == defVoice.id }) {
+                        combinedList.add(defVoice)
+                    }
+                }
             }
             
-            _voices.value = list
+            if (combinedList.isEmpty()) {
+                combinedList.addAll(defaultVoices)
+            }
+            
+            _voices.value = combinedList
             _isLoadingVoices.value = false
             
             val currentVoice = appPrefs.ttsSelectedVoice
-            if (currentVoice.isBlank() || list.none { it.id == currentVoice }) {
-                list.firstOrNull()?.let {
+            if (currentVoice.isBlank() || combinedList.none { it.id == currentVoice }) {
+                combinedList.firstOrNull()?.let {
                     appPrefs.ttsSelectedVoice = it.id
                 }
             }
@@ -285,6 +359,12 @@ fun TtsPlayerSettingsBottomSheet(
     val rawPrefs = remember { context.getSharedPreferences("novel_reader_prefs", Context.MODE_PRIVATE) }
     var speedVal by remember { mutableFloatStateOf(rawPrefs.getFloat("reader_tts_speed", 1.0f)) }
     var pitchVal by remember { mutableFloatStateOf(rawPrefs.getFloat("reader_tts_pitch", 1.0f)) }
+    var volumeGainVal by remember { mutableFloatStateOf(rawPrefs.getFloat("reader_tts_volume_gain", 0.0f)) }
+    var ttsAutoNext by remember { mutableStateOf(rawPrefs.getBoolean("tts_auto_next_chapter", true)) }
+
+    // Google API Key states
+    var showGoogleApiKeyDialog by remember { mutableStateOf(false) }
+    var currentGoogleApiKey by remember { mutableStateOf(appPrefs.ttsGoogleApiKey) }
 
     val customLanguages = remember(availableVoices) {
         availableVoices.map { it.language }.distinct()
@@ -364,7 +444,7 @@ fun TtsPlayerSettingsBottomSheet(
                     val currentEngine = appPrefs.ttsSelectedEngine
                     val engineName = when (currentEngine) {
                         "system" -> "Hệ thống"
-                        "ai" -> "AI"
+                        "azure_edge" -> "Microsoft Azure Edge (Trudio)"
                         else -> {
                             installedExtensions.find { it.id == currentEngine }?.name ?: currentEngine
                         }
@@ -375,7 +455,7 @@ fun TtsPlayerSettingsBottomSheet(
                             value = engineName,
                             textColor = textColor,
                             cardColor = cardColor,
-                            onSettingsClick = if (currentEngine != "system" && currentEngine.isNotBlank()) {
+                            onSettingsClick = if (currentEngine != "system" && currentEngine != "azure_edge" && currentEngine.isNotBlank()) {
                                 {
                                     onDismiss()
                                     onNavigateToExtensionSettings(currentEngine)
@@ -383,30 +463,17 @@ fun TtsPlayerSettingsBottomSheet(
                             } else null,
                             onClick = { showTtsMenu = true }
                         )
-                        DropdownMenu(
-                            expanded = showTtsMenu,
-                            onDismissRequest = { showTtsMenu = false },
-                            modifier = Modifier.background(cardColor)
-                        ) {
-                            DropdownMenuItem(
-                                text = {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Text("Hệ thống", color = textColor)
-                                        if (currentEngine == "system") Icon(Icons.Filled.Check, null, tint = primaryColor, modifier = Modifier.size(16.dp))
-                                    }
-                                },
-                                onClick = {
-                                    showTtsMenu = false
-                                    viewModel.selectEngine("system")
-                                    notifyServiceEngineChanged(context)
-                                }
+                        MaterialTheme(
+                            colorScheme = MaterialTheme.colorScheme.copy(
+                                surface = cardColor,
+                                onSurface = textColor
                             )
-
-                            installedExtensions.forEach { ext ->
+                        ) {
+                            DropdownMenu(
+                                expanded = showTtsMenu,
+                                onDismissRequest = { showTtsMenu = false },
+                                modifier = Modifier.background(cardColor)
+                            ) {
                                 DropdownMenuItem(
                                     text = {
                                         Row(
@@ -414,16 +481,54 @@ fun TtsPlayerSettingsBottomSheet(
                                             horizontalArrangement = Arrangement.SpaceBetween,
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            Text(ext.name, color = textColor)
-                                            if (currentEngine == ext.id) Icon(Icons.Filled.Check, null, tint = primaryColor, modifier = Modifier.size(16.dp))
+                                            Text("Hệ thống", color = textColor)
+                                            if (currentEngine == "system") Icon(Icons.Filled.Check, null, tint = primaryColor, modifier = Modifier.size(16.dp))
                                         }
                                     },
                                     onClick = {
                                         showTtsMenu = false
-                                        viewModel.selectEngine(ext.id)
+                                        viewModel.selectEngine("system")
                                         notifyServiceEngineChanged(context)
                                     }
                                 )
+
+                                DropdownMenuItem(
+                                    text = {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text("Microsoft Azure Edge (Trudio)", color = textColor)
+                                            if (currentEngine == "azure_edge") Icon(Icons.Filled.Check, null, tint = primaryColor, modifier = Modifier.size(16.dp))
+                                        }
+                                    },
+                                    onClick = {
+                                        showTtsMenu = false
+                                        viewModel.selectEngine("azure_edge")
+                                        notifyServiceEngineChanged(context)
+                                    }
+                                )
+
+                                installedExtensions.forEach { ext ->
+                                    DropdownMenuItem(
+                                        text = {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Text(ext.name, color = textColor)
+                                                if (currentEngine == ext.id) Icon(Icons.Filled.Check, null, tint = primaryColor, modifier = Modifier.size(16.dp))
+                                            }
+                                        },
+                                        onClick = {
+                                            showTtsMenu = false
+                                            viewModel.selectEngine(ext.id)
+                                            notifyServiceEngineChanged(context)
+                                        }
+                                    )
+                                }
                             }
                         }
                     }
@@ -441,36 +546,43 @@ fun TtsPlayerSettingsBottomSheet(
                                 cardColor = cardColor,
                                 onClick = { showToolMenu = true }
                             )
-                            DropdownMenu(
-                                expanded = showToolMenu,
-                                onDismissRequest = { showToolMenu = false },
-                                modifier = Modifier.background(cardColor)
+                            MaterialTheme(
+                                colorScheme = MaterialTheme.colorScheme.copy(
+                                    surface = cardColor,
+                                    onSurface = textColor
+                                )
                             ) {
-                                systemEngines.forEach { eng ->
-                                    DropdownMenuItem(
-                                        text = {
-                                            Row(
-                                                modifier = Modifier.fillMaxWidth(),
-                                                horizontalArrangement = Arrangement.SpaceBetween,
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                Text(eng.label, color = textColor)
-                                                if (currentSysEnginePkg == eng.packageName) Icon(Icons.Filled.Check, null, tint = primaryColor, modifier = Modifier.size(16.dp))
+                                DropdownMenu(
+                                    expanded = showToolMenu,
+                                    onDismissRequest = { showToolMenu = false },
+                                    modifier = Modifier.background(cardColor)
+                                ) {
+                                    systemEngines.forEach { eng ->
+                                        DropdownMenuItem(
+                                            text = {
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Text(eng.label, color = textColor)
+                                                    if (currentSysEnginePkg == eng.packageName) Icon(Icons.Filled.Check, null, tint = primaryColor, modifier = Modifier.size(16.dp))
+                                                }
+                                            },
+                                            onClick = {
+                                                showToolMenu = false
+                                                viewModel.selectSystemEngine(eng.packageName)
+                                                notifyServiceEngineChanged(context)
                                             }
-                                        },
-                                        onClick = {
-                                            showToolMenu = false
-                                            viewModel.selectSystemEngine(eng.packageName)
-                                            notifyServiceEngineChanged(context)
-                                        }
-                                    )
+                                        )
+                                    }
                                 }
                             }
                         }
                     }
 
                     // 3. Ngôn ngữ
-                    val showLanguage = currentEngine == "system" || (currentEngine != "system" && customLanguages.isNotEmpty())
+                    val showLanguage = currentEngine == "system" || (currentEngine != "system" && currentEngine != "azure_edge" && customLanguages.isNotEmpty())
                     if (showLanguage) {
                         val currentLang = if (currentEngine == "system") appPrefs.ttsSystemLanguage else appPrefs.ttsCustomLanguage
                         val langLabel = if (currentEngine == "system") {
@@ -486,54 +598,61 @@ fun TtsPlayerSettingsBottomSheet(
                                 cardColor = cardColor,
                                 onClick = { showLanguageMenu = true }
                             )
-                            DropdownMenu(
-                                expanded = showLanguageMenu,
-                                onDismissRequest = { showLanguageMenu = false },
-                                modifier = Modifier.background(cardColor)
+                            MaterialTheme(
+                                colorScheme = MaterialTheme.colorScheme.copy(
+                                    surface = cardColor,
+                                    onSurface = textColor
+                                )
                             ) {
-                                if (currentEngine == "system") {
-                                    systemLanguages.forEach { lang ->
-                                        DropdownMenuItem(
-                                            text = {
-                                                Row(
-                                                    modifier = Modifier.fillMaxWidth(),
-                                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                                    verticalAlignment = Alignment.CenterVertically
-                                                ) {
-                                                    Text(lang.displayName, color = textColor)
-                                                    if (currentLang == lang.code) Icon(Icons.Filled.Check, null, tint = primaryColor, modifier = Modifier.size(16.dp))
+                                DropdownMenu(
+                                    expanded = showLanguageMenu,
+                                    onDismissRequest = { showLanguageMenu = false },
+                                    modifier = Modifier.background(cardColor)
+                                ) {
+                                    if (currentEngine == "system") {
+                                        systemLanguages.forEach { lang ->
+                                            DropdownMenuItem(
+                                                text = {
+                                                    Row(
+                                                        modifier = Modifier.fillMaxWidth(),
+                                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                                        verticalAlignment = Alignment.CenterVertically
+                                                    ) {
+                                                        Text(lang.displayName, color = textColor)
+                                                        if (currentLang == lang.code) Icon(Icons.Filled.Check, null, tint = primaryColor, modifier = Modifier.size(16.dp))
+                                                    }
+                                                },
+                                                onClick = {
+                                                    showLanguageMenu = false
+                                                    viewModel.selectSystemLanguage(lang.code)
+                                                    notifyServiceEngineChanged(context)
                                                 }
-                                            },
-                                            onClick = {
-                                                showLanguageMenu = false
-                                                viewModel.selectSystemLanguage(lang.code)
-                                                notifyServiceEngineChanged(context)
-                                            }
-                                        )
-                                    }
-                                } else {
-                                    customLanguages.forEach { lang ->
-                                        DropdownMenuItem(
-                                            text = {
-                                                Row(
-                                                    modifier = Modifier.fillMaxWidth(),
-                                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                                    verticalAlignment = Alignment.CenterVertically
-                                                ) {
-                                                    Text(lang, color = textColor)
-                                                    if (currentLang == lang) Icon(Icons.Filled.Check, null, tint = primaryColor, modifier = Modifier.size(16.dp))
+                                            )
+                                        }
+                                    } else {
+                                        customLanguages.forEach { lang ->
+                                            DropdownMenuItem(
+                                                text = {
+                                                    Row(
+                                                        modifier = Modifier.fillMaxWidth(),
+                                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                                        verticalAlignment = Alignment.CenterVertically
+                                                    ) {
+                                                        Text(lang, color = textColor)
+                                                        if (currentLang == lang) Icon(Icons.Filled.Check, null, tint = primaryColor, modifier = Modifier.size(16.dp))
+                                                    }
+                                                },
+                                                onClick = {
+                                                    showLanguageMenu = false
+                                                    appPrefs.ttsCustomLanguage = lang
+                                                    val firstVoiceInLang = availableVoices.firstOrNull { it.language == lang }
+                                                    if (firstVoiceInLang != null) {
+                                                        appPrefs.ttsSelectedVoice = firstVoiceInLang.id
+                                                    }
+                                                    notifyServiceEngineChanged(context)
                                                 }
-                                            },
-                                            onClick = {
-                                                showLanguageMenu = false
-                                                appPrefs.ttsCustomLanguage = lang
-                                                val firstVoiceInLang = availableVoices.firstOrNull { it.language == lang }
-                                                if (firstVoiceInLang != null) {
-                                                    appPrefs.ttsSelectedVoice = firstVoiceInLang.id
-                                                }
-                                                notifyServiceEngineChanged(context)
-                                            }
-                                        )
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -551,48 +670,85 @@ fun TtsPlayerSettingsBottomSheet(
                             cardColor = cardColor,
                             onClick = { showVoiceMenu = true }
                         )
-                        DropdownMenu(
-                            expanded = showVoiceMenu,
-                            onDismissRequest = { showVoiceMenu = false },
-                            modifier = Modifier
-                                .background(cardColor)
-                                .fillMaxWidth(0.9f)
+                        MaterialTheme(
+                            colorScheme = MaterialTheme.colorScheme.copy(
+                                surface = cardColor,
+                                onSurface = textColor
+                            )
                         ) {
-                            val displayVoices = if (currentEngine == "system") {
-                                availableVoices
-                            } else {
-                                availableVoices.filter { it.language == appPrefs.ttsCustomLanguage }
-                            }
-                            if (displayVoices.isEmpty()) {
-                                DropdownMenuItem(
-                                    text = { Text("Không tìm thấy giọng đọc nào", color = textColor.copy(alpha = 0.5f)) },
-                                    onClick = { showVoiceMenu = false }
-                                )
-                            } else {
-                                displayVoices.forEach { voice ->
+                            DropdownMenu(
+                                expanded = showVoiceMenu,
+                                onDismissRequest = { showVoiceMenu = false },
+                                modifier = Modifier
+                                    .background(cardColor)
+                                    .fillMaxWidth(0.9f)
+                            ) {
+                                val displayVoices = if (currentEngine == "system") {
+                                    availableVoices
+                                } else {
+                                    availableVoices.filter { it.language == appPrefs.ttsCustomLanguage }
+                                }
+                                if (displayVoices.isEmpty()) {
                                     DropdownMenuItem(
-                                        text = {
-                                            Row(
-                                                modifier = Modifier.fillMaxWidth(),
-                                                horizontalArrangement = Arrangement.SpaceBetween,
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                Column(modifier = Modifier.weight(1f)) {
-                                                    Text(voice.name, color = textColor, fontWeight = FontWeight.Bold)
-                                                    Text(voice.language, color = textColor.copy(alpha = 0.6f), fontSize = 11.sp)
-                                                }
-                                                if (currentVoiceId == voice.id) Icon(Icons.Filled.Check, null, tint = primaryColor, modifier = Modifier.size(16.dp))
-                                            }
-                                        },
-                                        onClick = {
-                                            showVoiceMenu = false
-                                            appPrefs.ttsSelectedVoice = voice.id
-                                            notifyServiceEngineChanged(context)
-                                        }
+                                        text = { Text("Không tìm thấy giọng đọc nào", color = textColor.copy(alpha = 0.5f)) },
+                                        onClick = { showVoiceMenu = false }
                                     )
+                                } else {
+                                    displayVoices.forEach { voice ->
+                                        DropdownMenuItem(
+                                            text = {
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Column(modifier = Modifier.weight(1f)) {
+                                                        Text(voice.name, color = textColor, fontWeight = FontWeight.Bold)
+                                                        Text(voice.language, color = textColor.copy(alpha = 0.6f), fontSize = 11.sp)
+                                                    }
+                                                    if (currentVoiceId == voice.id) Icon(Icons.Filled.Check, null, tint = primaryColor, modifier = Modifier.size(16.dp))
+                                                }
+                                            },
+                                            onClick = {
+                                                showVoiceMenu = false
+                                                appPrefs.ttsSelectedVoice = voice.id
+                                                if (voice.id == "vi-vn-x-vfa-local") {
+                                                    pitchVal = 0.67f
+                                                    rawPrefs.edit().putFloat("reader_tts_pitch", 0.67f).apply()
+                                                    notifyServicePitchChanged(context, 0.67f)
+                                                }
+                                                notifyServiceEngineChanged(context)
+                                            }
+                                        )
+                                    }
                                 }
                             }
                         }
+                    }
+
+                    // 4.5. Google API Key (chỉ hiển thị nếu dùng giọng Google Online)
+                    val isGoogleOnline = currentEngine == "system" && currentVoiceId in listOf(
+                        "vi-vn-x-vif-local",
+                        "vi-vn-x-vic-local",
+                        "vi-vn-x-vid-local",
+                        "vi-vn-x-vie-local",
+                        "vi-vn-x-vfg-local",
+                        "vi-vn-x-vfa-local"
+                    )
+                    if (isGoogleOnline) {
+                        val keyLabel = when (currentGoogleApiKey) {
+                            "AIzaSyA33f9cSqKdR-V4XNkZNZ_rh_dbT1VQJFo" -> "Key mặc định 1"
+                            "AIzaSyA6mOHhF5xLAjOqCHepfQprTYPjmKVFmKA" -> "Key mặc định 2 (VBook)"
+                            "AIzaSyCRZVR4LpsA2hIxn8wkbnaSxxduHheAvhc" -> "Key mặc định 3 (Premium)"
+                            else -> if (currentGoogleApiKey.isBlank()) "Chưa thiết lập" else "Key tự nhập (${currentGoogleApiKey.take(6)}...)"
+                        }
+                        TtsSettingsItemCard(
+                            label = "Google API Key",
+                            value = keyLabel,
+                            textColor = textColor,
+                            cardColor = cardColor,
+                            onClick = { showGoogleApiKeyDialog = true }
+                        )
                     }
 
                     // 5. Chia nội dung
@@ -605,29 +761,36 @@ fun TtsPlayerSettingsBottomSheet(
                             cardColor = cardColor,
                             onClick = { showSplitMenu = true }
                         )
-                        DropdownMenu(
-                            expanded = showSplitMenu,
-                            onDismissRequest = { showSplitMenu = false },
-                            modifier = Modifier.background(cardColor)
+                        MaterialTheme(
+                            colorScheme = MaterialTheme.colorScheme.copy(
+                                surface = cardColor,
+                                onSurface = textColor
+                            )
                         ) {
-                            listOf("Theo câu", "Theo đoạn", "Theo độ dài").forEach { split ->
-                                DropdownMenuItem(
-                                    text = {
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween,
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Text(split, color = textColor)
-                                            if (currentSplitType == split) Icon(Icons.Filled.Check, null, tint = primaryColor, modifier = Modifier.size(16.dp))
+                            DropdownMenu(
+                                expanded = showSplitMenu,
+                                onDismissRequest = { showSplitMenu = false },
+                                modifier = Modifier.background(cardColor)
+                            ) {
+                                listOf("Theo câu", "Theo đoạn", "Theo độ dài").forEach { split ->
+                                    DropdownMenuItem(
+                                        text = {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Text(split, color = textColor)
+                                                if (currentSplitType == split) Icon(Icons.Filled.Check, null, tint = primaryColor, modifier = Modifier.size(16.dp))
+                                            }
+                                        },
+                                        onClick = {
+                                            showSplitMenu = false
+                                            appPrefs.ttsSplitType = split
+                                            notifyServiceEngineChanged(context)
                                         }
-                                    },
-                                    onClick = {
-                                        showSplitMenu = false
-                                        appPrefs.ttsSplitType = split
-                                        notifyServiceEngineChanged(context)
-                                    }
-                                )
+                                    )
+                                }
                             }
                         }
                     }
@@ -643,39 +806,46 @@ fun TtsPlayerSettingsBottomSheet(
                                 cardColor = cardColor,
                                 onClick = { showMaxLengthMenu = true }
                             )
-                            DropdownMenu(
-                                expanded = showMaxLengthMenu,
-                                onDismissRequest = { showMaxLengthMenu = false },
-                                modifier = Modifier.background(cardColor)
+                            MaterialTheme(
+                                colorScheme = MaterialTheme.colorScheme.copy(
+                                    surface = cardColor,
+                                    onSurface = textColor
+                                )
                             ) {
-                                listOf(100, 200, 260, 300, 500, 1000, 2000, 3000, 4000, 5000).forEach { len ->
-                                    DropdownMenuItem(
-                                        text = {
-                                            Row(
-                                                modifier = Modifier.fillMaxWidth(),
-                                                horizontalArrangement = Arrangement.SpaceBetween,
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                Text(len.toString(), color = textColor)
-                                                if (currentMaxLength == len) Icon(Icons.Filled.Check, null, tint = primaryColor, modifier = Modifier.size(16.dp))
+                                DropdownMenu(
+                                    expanded = showMaxLengthMenu,
+                                    onDismissRequest = { showMaxLengthMenu = false },
+                                    modifier = Modifier.background(cardColor)
+                                ) {
+                                    listOf(100, 200, 260, 300, 500, 1000, 2000, 3000, 4000, 5000).forEach { len ->
+                                        DropdownMenuItem(
+                                            text = {
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Text(len.toString(), color = textColor)
+                                                    if (currentMaxLength == len) Icon(Icons.Filled.Check, null, tint = primaryColor, modifier = Modifier.size(16.dp))
+                                                }
+                                            },
+                                            onClick = {
+                                                showMaxLengthMenu = false
+                                                appPrefs.ttsMaxLength = len
+                                                notifyServiceEngineChanged(context)
                                             }
-                                        },
-                                        onClick = {
-                                            showMaxLengthMenu = false
-                                            appPrefs.ttsMaxLength = len
-                                            notifyServiceEngineChanged(context)
-                                        }
-                                    )
+                                        )
+                                    }
                                 }
                             }
                         }
                     }
 
-                    // 7. Tốc độ Slider Card
+                    // 7.5. Tốc độ Slider Card
                     TtsSliderCard(
-                        label = "Tốc độ",
+                        label = "Tốc độ đọc",
                         value = speedVal,
-                        valueRange = 0.5f..6.0f,
+                        valueRange = 0.5f..3.0f,
                         resetValue = 1.0f,
                         textColor = textColor,
                         cardColor = cardColor,
@@ -683,7 +853,9 @@ fun TtsPlayerSettingsBottomSheet(
                         onValueChange = { newVal ->
                             speedVal = newVal
                             rawPrefs.edit().putFloat("reader_tts_speed", newVal).apply()
-                            notifyServiceSpeedChanged(context, newVal)
+                        },
+                        onValueChangeFinished = {
+                            notifyServiceSpeedChanged(context, speedVal)
                         }
                     )
 
@@ -692,14 +864,47 @@ fun TtsPlayerSettingsBottomSheet(
                         label = "Độ cao",
                         value = pitchVal,
                         valueRange = 0.5f..3.0f,
-                        resetValue = 1.0f,
+                        resetValue = if (appPrefs.ttsSelectedVoice == "vi-vn-x-vfa-local") 0.67f else 1.0f,
                         textColor = textColor,
                         cardColor = cardColor,
                         activeTrackColor = primaryColor,
                         onValueChange = { newVal ->
                             pitchVal = newVal
                             rawPrefs.edit().putFloat("reader_tts_pitch", newVal).apply()
-                            // Note: pitch update doesn't have a direct service action, but it will be loaded next start
+                        },
+                        onValueChangeFinished = {
+                            notifyServicePitchChanged(context, pitchVal)
+                        }
+                    )
+
+                    // 8.5. Độ lợi âm (dB) Slider Card
+                    TtsSliderCard(
+                        label = "Độ lợi âm (dB)",
+                        value = volumeGainVal,
+                        valueRange = -10.0f..10.0f,
+                        resetValue = 0.0f,
+                        textColor = textColor,
+                        cardColor = cardColor,
+                        activeTrackColor = primaryColor,
+                        onValueChange = { newVal ->
+                            volumeGainVal = newVal
+                            rawPrefs.edit().putFloat("reader_tts_volume_gain", newVal).apply()
+                        },
+                        onValueChangeFinished = {
+                            notifyServiceVolumeGainChanged(context, volumeGainVal)
+                        }
+                    )
+
+                    // 9. Tự động chuyển chương Checkbox Card
+                    TtsCheckboxCard(
+                        label = "Tự động chuyển chương",
+                        checked = ttsAutoNext,
+                        textColor = textColor,
+                        cardColor = cardColor,
+                        activeColor = primaryColor,
+                        onCheckedChange = { checked ->
+                            ttsAutoNext = checked
+                            rawPrefs.edit().putBoolean("tts_auto_next_chapter", checked).apply()
                         }
                     )
                 }
@@ -709,10 +914,8 @@ fun TtsPlayerSettingsBottomSheet(
                     onClick = {
                         val sampleText = "Đây là giọng đọc thử nghiệm của ứng dụng Novel Studio."
                         val intent = Intent(context, com.nam.novelreader.service.TextToSpeechService::class.java).apply {
-                            action = com.nam.novelreader.service.TextToSpeechService.ACTION_START
-                            putExtra(com.nam.novelreader.service.TextToSpeechService.EXTRA_TITLE, "Nghe thử giọng đọc")
+                            action = com.nam.novelreader.service.TextToSpeechService.ACTION_TEST_VOICE
                             putExtra(com.nam.novelreader.service.TextToSpeechService.EXTRA_CONTENT, sampleText)
-                            putExtra(com.nam.novelreader.service.TextToSpeechService.EXTRA_CHAPTER_URL, "sample_tts_test")
                         }
                         context.startService(intent)
                         Toast.makeText(context, "Đang phát thử nghiệm...", Toast.LENGTH_SHORT).show()
@@ -735,6 +938,23 @@ fun TtsPlayerSettingsBottomSheet(
                 }
             }
         }
+    }
+
+    if (showGoogleApiKeyDialog) {
+        GoogleApiKeyDialog(
+            currentKey = currentGoogleApiKey,
+            textColor = textColor,
+            bgColor = bgColor,
+            primaryColor = primaryColor,
+            cardColor = cardColor,
+            onDismiss = { showGoogleApiKeyDialog = false },
+            onSave = { newKey ->
+                currentGoogleApiKey = newKey
+                appPrefs.ttsGoogleApiKey = newKey
+                showGoogleApiKeyDialog = false
+                notifyServiceEngineChanged(context)
+            }
+        )
     }
 }
 
@@ -791,7 +1011,8 @@ private fun TtsSliderCard(
     textColor: Color,
     cardColor: Color,
     activeTrackColor: Color,
-    onValueChange: (Float) -> Unit
+    onValueChange: (Float) -> Unit,
+    onValueChangeFinished: (() -> Unit)? = null
 ) {
     Column(
         modifier = Modifier
@@ -813,6 +1034,7 @@ private fun TtsSliderCard(
                     onClick = {
                         val newVal = (value - 0.05f).coerceIn(valueRange.start, valueRange.endInclusive)
                         onValueChange(newVal)
+                        onValueChangeFinished?.invoke()
                     },
                     modifier = Modifier.size(24.dp)
                 ) {
@@ -833,6 +1055,7 @@ private fun TtsSliderCard(
                     onClick = {
                         val newVal = (value + 0.05f).coerceIn(valueRange.start, valueRange.endInclusive)
                         onValueChange(newVal)
+                        onValueChangeFinished?.invoke()
                     },
                     modifier = Modifier.size(24.dp)
                 ) {
@@ -843,7 +1066,10 @@ private fun TtsSliderCard(
 
                 // Reset button
                 IconButton(
-                    onClick = { onValueChange(resetValue) },
+                    onClick = { 
+                        onValueChange(resetValue)
+                        onValueChangeFinished?.invoke()
+                    },
                     modifier = Modifier.size(24.dp)
                 ) {
                     Icon(Icons.Filled.Refresh, null, tint = textColor, modifier = Modifier.size(16.dp))
@@ -856,6 +1082,7 @@ private fun TtsSliderCard(
         Slider(
             value = value,
             onValueChange = onValueChange,
+            onValueChangeFinished = onValueChangeFinished,
             valueRange = valueRange,
             colors = SliderDefaults.colors(
                 thumbColor = activeTrackColor,
@@ -875,6 +1102,34 @@ private fun TtsSliderCard(
     }
 }
 
+@Composable
+private fun TtsCheckboxCard(
+    label: String,
+    checked: Boolean,
+    textColor: Color,
+    cardColor: Color,
+    activeColor: Color,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .shadow(1.dp, RoundedCornerShape(14.dp))
+            .background(cardColor, RoundedCornerShape(14.dp))
+            .clickable { onCheckedChange(!checked) }
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(label, fontSize = 14.sp, color = textColor, fontWeight = FontWeight.Bold)
+        Checkbox(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            colors = CheckboxDefaults.colors(checkedColor = activeColor)
+        )
+    }
+}
+
 private fun notifyServiceEngineChanged(context: Context) {
     // Stop and restart the current sentence in the service with the new engine
     val intent = Intent(context, com.nam.novelreader.service.TextToSpeechService::class.java).apply {
@@ -890,4 +1145,206 @@ private fun notifyServiceSpeedChanged(context: Context, speed: Float) {
         putExtra(com.nam.novelreader.service.TextToSpeechService.EXTRA_SPEED, speed)
     }
     context.startService(intent)
+}
+
+private fun notifyServicePitchChanged(context: Context, pitch: Float) {
+    val intent = Intent(context, com.nam.novelreader.service.TextToSpeechService::class.java).apply {
+        action = com.nam.novelreader.service.TextToSpeechService.ACTION_SET_PITCH
+        putExtra(com.nam.novelreader.service.TextToSpeechService.EXTRA_PITCH, pitch)
+    }
+    context.startService(intent)
+}
+
+private fun notifyServiceVolumeGainChanged(context: Context, volumeGain: Float) {
+    val intent = Intent(context, com.nam.novelreader.service.TextToSpeechService::class.java).apply {
+        action = com.nam.novelreader.service.TextToSpeechService.ACTION_SET_VOLUME_GAIN
+        putExtra(com.nam.novelreader.service.TextToSpeechService.EXTRA_VOLUME_GAIN, volumeGain)
+    }
+    context.startService(intent)
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun GoogleApiKeyDialog(
+    currentKey: String,
+    textColor: Color,
+    bgColor: Color,
+    primaryColor: Color,
+    cardColor: Color,
+    onDismiss: () -> Unit,
+    onSave: (String) -> Unit
+) {
+    val defaultKeys = listOf(
+        "AIzaSyA33f9cSqKdR-V4XNkZNZ_rh_dbT1VQJFo",
+        "AIzaSyA6mOHhF5xLAjOqCHepfQprTYPjmKVFmKA",
+        "AIzaSyCRZVR4LpsA2hIxn8wkbnaSxxduHheAvhc"
+    )
+
+    var selectedKeyOption by remember {
+        mutableStateOf(
+            if (currentKey in defaultKeys) currentKey else "custom"
+        )
+    }
+
+    var customKeyValue by remember {
+        mutableStateOf(
+            if (currentKey !in defaultKeys) currentKey else ""
+        )
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = bgColor,
+        title = {
+            Text(
+                text = "Cấu hình Google API Key",
+                color = textColor,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    text = "Chọn API Key sử dụng cho giọng đọc Google Online. Nếu key mặc định bị giới hạn lượt đọc, bạn có thể chuyển đổi sang key khác hoặc dán key của riêng bạn.",
+                    color = textColor.copy(alpha = 0.7f),
+                    fontSize = 13.sp
+                )
+
+                // Option 1
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(if (selectedKeyOption == defaultKeys[0]) cardColor else Color.Transparent)
+                        .clickable { selectedKeyOption = defaultKeys[0] }
+                        .padding(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    RadioButton(
+                        selected = (selectedKeyOption == defaultKeys[0]),
+                        onClick = { selectedKeyOption = defaultKeys[0] },
+                        colors = RadioButtonDefaults.colors(selectedColor = primaryColor)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Column {
+                        Text("Key mặc định 1", color = textColor, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        Text(defaultKeys[0].take(10) + "..." + defaultKeys[0].takeLast(6), color = textColor.copy(alpha = 0.5f), fontSize = 11.sp)
+                    }
+                }
+
+                // Option 2
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(if (selectedKeyOption == defaultKeys[1]) cardColor else Color.Transparent)
+                        .clickable { selectedKeyOption = defaultKeys[1] }
+                        .padding(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    RadioButton(
+                        selected = (selectedKeyOption == defaultKeys[1]),
+                        onClick = { selectedKeyOption = defaultKeys[1] },
+                        colors = RadioButtonDefaults.colors(selectedColor = primaryColor)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Column {
+                        Text("Key mặc định 2 (VBook)", color = textColor, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        Text(defaultKeys[1].take(10) + "..." + defaultKeys[1].takeLast(6), color = textColor.copy(alpha = 0.5f), fontSize = 11.sp)
+                    }
+                }
+
+                // Option 3
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(if (selectedKeyOption == defaultKeys[2]) cardColor else Color.Transparent)
+                        .clickable { selectedKeyOption = defaultKeys[2] }
+                        .padding(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    RadioButton(
+                        selected = (selectedKeyOption == defaultKeys[2]),
+                        onClick = { selectedKeyOption = defaultKeys[2] },
+                        colors = RadioButtonDefaults.colors(selectedColor = primaryColor)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Column {
+                        Text("Key mặc định 3 (Premium)", color = textColor, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        Text(defaultKeys[2].take(10) + "..." + defaultKeys[2].takeLast(6), color = textColor.copy(alpha = 0.5f), fontSize = 11.sp)
+                    }
+                }
+
+                // Option Custom
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(if (selectedKeyOption == "custom") cardColor else Color.Transparent)
+                        .clickable { selectedKeyOption = "custom" }
+                        .padding(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    RadioButton(
+                        selected = (selectedKeyOption == "custom"),
+                        onClick = { selectedKeyOption = "custom" },
+                        colors = RadioButtonDefaults.colors(selectedColor = primaryColor)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Tự nhập Google API Key...", color = textColor, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                }
+
+                if (selectedKeyOption == "custom") {
+                    OutlinedTextField(
+                        value = customKeyValue,
+                        onValueChange = { customKeyValue = it },
+                        placeholder = { Text("Nhập Google API Key của bạn", color = textColor.copy(alpha = 0.4f)) },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = textColor,
+                            unfocusedTextColor = textColor,
+                            cursorColor = primaryColor,
+                            focusedBorderColor = primaryColor,
+                            unfocusedBorderColor = textColor.copy(alpha = 0.3f),
+                            focusedContainerColor = Color.Transparent,
+                            unfocusedContainerColor = Color.Transparent
+                        ),
+                        singleLine = true,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 8.dp)
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val keyToSave = if (selectedKeyOption == "custom") {
+                        customKeyValue.trim()
+                    } else {
+                        selectedKeyOption
+                    }
+                    onSave(keyToSave)
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = primaryColor)
+            ) {
+                Text("Lưu", color = bgColor)
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = onDismiss,
+                colors = ButtonDefaults.textButtonColors(contentColor = textColor)
+            ) {
+                Text("Hủy")
+            }
+        }
+    )
 }

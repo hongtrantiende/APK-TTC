@@ -1,0 +1,22 @@
+{
+    "metadata": {
+        "name": "BL Bất Tử",
+        "author": "QuocBao",
+        "version": 1,
+        "source": "https://blbattu.com/",
+        "regexp": "https://blbattu.com/truyen/[^/]+(/[^/]+)?/?$",
+        "description": "Đọc truyện trên trang BL Bất Tử",
+        "locale": "vi_VN",
+        "language": "javascript",
+        "type": "novel",
+        "encrypt": true
+    },
+    "script": {
+        "home": "home.js",
+        "detail": "detail.js",
+        "genre": "genre.js",
+        "search": "search.js",
+        "toc": "toc.js",
+        "chap": "chap.js"
+    }
+}

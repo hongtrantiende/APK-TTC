@@ -1,0 +1,21 @@
+{
+  "metadata": {
+    "name": "iqushuwang",
+    "author": "Nahona",
+    "version": 1,
+    "source": "https://www.iqushuwang.com",
+    "regexp": "(www.)?iqushuwang.com/book/\\d+/?$",
+    "description": "Bút Thủ Các (V2: Fix all lỗi)",
+    "locale": "zh_CN",
+    "language": "javascript",
+    "type": "chinese_novel"
+  },
+  "script": {
+    "home": "home.js",
+    "detail": "detail.js",
+    "toc": "toc.js",
+    "genre": "genre.js",
+    "page": "page.js",
+    "chap": "chap.js"
+  }
+}

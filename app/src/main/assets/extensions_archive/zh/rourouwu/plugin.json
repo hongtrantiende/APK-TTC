@@ -1,0 +1,20 @@
+{
+  "metadata": {
+    "name": "rourouwu",
+    "author": "Nahona",
+    "version": 2,
+    "source": "https://wap.rourouwu.com",
+    "regexp": "(www.|wap.)?rourouwu.com/novel/\\d+.html",
+    "description": "có gì qua website nó search truyện hoặc kiếm truyện rồi get về nhé, chứ phần search không làm được, phần thể loại để rảnh update V2: Fix Chap ngược",
+    "locale": "zh_CN",
+    "language": "javascript",
+    "type": "chinese_novel"
+  },
+  "script": {
+    "home": "home.js",
+    "detail": "detail.js",
+    "search": "search.js",
+    "toc": "toc.js",
+    "chap": "chap.js"
+  }
+}

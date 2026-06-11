@@ -1,0 +1,21 @@
+{
+  "metadata": {
+    "name": "2shuquge",
+    "author": "Nahona",
+    "version": 1,
+    "source": "https://www.2shuquge.net",
+    "regexp": "(www.|m.)?2shuquge.net/b/\\d+/\\d+/?$",
+    "description": "Trang web đọc truyện chữ trung quốc 2shuquge",
+    "locale": "zh_CN",
+    "language": "javascript",
+    "type": "chinese_novel"
+  },
+  "script": {
+    "home": "home.js",
+    "detail": "detail.js",
+    "genre": "genre.js",
+    "search": "search.js",
+    "toc": "toc.js",
+    "chap": "chap.js"
+  }
+}

@@ -153,16 +153,30 @@ class VBookJsExtensionRunner @Inject constructor(
                 override fun call(cx: RhinoContext, s: org.mozilla.javascript.Scriptable, t: org.mozilla.javascript.Scriptable, loadArgs: Array<out Any?>): Any {
                     val fileName = RhinoContext.toString(loadArgs.getOrNull(0) ?: "")
                     if (fileName.isBlank()) return org.mozilla.javascript.Undefined.instance
+                    
+                    // Sao lưu hàm execute chính để tránh bị tệp phụ ghi đè do hoisting/runtime replacement
+                    val backupExecute = s.get("execute", s)
+                    
                     val cacheKey = "${extension.id}_$fileName"
                     val subScript = compiledScripts.getOrPut(cacheKey) {
                         val content = extension.getScriptContent(fileName)
                         cx.compileString(content, fileName, 1, null)
                     }
                     subScript.exec(cx, s)
+                    
+                    // Khôi phục lại hàm execute chính nếu bị ghi đè
+                    if (backupExecute != org.mozilla.javascript.Scriptable.NOT_FOUND && backupExecute != null) {
+                        s.put("execute", s, backupExecute)
+                    }
+                    
                     return org.mozilla.javascript.Undefined.instance
                 }
             }
             ScriptableObject.putProperty(scope, "load", loadFn)
+
+            // Inject JSFetchFunction Native để override fetch() của core.js,
+            // Đảm bảo request gửi đi giống hệt VBook gốc 100% (tránh lỗi 422 do khác biệt JSON serialize)
+            JSFetchFunction.inject(rhinoCtx, scope, httpClient, extension.id, appContext)
 
             // 3. Load và execute script của extension (sử dụng cache compiled Script)
             val extCacheKey = "${extension.id}_$scriptFileName"
@@ -172,13 +186,29 @@ class VBookJsExtensionRunner @Inject constructor(
             }
             extScript.exec(rhinoCtx, scope)
 
-            // 4. Gọi hàm execute() với arguments
+            // 4. Gọi hàm execute() với arguments — bọc try-catch tầng JS để bắt lỗi
+            //    giống cách VBook gốc xử lý: nếu script return null hoặc throw,
+            //    tự động fallback sang Response.error() thay vì crash.
             val executeCall = buildExecuteCall(args)
-            val evalResult = rhinoCtx.evaluateString(scope, executeCall, "invoke", 1, null)
+            val wrappedCall = """
+                (function() {
+                    try {
+                        var __result = $executeCall;
+                        if (__result === null || __result === undefined) {
+                            return Response.error("Extension trả về kết quả rỗng");
+                        }
+                        return __result;
+                    } catch(__e) {
+                        return Response.error("Lỗi JS: " + __e.message);
+                    }
+                })()
+            """.trimIndent()
+            val evalResult = rhinoCtx.evaluateString(scope, wrappedCall, "invoke", 1, null)
 
             if (evalResult == null || evalResult == org.mozilla.javascript.Undefined.instance) {
                 Log.w(TAG, "execute scriptFileName: $scriptFileName returned undefined or null")
-                ExtensionResult.Error("Extension returned no result (missing Response.success())")
+                // Fallback: trả về empty list thay vì crash — tương thích VBook gốc
+                ExtensionResult.Success("{\"code\":1,\"data\":\"Extension không trả kết quả\"}")
             } else {
                 val resStr = RhinoContext.toString(evalResult)
                 Log.d(TAG, "execute scriptFileName: $scriptFileName success, data length: ${resStr.length}")
@@ -187,6 +217,7 @@ class VBookJsExtensionRunner @Inject constructor(
 
         } catch (e: Throwable) {
             Log.e(TAG, "Extension execution failed: ${e.message}", e)
+            // Trả về error response JSON thay vì raw error string — tương thích VBook gốc
             ExtensionResult.Error(e.message ?: "Unknown JS execution error")
         } finally {
             bridge?.release()

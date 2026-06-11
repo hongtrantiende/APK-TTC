@@ -47,6 +47,11 @@ class AppPreferences @Inject constructor(
         get() = prefs.getString("display_theme_color", "#D4A574") ?: "#D4A574"
         set(value) = prefs.edit().putString("display_theme_color", value).apply()
 
+    /** Màu nhấn khi chọn tab/nút (accent color) */
+    var accentColorHex: String
+        get() = prefs.getString("display_accent_color", "") ?: ""
+        set(value) = prefs.edit().putString("display_accent_color", value).apply()
+
     var settingsItemBgColorHex: String
         get() = prefs.getString("display_settings_bg_color", "") ?: ""
         set(value) = prefs.edit().putString("display_settings_bg_color", value).apply()
@@ -54,6 +59,14 @@ class AppPreferences @Inject constructor(
     var settingsItemTextColorHex: String
         get() = prefs.getString("display_settings_text_color", "") ?: ""
         set(value) = prefs.edit().putString("display_settings_text_color", value).apply()
+
+    var settingsGroupTitleColorHex: String
+        get() = prefs.getString("display_settings_group_title_color", "") ?: ""
+        set(value) = prefs.edit().putString("display_settings_group_title_color", value).apply()
+
+    var settingsIconColorHex: String
+        get() = prefs.getString("display_settings_icon_color", "") ?: ""
+        set(value) = prefs.edit().putString("display_settings_icon_color", value).apply()
 
     /** E-ink mode */
     var einkMode: Boolean
@@ -378,6 +391,27 @@ class AppPreferences @Inject constructor(
 
     // ========== EXTENSION-SCOPED HELPERS ==========
 
+    /**
+     * Đọc giá trị mặc định từ plugin.json của extension.
+     * @return Pair(thread_num, delay_ms) hoặc null nếu không tìm thấy.
+     */
+    fun readPluginConfigDefaults(localPath: String): Pair<Int, Int>? {
+        if (localPath.isBlank()) return null
+        return try {
+            val file = java.io.File("$localPath/plugin.json")
+            if (!file.exists()) return null
+            val json = org.json.JSONObject(file.readText())
+            val config = json.optJSONObject("config") ?: return null
+            val threadNum = config.optInt("thread_num", -1)
+            val delay = config.optInt("delay", -1)
+            if (threadNum <= 0 && delay < 0) null
+            else Pair(
+                if (threadNum > 0) threadNum else -1,
+                if (delay >= 0) delay else -1
+            )
+        } catch (e: Exception) { null }
+    }
+
     private val extremelySafeExtensions = setOf(
         "%C4%90%E1%BB%99c%20gi%E1%BA%A3%20s%E1%BB%91%201",
         "18mh",
@@ -657,12 +691,21 @@ class AppPreferences @Inject constructor(
                id.contains("porn")
     }
 
-    /** Lấy số luồng cho 1 extension cụ thể (fallback sang giá trị mặc định an toàn cho extension đó, hoặc global) */
-    fun getExtParallelConnections(extId: String): Int {
+    /** Lấy số luồng cho 1 extension cụ thể.
+     * Ưu tiên: (1) user-saved → (2) plugin.json thread_num → (3) safety tier */
+    fun getExtParallelConnections(extId: String, localPath: String? = null): Int {
         val key = "ext_parallel_connections_$extId"
+        // Ưu tiên 1: Giá trị user đã lưu thủ công
         if (prefs.contains(key)) {
             return prefs.getInt(key, connectionThreads)
         }
+        // Ưu tiên 2: plugin.json thread_num
+        if (!localPath.isNullOrBlank()) {
+            val pluginDefaults = readPluginConfigDefaults(localPath)
+            val pluginThreads = pluginDefaults?.first ?: -1
+            if (pluginThreads > 0) return pluginThreads
+        }
+        // Ưu tiên 3: Safety tier (fallback)
         return when {
             extremelySafeExtensions.contains(extId) || isLikelyHeavyOrRateLimited(extId) -> 1
             moderatelySafeExtensions.contains(extId) -> 2
@@ -678,16 +721,25 @@ class AppPreferences @Inject constructor(
         return getExtParallelConnections(extId)
     }
 
-    /** Lấy giãn cách kết nối cho 1 extension (fallback sang giá trị mặc định an toàn cho extension đó, hoặc global) */
-    fun getExtConnectionInterval(extId: String): Int {
+    /** Lấy giãn cách kết nối cho 1 extension.
+     * Ưu tiên: (1) user-saved → (2) plugin.json delay → (3) safety tier */
+    fun getExtConnectionInterval(extId: String, localPath: String? = null): Int {
         val key = "ext_connection_interval_$extId"
+        // Ưu tiên 1: Giá trị user đã lưu
         if (prefs.contains(key)) {
             return prefs.getInt(key, connectionDelay)
         }
+        // Ưu tiên 2: plugin.json delay (ms)
+        if (!localPath.isNullOrBlank()) {
+            val pluginDefaults = readPluginConfigDefaults(localPath)
+            val pluginDelay = pluginDefaults?.second ?: -1
+            if (pluginDelay >= 0) return pluginDelay
+        }
+        // Ưu tiên 3: Safety tier
         return when {
-            extremelySafeExtensions.contains(extId) || isLikelyHeavyOrRateLimited(extId) -> 400 // Giảm xuống 400ms (vẫn đủ an toàn khi chạy tuần tự)
-            moderatelySafeExtensions.contains(extId) -> 100 // Giảm xuống 100ms
-            else -> connectionDelay // Trả về cài đặt trễ toàn cục của người dùng (mặc định 100ms)
+            extremelySafeExtensions.contains(extId) || isLikelyHeavyOrRateLimited(extId) -> 400
+            moderatelySafeExtensions.contains(extId) -> 100
+            else -> connectionDelay
         }
     }
 
@@ -818,6 +870,14 @@ class AppPreferences @Inject constructor(
     var ttsPitch: Float
         get() = prefs.getFloat("reader_tts_pitch", 1.0f)
         set(value) = prefs.edit().putFloat("reader_tts_pitch", value).apply()
+
+    var ttsVolumeGain: Float
+        get() = prefs.getFloat("reader_tts_volume_gain", 0.0f)
+        set(value) = prefs.edit().putFloat("reader_tts_volume_gain", value).apply()
+
+    var ttsGoogleApiKey: String
+        get() = prefs.getString("reader_tts_google_api_key", "AIzaSyA33f9cSqKdR-V4XNkZNZ_rh_dbT1VQJFo") ?: "AIzaSyA33f9cSqKdR-V4XNkZNZ_rh_dbT1VQJFo"
+        set(value) = prefs.edit().putString("reader_tts_google_api_key", value).apply()
 
     // ========== VIP STATUS ==========
 
