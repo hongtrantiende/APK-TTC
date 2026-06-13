@@ -3774,6 +3774,10 @@ private fun isEmbedPlayerUrl(url: String?): Boolean {
         || lower.contains("streamfree") 
         || lower.contains("playzone")
         || lower.contains("/play")
+        || lower.contains("ssplay")
+        || lower.contains("fdrive")
+        || lower.contains("opstream")
+        || lower.contains("/v/")
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -4003,6 +4007,46 @@ fun VideoReaderScreen(
     }
 }
 
+private val mockDevToolsDetectorJS = """
+    (function() {
+        var noop = function() {};
+        var detector = {
+            addListener: function(cb) { try { cb(false); } catch(e) {} },
+            removeListener: noop,
+            launch: noop,
+            stop: noop,
+            isLaunch: function() { return false; },
+            isOpen: false,
+            setDetectDelay: noop
+        };
+        window.devtoolsDetector = detector;
+        if (typeof module !== 'undefined' && module.exports) { module.exports = detector; }
+        if (typeof define === 'function' && define.amd) { define(function() { return detector; }); }
+    })();
+""".trimIndent()
+
+private val fallbackAutoPlayJS = """
+    (function() {
+        if (window.__fallback_autoplay_injected) return;
+        window.__fallback_autoplay_injected = true;
+        var interval = setInterval(function() {
+            var videos = document.getElementsByTagName('video');
+            for (var i = 0; i < videos.length; i++) {
+                videos[i].muted = true;
+                videos[i].play().catch(function(e) {});
+            }
+            var playSelectors = ['.jw-display-icon-container', '.jw-icon-display', '.play', '.btn-play', '.vjs-big-play-button', '[class*="play-button"]', '[id*="play-button"]', 'iframe'];
+            playSelectors.forEach(function(sel) {
+                var btn = document.querySelector(sel);
+                if (btn && (btn.offsetWidth > 0 || btn.offsetHeight > 0)) {
+                    btn.click();
+                }
+            });
+        }, 1000);
+        setTimeout(function() { clearInterval(interval); }, 12000);
+    })();
+""".trimIndent()
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun VideoContent(
@@ -4099,16 +4143,29 @@ private fun VideoContent(
             if (isDirectLink) {
                 sniffedVideoUrl = resolvedVideoUrl
                 sniffingTimeout = false
-            } else if (resolvedVideoType == "webview" || !resolvedVideoUrl.startsWith("http")) {
-                sniffedVideoUrl = null
-                sniffingTimeout = true
             } else {
-                sniffedVideoUrl = null
-                sniffingTimeout = false
-                // StreamFree cần 25s do quảng cáo, web khác 10s
-                val timeout = if (isStreamFree) 25000L else 10000L
-                kotlinx.coroutines.delay(timeout)
-                if (sniffedVideoUrl == null) {
+                // Kiểm tra xem resolvedVideoUrl (dù là URL hay HTML thô) có chứa iframe hoặc các player có thể sniff được hay không
+                val isSniffable = resolvedVideoType != "webview" || 
+                        resolvedVideoUrl.contains("<iframe", ignoreCase = true) || 
+                        resolvedVideoUrl.contains("<video", ignoreCase = true) ||
+                        resolvedVideoUrl.contains("ssplay", ignoreCase = true) ||
+                        resolvedVideoUrl.contains("fdrive", ignoreCase = true) ||
+                        resolvedVideoUrl.contains("opstream", ignoreCase = true) ||
+                        resolvedVideoUrl.contains("playzone", ignoreCase = true) ||
+                        resolvedVideoUrl.contains("streamfree", ignoreCase = true) ||
+                        resolvedVideoUrl.contains("/v/", ignoreCase = true) ||
+                        resolvedVideoUrl.contains("player", ignoreCase = true)
+                
+                if (isSniffable) {
+                    sniffedVideoUrl = null
+                    sniffingTimeout = false
+                    val timeout = if (isStreamFree) 25000L else 12000L
+                    kotlinx.coroutines.delay(timeout)
+                    if (sniffedVideoUrl == null) {
+                        sniffingTimeout = true
+                    }
+                } else {
+                    sniffedVideoUrl = null
                     sniffingTimeout = true
                 }
             }
@@ -4120,11 +4177,54 @@ private fun VideoContent(
         if (!sniffedVideoUrl.isNullOrBlank()) {
             val headersMap = mutableMapOf<String, String>()
             headersMap["User-Agent"] = chromeUA
-            headersMap["Referer"] = novelUrl
             
-            // Gộp headers động
+            // Gộp headers động trước để tránh đè lên các headers đặc thù sau này
             resolvedVideoHeaders?.forEach { (key, value) ->
                 headersMap[key] = value
+            }
+
+            // Trích xuất link embed thực sự từ resolvedVideoUrl nếu nó là HTML chứa iframe
+            val realEmbedUrl = resolvedVideoUrl?.let { url ->
+                if (url.startsWith("http")) {
+                    url
+                } else {
+                    val match = """src=["'](https?://[^"']+)["']""".toRegex(RegexOption.IGNORE_CASE).find(url)
+                    match?.groupValues?.get(1)
+                }
+            }
+
+            val lowerSniffed = sniffedVideoUrl!!.lowercase()
+            val referer = when {
+                lowerSniffed.contains("streamfree") || lowerSniffed.contains("hhkungfu") -> realEmbedUrl ?: novelUrl
+                lowerSniffed.contains("ssplay.net") || lowerSniffed.contains("ssplay") -> {
+                    headersMap["Origin"] = "https://ssplay.net"
+                    realEmbedUrl ?: "https://ssplay.net/"
+                }
+                lowerSniffed.contains("bilibili") || lowerSniffed.contains("bstar") -> {
+                    headersMap["Origin"] = "https://www.bilibili.tv"
+                    "https://www.bilibili.tv/"
+                }
+                else -> headersMap["Referer"] ?: novelUrl
+            }
+            headersMap["Referer"] = referer
+
+            // Lấy cookie từ WebView CookieManager và đồng bộ sang ExoPlayer
+            val cookieManager = android.webkit.CookieManager.getInstance()
+            val webViewCookie = if (!realEmbedUrl.isNullOrBlank()) {
+                cookieManager.getCookie(realEmbedUrl)
+            } else {
+                cookieManager.getCookie(sniffedVideoUrl)
+            }
+            if (!webViewCookie.isNullOrBlank()) {
+                headersMap["Cookie"] = webViewCookie
+            }
+
+            // In log debug headers gửi tới ExoPlayer
+            android.util.Log.d("ExoHeadersDebug", "sniffedVideoUrl: $sniffedVideoUrl")
+            android.util.Log.d("ExoHeadersDebug", "resolvedVideoUrl: $resolvedVideoUrl")
+            android.util.Log.d("ExoHeadersDebug", "realEmbedUrl: $realEmbedUrl")
+            headersMap.forEach { (k, v) ->
+                android.util.Log.d("ExoHeadersDebug", "  $k: $v")
             }
             
             httpDataSourceFactory.setDefaultRequestProperties(headersMap)
@@ -4225,6 +4325,161 @@ private fun VideoContent(
                 }
             }
         } else {
+            // WebView sniffing ngầm (vẽ trước để ở lớp dưới cùng)
+            if (resolvedVideoUrl != null && !sniffingTimeout && sniffedVideoUrl == null) {
+                val wvAlpha = 0.01f
+                key(resolvedVideoUrl) {
+                    AndroidView(
+                        factory = { ctx ->
+                            WebView(ctx).apply {
+                                sniffingWebViewInstance = this
+                                layoutParams = ViewGroup.LayoutParams(
+                                    ViewGroup.LayoutParams.MATCH_PARENT,
+                                    ViewGroup.LayoutParams.MATCH_PARENT
+                                )
+                                setBackgroundColor(android.graphics.Color.TRANSPARENT) // Trong suốt tránh nháy trắng
+                                settings.apply {
+                                    javaScriptEnabled = true
+                                    domStorageEnabled = true
+                                    mediaPlaybackRequiresUserGesture = false
+                                    userAgentString = chromeUA
+                                    setSupportMultipleWindows(false)
+                                    setJavaScriptCanOpenWindowsAutomatically(false)
+                                    cacheMode = android.webkit.WebSettings.LOAD_NO_CACHE
+                                }
+                                clearCache(true)
+                                webChromeClient = object : WebChromeClient() {
+                                    override fun onProgressChanged(view: WebView?, newProgress: Int) {
+                                        super.onProgressChanged(view, newProgress)
+                                        if (newProgress > 40) {
+                                            view?.evaluateJavascript("""
+                                                (function() {
+                                                    if (window.__sniff_injected) return;
+                                                    window.__sniff_injected = true;
+                                                    var autoPlayInterval = setInterval(function() {
+                                                        var videos = document.getElementsByTagName('video');
+                                                        for (var i = 0; i < videos.length; i++) {
+                                                            videos[i].muted = true;
+                                                            videos[i].play().catch(function(e) {});
+                                                        }
+                                                        var playSelectors = ['.play', '.btn-play', '.vjs-big-play-button', '[class*="play-button"]', '[id*="play-button"]', 'iframe'];
+                                                        playSelectors.forEach(function(sel) {
+                                                            var btn = document.querySelector(sel);
+                                                            if (btn && (btn.offsetWidth > 0 || btn.offsetHeight > 0)) {
+                                                                btn.click();
+                                                            }
+                                                        });
+                                                    }, 1000);
+                                                    setTimeout(function() { clearInterval(autoPlayInterval); }, 15000);
+                                                })();
+                                            """.trimIndent(), null)
+                                        }
+                                    }
+
+                                    override fun onShowCustomView(view: android.view.View?, callback: CustomViewCallback?) {
+                                        callback?.onCustomViewHidden()
+                                    }
+
+                                    override fun onHideCustomView() {
+                                        super.onHideCustomView()
+                                    }
+                                }
+                                webViewClient = object : WebViewClient() {
+                                    override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+                                        val url = request?.url?.toString() ?: ""
+                                        return if (url.startsWith("http://") || url.startsWith("https://")) {
+                                            false
+                                        } else {
+                                            true
+                                        }
+                                    }
+
+                                    override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
+                                        super.onPageStarted(view, url, favicon)
+                                        view?.evaluateJavascript("""
+                                            (function() {
+                                                var style = document.createElement('style');
+                                                style.innerHTML = 'html, body { background: #000000 !important; color: #000000 !important; }';
+                                                var head = document.head || document.getElementsByTagName('head')[0] || document.documentElement;
+                                                if (head) head.appendChild(style);
+                                            })();
+                                        """.trimIndent(), null)
+                                        
+                                        // Inject đè devtoolsDetector ngay khi bắt đầu tải trang
+                                        view?.evaluateJavascript(mockDevToolsDetectorJS, null)
+                                    }
+
+                                    override fun shouldInterceptRequest(
+                                        view: WebView?,
+                                        request: WebResourceRequest?
+                                    ): WebResourceResponse? {
+                                        val reqUrl = request?.url?.toString() ?: ""
+                                        val lowerUrl = reqUrl.lowercase()
+                                        
+                                        if (lowerUrl.contains("devtools-detector") || lowerUrl.contains("devtools_detector")) {
+                                            android.util.Log.d("ReaderSniffing", "--> Mock devtools-detector ngầm: $reqUrl")
+                                            return WebResourceResponse(
+                                                "application/javascript",
+                                                "UTF-8",
+                                                java.io.ByteArrayInputStream(mockDevToolsDetectorJS.toByteArray(Charsets.UTF_8))
+                                            )
+                                        }
+                                        
+                                        if (lowerUrl.contains(".m3u8") || lowerUrl.contains(".mp4") || lowerUrl.contains(".m4s") || lowerUrl.contains(".ts") || lowerUrl.contains(".mkv") || lowerUrl.contains(".webm") || lowerUrl.contains("googlevideo.com")) {
+                                            (view?.context as? Activity)?.runOnUiThread {
+                                                if (sniffedVideoUrl == null) {
+                                                    android.util.Log.d("ReaderSniffing", "--> Bắt được link stream thật: $reqUrl")
+                                                    sniffedVideoUrl = reqUrl
+                                                }
+                                            }
+                                        }
+                                        
+                                        if (request != null && !request.isForMainFrame) {
+                                            val isEmbed = isEmbedPlayerUrl(reqUrl)
+                                            if (isEmbed && resolvedVideoUrl != null && reqUrl != resolvedVideoUrl) {
+                                                (view?.context as? Activity)?.runOnUiThread {
+                                                    val loadedUrl = view.tag as? String
+                                                    if (loadedUrl != reqUrl) {
+                                                        android.util.Log.d("ReaderSniffing", "--> Phát hiện iframe embed: $reqUrl, chuyển hướng WebView ngầm sang...")
+                                                        view.tag = reqUrl
+                                                        view.loadUrl(reqUrl)
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        
+                                        return super.shouldInterceptRequest(view, request)
+                                    }
+                                }
+                            }
+                        },
+                        update = { webView ->
+                            val loadedUrl = webView.tag as? String
+                            if (resolvedVideoUrl != null && loadedUrl == null) {
+                                webView.tag = resolvedVideoUrl
+                                if (resolvedVideoType == "webview" || resolvedVideoUrl.contains("<")) {
+                                    android.util.Log.d("ReaderSniffing", "--> Bắt đầu load HTML thô vào WebView ngầm")
+                                    webView.loadDataWithBaseURL(
+                                        novelUrl,
+                                        resolvedVideoUrl,
+                                        "text/html",
+                                        "utf-8",
+                                        null
+                                    )
+                                } else {
+                                    android.util.Log.d("ReaderSniffing", "--> Bắt đầu load URL phim gốc: $resolvedVideoUrl")
+                                    webView.loadUrl(resolvedVideoUrl, mapOf("Referer" to novelUrl))
+                                }
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .graphicsLayer(alpha = wvAlpha)
+                            .background(Color.Black)
+                    )
+                }
+            }
+
             // Khi đã bắt được direct link hoặc đang tải video bằng ExoPlayer
             if (sniffedVideoUrl != null) {
                 Box(
@@ -4418,12 +4673,17 @@ private fun VideoContent(
                                         loadWithOverviewMode = true
                                         mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
                                         userAgentString = chromeUA
+                                        cacheMode = android.webkit.WebSettings.LOAD_NO_CACHE
                                     }
+                                    clearCache(true)
                                     webChromeClient = object : WebChromeClient() {
                                         override fun onProgressChanged(view: WebView?, newProgress: Int) {
                                             super.onProgressChanged(view, newProgress)
-                                            if (newProgress > 30) {
+                                            if (newProgress > 30 && resolvedVideoType != "webview" && resolvedVideoUrl?.contains("<") != true) {
                                                 view?.evaluateJavascript(cleanPlayerJS, null)
+                                            }
+                                            if (newProgress > 40) {
+                                                view?.evaluateJavascript(fallbackAutoPlayJS, null)
                                             }
                                         }
 
@@ -4454,6 +4714,34 @@ private fun VideoContent(
                                             return false
                                         }
 
+                                        override fun shouldInterceptRequest(
+                                            view: WebView?,
+                                            request: WebResourceRequest?
+                                        ): WebResourceResponse? {
+                                            val reqUrl = request?.url?.toString() ?: ""
+                                            val lowerUrl = reqUrl.lowercase()
+                                            if (lowerUrl.contains("devtools-detector") || lowerUrl.contains("devtools_detector")) {
+                                                android.util.Log.d("ReaderSniffing", "--> Mock devtools-detector fallback: $reqUrl")
+                                                return WebResourceResponse(
+                                                    "application/javascript",
+                                                    "UTF-8",
+                                                    java.io.ByteArrayInputStream(mockDevToolsDetectorJS.toByteArray(Charsets.UTF_8))
+                                                )
+                                            }
+                                            
+                                            // Bắt link stream trên WebView fallback để chuyển sang ExoPlayer
+                                            if (lowerUrl.contains(".m3u8") || lowerUrl.contains(".mp4") || lowerUrl.contains(".m4s") || lowerUrl.contains(".ts") || lowerUrl.contains(".mkv") || lowerUrl.contains(".webm") || lowerUrl.contains("googlevideo.com")) {
+                                                (view?.context as? Activity)?.runOnUiThread {
+                                                    if (sniffedVideoUrl == null) {
+                                                        android.util.Log.d("ReaderSniffing", "--> Bắt được link stream thật từ fallback: $reqUrl")
+                                                        sniffedVideoUrl = reqUrl
+                                                    }
+                                                }
+                                            }
+                                            
+                                            return super.shouldInterceptRequest(view, request)
+                                        }
+
                                         override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
                                             super.onPageStarted(view, url, favicon)
                                             view?.evaluateJavascript("""
@@ -4464,11 +4752,17 @@ private fun VideoContent(
                                                     if (head) head.appendChild(style);
                                                 })();
                                             """.trimIndent(), null)
+                                            
+                                            // Inject đè devtoolsDetector trong fallback
+                                            view?.evaluateJavascript(mockDevToolsDetectorJS, null)
                                         }
 
                                         override fun onPageFinished(view: WebView?, url: String?) {
                                             super.onPageFinished(view, url)
-                                            view?.evaluateJavascript(cleanPlayerJS, null)
+                                            if (resolvedVideoType != "webview" && resolvedVideoUrl?.contains("<") != true) {
+                                                view?.evaluateJavascript(cleanPlayerJS, null)
+                                            }
+                                            view?.evaluateJavascript(fallbackAutoPlayJS, null)
                                         }
                                     }
                                 }
@@ -4506,139 +4800,7 @@ private fun VideoContent(
                 }
             }
 
-            // WebView sniffing ngầm: luôn luôn sống nếu resolvedVideoUrl != null và chưa bị timeout
-            if (resolvedVideoUrl != null && !sniffingTimeout) {
-                val isSniffingActive = (sniffedVideoUrl == null)
-                val wvAlpha = if (isSniffingActive) 0.01f else 0.001f
 
-                key(resolvedVideoUrl) {
-                    AndroidView(
-                        factory = { ctx ->
-                            WebView(ctx).apply {
-                                sniffingWebViewInstance = this
-                                layoutParams = ViewGroup.LayoutParams(1, 1)
-                                setBackgroundColor(android.graphics.Color.TRANSPARENT) // Trong suốt tránh nháy trắng
-                                settings.apply {
-                                    javaScriptEnabled = true
-                                    domStorageEnabled = true
-                                    mediaPlaybackRequiresUserGesture = false
-                                    userAgentString = chromeUA
-                                    setSupportMultipleWindows(false)
-                                    setJavaScriptCanOpenWindowsAutomatically(false)
-                                }
-                                webChromeClient = object : WebChromeClient() {
-                                    override fun onProgressChanged(view: WebView?, newProgress: Int) {
-                                        super.onProgressChanged(view, newProgress)
-                                        if (newProgress > 40) {
-                                            view?.evaluateJavascript("""
-                                                (function() {
-                                                    if (window.__sniff_injected) return;
-                                                    window.__sniff_injected = true;
-                                                    var autoPlayInterval = setInterval(function() {
-                                                        var videos = document.getElementsByTagName('video');
-                                                        for (var i = 0; i < videos.length; i++) {
-                                                            videos[i].muted = true;
-                                                            videos[i].play().catch(function(e) {});
-                                                        }
-                                                        var playSelectors = ['.play', '.btn-play', '.vjs-big-play-button', '[class*="play-button"]', '[id*="play-button"]', 'iframe'];
-                                                        playSelectors.forEach(function(sel) {
-                                                            var btn = document.querySelector(sel);
-                                                            if (btn && (btn.offsetWidth > 0 || btn.offsetHeight > 0)) {
-                                                                btn.click();
-                                                            }
-                                                        });
-                                                    }, 1000);
-                                                    setTimeout(function() { clearInterval(autoPlayInterval); }, 15000);
-                                                })();
-                                            """.trimIndent(), null)
-                                        }
-                                    }
-
-                                    override fun onShowCustomView(view: android.view.View?, callback: CustomViewCallback?) {
-                                        // Chặn hoàn toàn fullscreen của WebView sniffing ngầm để tránh nháy trắng/đen
-                                        // Không gọi super để tránh hệ thống tự kích hoạt fullscreen
-                                        callback?.onCustomViewHidden()
-                                    }
-
-                                    override fun onHideCustomView() {
-                                        super.onHideCustomView()
-                                    }
-                                }
-                                webViewClient = object : WebViewClient() {
-                                    override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
-                                        val url = request?.url?.toString() ?: ""
-                                        // Chỉ cho phép WebView sniffing ngầm load các URL http/https, chặn deep link mở app ngoài
-                                        return if (url.startsWith("http://") || url.startsWith("https://")) {
-                                            false
-                                        } else {
-                                            true // Chặn các schema lạ (intent://, market://, tg://, v.v.)
-                                        }
-                                    }
-
-                                    override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
-                                        super.onPageStarted(view, url, favicon)
-                                        view?.evaluateJavascript("""
-                                            (function() {
-                                                var style = document.createElement('style');
-                                                style.innerHTML = 'html, body { background: #000000 !important; color: #000000 !important; }';
-                                                var head = document.head || document.getElementsByTagName('head')[0] || document.documentElement;
-                                                if (head) head.appendChild(style);
-                                            })();
-                                        """.trimIndent(), null)
-                                    }
-
-                                    override fun shouldInterceptRequest(
-                                        view: WebView?,
-                                        request: WebResourceRequest?
-                                    ): WebResourceResponse? {
-                                        val reqUrl = request?.url?.toString() ?: ""
-                                        val lowerUrl = reqUrl.lowercase()
-                                        
-                                        // 1. Dò link stream video thực
-                                        if (lowerUrl.contains(".m3u8") || lowerUrl.contains(".mp4") || lowerUrl.contains(".m4s") || lowerUrl.contains(".ts") || lowerUrl.contains(".mkv") || lowerUrl.contains(".webm") || lowerUrl.contains("googlevideo.com")) {
-                                            (view?.context as? Activity)?.runOnUiThread {
-                                                if (sniffedVideoUrl == null) {
-                                                    android.util.Log.d("ReaderSniffing", "--> Bắt được link stream thật: $reqUrl")
-                                                    sniffedVideoUrl = reqUrl
-                                                }
-                                            }
-                                        }
-                                        
-                                        // 2. Tự động chuyển hướng WebView ngầm sang iframe con chứa player
-                                        if (request != null && !request.isForMainFrame) {
-                                            val isEmbed = isEmbedPlayerUrl(reqUrl)
-                                            if (isEmbed && resolvedVideoUrl != null && reqUrl != resolvedVideoUrl) {
-                                                (view?.context as? Activity)?.runOnUiThread {
-                                                    val loadedUrl = view.tag as? String
-                                                    if (loadedUrl != reqUrl) {
-                                                        android.util.Log.d("ReaderSniffing", "--> Phát hiện iframe embed: $reqUrl, chuyển hướng WebView ngầm sang...")
-                                                        view.tag = reqUrl
-                                                        view.loadUrl(reqUrl)
-                                                    }
-                                                }
-                                            }
-                                        }
-                                        
-                                        return super.shouldInterceptRequest(view, request)
-                                    }
-                                }
-                            }
-                        },
-                        update = { webView ->
-                            val loadedUrl = webView.tag as? String
-                            if (resolvedVideoUrl != null && loadedUrl == null) {
-                                android.util.Log.d("ReaderSniffing", "--> Bắt đầu load URL phim gốc: $resolvedVideoUrl")
-                                webView.tag = resolvedVideoUrl
-                                webView.loadUrl(resolvedVideoUrl, mapOf("Referer" to novelUrl))
-                            }
-                        },
-                        modifier = Modifier
-                            .size(1.dp)
-                            .graphicsLayer(alpha = wvAlpha)
-                            .background(Color.Black)
-                    )
-                }
-            }
         }
 
         // Playlist bottom sheet
