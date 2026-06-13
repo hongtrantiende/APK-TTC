@@ -122,7 +122,7 @@ class AndroidTestServerService : Service() {
         try {
             val inputStream = socket.getInputStream()
             
-            // Äá»c header báº±ng cÃ¡ch Ä‘á»c tá»«ng byte cho tá»›i khi gáº·p \r\n\r\n hoáº·c \n\n
+            // Đọc header bằng cách đọc từng byte cho tới khi gặp \r\n\r\n hoặc \n\n
             val headerStream = java.io.ByteArrayOutputStream()
             var b: Int
             while (inputStream.read().also { b = it } != -1) {
@@ -157,7 +157,7 @@ class AndroidTestServerService : Service() {
                 }
             }
             
-            // Äá»c body thÃ´ dáº¡ng bytes Ä‘á»ƒ khÃ´ng bá»‹ lá»‡ch kÃ­ch thÆ°á»›c kÃ½ tá»± UTF-8
+            // Đọc body thô dạng bytes để không bị lệch kích thước ký tự UTF-8
             val body = if (contentLength > 0) {
                 val bodyBytes = ByteArray(contentLength)
                 var read = 0
@@ -462,7 +462,7 @@ class AndroidTestServerService : Service() {
             .replace(Regex("[\\p{InCombiningDiacriticalMarks}]"), "")
         return normalized
             .lowercase()
-            .replace("Ä‘", "d").replace("Ä", "d")
+            .replace("đ", "d").replace("Đ", "d")
             .replace(Regex("[^a-z0-9]"), "-")
             .replace(Regex("-+"), "-")
             .trim('-')

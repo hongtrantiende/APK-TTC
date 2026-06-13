@@ -298,11 +298,26 @@ class NovelRepository @Inject constructor(
                     val isVideo = extension?.pluginJson?.metadata?.type == "video"
                     
                     var parsedChapter = if (isVideo) {
-                        // Nếu là video, tạo Chapter trực tiếp với content là JSON string của các server (result.data)
+                        val rawContent = result.data
+                        val unwrappedContent = try {
+                            if (rawContent.trim().startsWith("{")) {
+                                val obj = org.json.JSONObject(rawContent)
+                                if (obj.has("code") && obj.optJSONArray("data") != null) {
+                                    obj.getJSONArray("data").toString()
+                                } else {
+                                    rawContent
+                                }
+                            } else {
+                                rawContent
+                            }
+                        } catch (e: Exception) {
+                            rawContent
+                        }
+                        // Nếu là video, tạo Chapter trực tiếp với content là JSON string của các server (unwrappedContent)
                         Chapter(
                             url = chapterUrl,
                             title = cached?.title ?: "Tập phim",
-                            content = result.data,
+                            content = unwrappedContent,
                             isDownloaded = isOfflineDownload
                         )
                     } else {
@@ -478,11 +493,12 @@ class NovelRepository @Inject constructor(
             val items = if (element is JsonArray) {
                 element
             } else {
-                element.jsonObject["items"]?.jsonArray 
-                    ?: element.jsonObject["data"]?.jsonArray 
+                val obj = element as? JsonObject
+                (obj?.get("items") as? JsonArray) 
+                    ?: (obj?.get("data") as? JsonArray) 
                     ?: JsonArray(emptyList())
             }
-            val novels = items.map { parseNovelFromJson(it.jsonObject, extensionId, sourceUrl) }
+            val novels = items.mapNotNull { (it as? JsonObject)?.let { item -> parseNovelFromJson(item, extensionId, sourceUrl) } }
             val hasNext = if (element is JsonObject) {
                 element["hasNextPage"]?.jsonPrimitive?.content?.toBooleanStrictOrNull() 
                     ?: element["hasNext"]?.jsonPrimitive?.content?.toBooleanStrictOrNull()
@@ -510,12 +526,12 @@ class NovelRepository @Inject constructor(
             if (element is JsonArray) {
                 parseTabsJsonArray(element, extensionId)
             } else {
-                val obj = element.jsonObject
+                val obj = element as? JsonObject ?: return@withContext emptyList()
                 val dataElement = obj["data"]
                 
                 if (dataElement is JsonArray) {
                     // Kiểm tra xem đây là mảng các tab hay mảng các truyện
-                    val firstItem = dataElement.firstOrNull()?.jsonObject
+                    val firstItem = dataElement.firstOrNull() as? JsonObject
                     val isTabArray = firstItem != null && (firstItem.containsKey("input") || firstItem.containsKey("script"))
                     
                     if (isTabArray) {
@@ -525,19 +541,19 @@ class NovelRepository @Inject constructor(
                         listOf(
                             HomeTab(
                                 name = "Truyện",
-                                novels = dataElement.map { parseNovelFromJson(it.jsonObject, extensionId, sourceUrl) }
+                                novels = dataElement.mapNotNull { (it as? JsonObject)?.let { item -> parseNovelFromJson(item, extensionId, sourceUrl) } }
                             )
                         )
                     }
                 } else {
                     // Cấu trúc cũ hoặc single list
-                    val items = obj["items"]?.jsonArray 
-                        ?: obj["data"]?.jsonObject?.get("items")?.jsonArray
+                    val items = (obj["items"] as? JsonArray)
+                        ?: ((obj["data"] as? JsonObject)?.get("items") as? JsonArray)
                         ?: return@withContext emptyList()
                     listOf(
                         HomeTab(
                             name = "Truyện",
-                            novels = items.map { parseNovelFromJson(it.jsonObject, extensionId, sourceUrl) }
+                            novels = items.mapNotNull { (it as? JsonObject)?.let { item -> parseNovelFromJson(item, extensionId, sourceUrl) } }
                         )
                     )
                 }
@@ -549,8 +565,8 @@ class NovelRepository @Inject constructor(
     }
 
     private suspend fun parseTabsJsonArray(array: JsonArray, extensionId: String): List<HomeTab> {
-        return array.map { tabObj ->
-            val obj = tabObj.jsonObject
+        return array.mapNotNull { tabObj ->
+            val obj = tabObj as? JsonObject ?: return@mapNotNull null
             val rawName = obj["title"]?.jsonPrimitive?.content 
                 ?: obj["name"]?.jsonPrimitive?.content 
                 ?: ""
@@ -568,23 +584,24 @@ class NovelRepository @Inject constructor(
             val element = json.parseToJsonElement(jsonStr)
             checkExtensionErrorCode(element)
             if (element is JsonArray) {
-                val novels = element.map { parseNovelFromJson(it.jsonObject, extensionId, sourceUrl) }
+                val novels = element.mapNotNull { (it as? JsonObject)?.let { item -> parseNovelFromJson(item, extensionId, sourceUrl) } }
                 NovelPage(novels, null)
             } else {
-                val obj = element.jsonObject
+                val obj = element as? JsonObject ?: return@withContext NovelPage(emptyList(), null)
                 val itemsElement = obj["data"]
                 val novels = when {
                     itemsElement is JsonArray -> {
-                        itemsElement.map { parseNovelFromJson(it.jsonObject, extensionId, sourceUrl) }
+                        itemsElement.mapNotNull { (it as? JsonObject)?.let { item -> parseNovelFromJson(item, extensionId, sourceUrl) } }
                     }
                     itemsElement is JsonObject && itemsElement.containsKey("items") -> {
-                        itemsElement["items"]?.jsonArray?.map { parseNovelFromJson(it.jsonObject, extensionId, sourceUrl) } ?: emptyList()
+                        val items = itemsElement["items"] as? JsonArray
+                        items?.mapNotNull { (it as? JsonObject)?.let { item -> parseNovelFromJson(item, extensionId, sourceUrl) } } ?: emptyList()
                     }
                     else -> {
-                        val fallbackItems = obj["items"]?.jsonArray 
-                            ?: obj["list"]?.jsonArray 
-                            ?: emptyList()
-                        fallbackItems.map { parseNovelFromJson(it.jsonObject, extensionId, sourceUrl) }
+                        val fallbackItems = (obj["items"] as? JsonArray)
+                            ?: (obj["list"] as? JsonArray)
+                            ?: JsonArray(emptyList())
+                        fallbackItems.mapNotNull { (it as? JsonObject)?.let { item -> parseNovelFromJson(item, extensionId, sourceUrl) } }
                     }
                 }
                 val nextPageKey = obj["data2"]?.jsonPrimitive?.content?.takeIf { it != "null" }
@@ -630,9 +647,12 @@ class NovelRepository @Inject constructor(
             val items = if (element is JsonArray) {
                 element
             } else {
-                element.jsonObject["items"]?.jsonArray ?: element.jsonObject["data"]?.jsonArray ?: return@withContext emptyList()
+                val obj = element as? JsonObject
+                (obj?.get("items") as? JsonArray) 
+                    ?: (obj?.get("data") as? JsonArray) 
+                    ?: return@withContext emptyList()
             }
-            items.map { parseNovelFromJson(it.jsonObject, extensionId, sourceUrl) }
+            items.mapNotNull { (it as? JsonObject)?.let { item -> parseNovelFromJson(item, extensionId, sourceUrl) } }
         } catch (e: Exception) {
             android.util.Log.e("NovelRepo", "parseNovelsList failed: ${e.message}", e)
             throw e
@@ -643,7 +663,7 @@ class NovelRepository @Inject constructor(
         try {
             val element = json.parseToJsonElement(jsonStr)
             checkExtensionErrorCode(element)
-            val rootObj = element.jsonObject
+            val rootObj = element as? JsonObject ?: return@withContext null
             val dataObj = rootObj["data"]
             val targetObj = if (dataObj is JsonObject) {
                 dataObj
@@ -664,14 +684,15 @@ class NovelRepository @Inject constructor(
             val items = if (element is JsonArray) {
                 element
             } else {
-                element.jsonObject["items"]?.jsonArray 
-                    ?: element.jsonObject["data"]?.jsonArray 
-                    ?: element.jsonObject["chapters"]?.jsonArray 
-                    ?: element.jsonObject["list"]?.jsonArray 
+                val obj = element as? JsonObject
+                (obj?.get("items") as? JsonArray) 
+                    ?: (obj?.get("data") as? JsonArray) 
+                    ?: (obj?.get("chapters") as? JsonArray) 
+                    ?: (obj?.get("list") as? JsonArray) 
                     ?: return@withContext emptyList()
             }
-            items.mapIndexed { index, item ->
-                val obj = item.jsonObject
+            items.mapIndexedNotNull { index, item ->
+                val obj = item as? JsonObject ?: return@mapIndexedNotNull null
                 val isSection = obj["type"]?.jsonPrimitive?.content == "section"
                 val rawTitle = obj["title"]?.jsonPrimitive?.content 
                     ?: obj["name"]?.jsonPrimitive?.content 
@@ -717,7 +738,7 @@ class NovelRepository @Inject constructor(
                         if (it is JsonPrimitive) {
                             it.content
                         } else if (it is JsonObject) {
-                            val fallbackUrl = it["fallback"]?.jsonArray?.firstOrNull { f -> f is JsonPrimitive }?.jsonPrimitive?.content
+                            val fallbackUrl = (it["fallback"] as? JsonArray)?.firstOrNull { f -> f is JsonPrimitive }?.jsonPrimitive?.content
                             val mainUrl = it["link"]?.jsonPrimitive?.content 
                                 ?: it["url"]?.jsonPrimitive?.content 
                                 ?: it["src"]?.jsonPrimitive?.content
@@ -727,11 +748,11 @@ class NovelRepository @Inject constructor(
                         }
                     }
                 } else {
-                    targetObj["images"]?.jsonArray?.mapNotNull { 
+                    ((targetObj["images"] as? JsonArray) ?: (targetObj["urls"] as? JsonArray) ?: (targetObj["list"] as? JsonArray) ?: (targetObj["data"] as? JsonArray))?.mapNotNull { 
                         if (it is JsonPrimitive) {
                             it.content
                         } else if (it is JsonObject) {
-                            val fallbackUrl = it["fallback"]?.jsonArray?.firstOrNull { f -> f is JsonPrimitive }?.jsonPrimitive?.content
+                            val fallbackUrl = (it["fallback"] as? JsonArray)?.firstOrNull { f -> f is JsonPrimitive }?.jsonPrimitive?.content
                             val mainUrl = it["link"]?.jsonPrimitive?.content 
                                 ?: it["url"]?.jsonPrimitive?.content 
                                 ?: it["src"]?.jsonPrimitive?.content
@@ -782,7 +803,7 @@ class NovelRepository @Inject constructor(
                     if (it is JsonPrimitive) {
                         it.content
                     } else if (it is JsonObject) {
-                        val fallbackUrl = it["fallback"]?.jsonArray?.firstOrNull { f -> f is JsonPrimitive }?.jsonPrimitive?.content
+                        val fallbackUrl = (it["fallback"] as? JsonArray)?.firstOrNull { f -> f is JsonPrimitive }?.jsonPrimitive?.content
                         val mainUrl = it["link"]?.jsonPrimitive?.content 
                             ?: it["url"]?.jsonPrimitive?.content 
                             ?: it["src"]?.jsonPrimitive?.content
@@ -978,16 +999,26 @@ class NovelRepository @Inject constructor(
 
     private fun parseGenreList(jsonStr: String): List<com.nam.novelreader.domain.model.Genre> {
         return try {
-            val arr = json.parseToJsonElement(jsonStr).jsonArray
-            arr.map { 
+            val element = json.parseToJsonElement(jsonStr)
+            val arr = if (element is JsonArray) {
+                element
+            } else {
+                val obj = element as? JsonObject
+                (obj?.get("data") as? JsonArray) 
+                    ?: (obj?.get("items") as? JsonArray) 
+                    ?: return emptyList()
+            }
+            arr.mapNotNull { 
                 if (it is JsonObject) {
                     com.nam.novelreader.domain.model.Genre(
                         name = it["name"]?.jsonPrimitive?.content ?: "",
                         input = it["input"]?.jsonPrimitive?.content ?: "",
                         script = it["script"]?.jsonPrimitive?.content ?: ""
                     )
+                } else if (it is JsonPrimitive) {
+                    com.nam.novelreader.domain.model.Genre(name = it.content)
                 } else {
-                    com.nam.novelreader.domain.model.Genre(name = it.jsonPrimitive.content)
+                    null
                 }
             }
         } catch (e: Exception) {
@@ -1060,20 +1091,20 @@ class NovelRepository @Inject constructor(
 
     private suspend fun parseComments(jsonStr: String): CommentPage = withContext(Dispatchers.Default) {
         try {
-            val root = json.parseToJsonElement(jsonStr).jsonObject
-            val arr = root["data"]?.jsonArray ?: root["items"]?.jsonArray ?: return@withContext CommentPage(emptyList())
+            val root = json.parseToJsonElement(jsonStr) as? JsonObject ?: return@withContext CommentPage(emptyList())
+            val arr = (root["data"] as? JsonArray) ?: (root["items"] as? JsonArray) ?: return@withContext CommentPage(emptyList())
             val nextPage = root["data2"]?.jsonPrimitive?.content ?: root["nextPage"]?.jsonPrimitive?.content ?: ""
             
-            val comments = arr.map { item ->
-                val obj = item.jsonObject
+            val comments = arr.mapNotNull { item ->
+                val obj = item as? JsonObject ?: return@mapNotNull null
                 val name = obj["name"]?.jsonPrimitive?.content ?: obj["userName"]?.jsonPrimitive?.content ?: "Ẩn danh"
                 val avatar = obj["avatar"]?.jsonPrimitive?.content ?: obj["userAvatar"]?.jsonPrimitive?.content ?: ""
                 val content = obj["content"]?.jsonPrimitive?.content ?: ""
                 val description = obj["description"]?.jsonPrimitive?.content ?: ""
                 
-                val subCommentsArr = obj["subComments"]?.jsonArray ?: obj["subSourceComments"]?.jsonArray
-                val subComments = subCommentsArr?.map { subItem ->
-                    val subObj = subItem.jsonObject
+                val subCommentsArr = (obj["subComments"] as? JsonArray) ?: (obj["subSourceComments"] as? JsonArray)
+                val subComments = subCommentsArr?.mapNotNull { subItem ->
+                    val subObj = subItem as? JsonObject ?: return@mapNotNull null
                     Comment(
                         name = subObj["name"]?.jsonPrimitive?.content ?: subObj["userName"]?.jsonPrimitive?.content ?: "Ẩn danh",
                         avatar = subObj["avatar"]?.jsonPrimitive?.content ?: subObj["userAvatar"]?.jsonPrimitive?.content ?: "",

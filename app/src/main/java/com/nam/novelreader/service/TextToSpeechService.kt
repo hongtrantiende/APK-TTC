@@ -623,6 +623,42 @@ class TextToSpeechService : Service(), TextToSpeech.OnInitListener {
         }
     }
 
+    private fun splitLongSentence(sentence: String, maxLength: Int = 120): List<String> {
+        if (sentence.length <= maxLength) return listOf(sentence)
+        val result = mutableListOf<String>()
+        var remaining = sentence
+        val punctuation = listOf(',', ';', ':', '，', '；', '：')
+        while (remaining.length > maxLength) {
+            var splitIdx = -1
+            for (p in punctuation) {
+                val idx = remaining.lastIndexOf(p, maxLength)
+                if (idx > splitIdx) {
+                    splitIdx = idx
+                }
+            }
+            if (splitIdx > 15) {
+                val chunk = remaining.substring(0, splitIdx + 1).trim()
+                if (chunk.isNotEmpty()) result.add(chunk)
+                remaining = remaining.substring(splitIdx + 1).trim()
+            } else {
+                val spaceIdx = remaining.lastIndexOf(' ', maxLength)
+                if (spaceIdx > 0) {
+                    val chunk = remaining.substring(0, spaceIdx).trim()
+                    if (chunk.isNotEmpty()) result.add(chunk)
+                    remaining = remaining.substring(spaceIdx).trim()
+                } else {
+                    val chunk = remaining.substring(0, maxLength).trim()
+                    if (chunk.isNotEmpty()) result.add(chunk)
+                    remaining = remaining.substring(maxLength).trim()
+                }
+            }
+        }
+        if (remaining.isNotEmpty()) {
+            result.add(remaining)
+        }
+        return result
+    }
+
     private fun splitIntoSentences(text: String): List<String> {
         val splitType = appPrefs.ttsSplitType
         val maxLength = appPrefs.ttsMaxLength.coerceAtLeast(100)
@@ -634,7 +670,11 @@ class TextToSpeechService : Service(), TextToSpeech.OnInitListener {
             "Theo đoạn", "Theo độ dài" -> {
                 val result = mutableListOf<String>()
                 for (para in paragraphs) {
-                    splitParagraphIfNeeded(para, maxLength, result)
+                    val tempChunks = mutableListOf<String>()
+                    splitParagraphIfNeeded(para, maxLength, tempChunks)
+                    for (chunk in tempChunks) {
+                        result.addAll(splitLongSentence(chunk))
+                    }
                 }
                 result
             }
@@ -642,12 +682,18 @@ class TextToSpeechService : Service(), TextToSpeech.OnInitListener {
                 val sentencesList = mutableListOf<String>()
                 for (para in paragraphs) {
                     val rawSentences = para.split(Regex("(?<=[.!?])\\s+"))
-                    sentencesList.addAll(rawSentences.map { it.trim() }.filter { it.isNotEmpty() })
+                    for (raw in rawSentences) {
+                        val trimmed = raw.trim()
+                        if (trimmed.isNotEmpty()) {
+                            sentencesList.addAll(splitLongSentence(trimmed))
+                        }
+                    }
                 }
                 sentencesList
             }
         }
     }
+
 
     private fun speakCurrent() {
         initSystemTtsIfNeeded()
@@ -1603,7 +1649,216 @@ class TextToSpeechService : Service(), TextToSpeech.OnInitListener {
         }
     }
 
+    private fun escapeJsonString(text: String): String {
+        val builder = java.lang.StringBuilder()
+        for (element in text) {
+            when (element) {
+                '\\' -> builder.append("\\\\")
+                '\"' -> builder.append("\\\"")
+                '\n' -> builder.append("\\n")
+                '\r' -> builder.append("\\r")
+                '\t' -> builder.append("\\t")
+                else -> {
+                    if (element.code < 0x20) {
+                        builder.append(String.format("\\u%04x", element.code))
+                    } else {
+                        builder.append(element)
+                    }
+                }
+            }
+        }
+        return builder.toString()
+    }
+
+    private fun tryDirectPremiumApi(
+        client: OkHttpClient,
+        index: Int,
+        text: String,
+        voiceCode: String,
+        escapedText: String,
+        speedFactor: Double,
+        pitchFactor: Double,
+        continuation: kotlinx.coroutines.CancellableContinuation<Boolean>
+    ) {
+        val premiumApiKey = "AIzaSyCRZVR4LpsA2hIxn8wkbnaSxxduHheAvhc"
+        val googleUrl = "https://readaloud.googleapis.com/v1:generateAudioDocStream?key=$premiumApiKey"
+
+        val payload = """
+            {
+              "text": {
+                "textParts": ["$escapedText"]
+              },
+              "advanced_options": {
+                "force_language": "vi",
+                "audio_generation_options": {
+                  "speed_factor": $speedFactor,
+                  "pitch_factor": $pitchFactor
+                }
+              },
+              "voice_settings": {
+                "voice_criteria_and_selections": [
+                  {
+                    "criteria": {
+                      "language": "vi"
+                    },
+                    "selection": {
+                      "default_voice": "$voiceCode"
+                    }
+                  }
+                ]
+              }
+            }
+        """.trimIndent()
+
+        val mediaType = "application/json; charset=utf-8".toMediaTypeOrNull()
+        val requestBody = okhttp3.RequestBody.create(mediaType, payload)
+
+        val request = Request.Builder()
+            .url(googleUrl)
+            .addHeader("Content-Type", "application/json")
+            .addHeader("X-Goog-Api-Key", premiumApiKey)
+            .post(requestBody)
+            .build()
+
+        var hasResumed = false
+
+        client.newCall(request).enqueue(object : okhttp3.Callback {
+            override fun onFailure(call: okhttp3.Call, e: java.io.IOException) {
+                Log.w("TTS", "Premium Google Cloud API failure, falling back to keyless v2: ${e.message}")
+                if (!hasResumed) {
+                    hasResumed = true
+                    fallbackToKeylessApi(index, text, voiceCode, continuation)
+                }
+            }
+
+            override fun onResponse(call: okhttp3.Call, response: Response) {
+                response.use { resp ->
+                    if (!resp.isSuccessful) {
+                        Log.w("TTS", "Premium Google Cloud API response not success (${resp.code}), falling back to keyless v2")
+                        if (!hasResumed) {
+                            hasResumed = true
+                            fallbackToKeylessApi(index, text, voiceCode, continuation)
+                        }
+                        return
+                    }
+
+                    try {
+                        val responseStr = resp.body?.string() ?: ""
+                        val jsonArray = org.json.JSONArray(responseStr)
+                        if (jsonArray.length() > 2) {
+                            val audioObj = jsonArray.optJSONObject(2)
+                            val audioNode = audioObj?.optJSONObject("audio")
+                            val base64Bytes = audioNode?.optString("bytes", "") ?: ""
+                            if (base64Bytes.isNotEmpty()) {
+                                val audioBytes = Base64.decode(base64Bytes, Base64.DEFAULT)
+                                val cacheFile = File(cacheDir, "tts_sentence_$index.mp3")
+                                cacheFile.writeBytes(audioBytes)
+                                downloadedFiles[index] = cacheFile.absolutePath
+                                Log.d("TTS", "Successfully downloaded Premium Google Cloud sentence $index: ${cacheFile.length()} bytes")
+                                if (!hasResumed) {
+                                    hasResumed = true
+                                    continuation.resume(true)
+                                }
+                                return
+                            }
+                        }
+                        Log.w("TTS", "Premium Google Cloud response missing audio bytes, falling back to keyless v2")
+                        if (!hasResumed) {
+                            hasResumed = true
+                            fallbackToKeylessApi(index, text, voiceCode, continuation)
+                        }
+                    } catch (e: Exception) {
+                        Log.w("TTS", "Error parsing Premium Google Cloud response, falling back to keyless v2: ${e.message}", e)
+                        if (!hasResumed) {
+                            hasResumed = true
+                            fallbackToKeylessApi(index, text, voiceCode, continuation)
+                        }
+                    }
+                }
+            }
+        })
+    }
+
     private suspend fun downloadGoogleCloudSentence(index: Int, text: String, voiceCode: String): Boolean = suspendCancellableCoroutine { continuation ->
+        val client = OkHttpClient.Builder()
+            .connectTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
+            .readTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
+            .build()
+
+        // Round to 1 decimal place as required by Google Premium API
+        val speedFactor = Math.round(speed * 10) / 10.0
+        val pitchFactor = Math.round(pitch * 10) / 10.0
+
+        val escapedText = escapeJsonString(text)
+
+        // 1. Thử gọi Web Proxy của thienthu.vip trước — cùng logic premium API với web
+        val proxyUrl = "https://thienthu.vip/api/tts/google-free?voice=$voiceCode&rate=$speed&pitch=$pitch"
+        val proxyPayload = """{"text": "$escapedText"}"""
+        val mediaType = "application/json; charset=utf-8".toMediaTypeOrNull()
+        val proxyRequestBody = okhttp3.RequestBody.create(mediaType, proxyPayload)
+
+        val proxyRequest = Request.Builder()
+            .url(proxyUrl)
+            .addHeader("Content-Type", "application/json")
+            .post(proxyRequestBody)
+            .build()
+
+        var hasResumed = false
+
+        client.newCall(proxyRequest).enqueue(object : okhttp3.Callback {
+            override fun onFailure(call: okhttp3.Call, e: java.io.IOException) {
+                Log.w("TTS", "Web Proxy API failure, trying direct Premium API: ${e.message}")
+                if (!hasResumed) {
+                    hasResumed = true
+                    tryDirectPremiumApi(client, index, text, voiceCode, escapedText, speedFactor, pitchFactor, continuation)
+                }
+            }
+
+            override fun onResponse(call: okhttp3.Call, response: Response) {
+                response.use { resp ->
+                    if (!resp.isSuccessful) {
+                        Log.w("TTS", "Web Proxy API response not success (${resp.code}), trying direct Premium API")
+                        if (!hasResumed) {
+                            hasResumed = true
+                            tryDirectPremiumApi(client, index, text, voiceCode, escapedText, speedFactor, pitchFactor, continuation)
+                        }
+                        return
+                    }
+                    try {
+                        val audioBytes = resp.body?.bytes()
+                        if (audioBytes != null && audioBytes.isNotEmpty()) {
+                            val cacheFile = File(cacheDir, "tts_sentence_$index.mp3")
+                            cacheFile.writeBytes(audioBytes)
+                            downloadedFiles[index] = cacheFile.absolutePath
+                            Log.d("TTS", "Successfully downloaded Web Proxy sentence $index: ${cacheFile.length()} bytes")
+                            if (!hasResumed) {
+                                hasResumed = true
+                                continuation.resume(true)
+                            }
+                        } else {
+                            Log.w("TTS", "Web Proxy response empty body, trying direct Premium API")
+                            if (!hasResumed) {
+                                  hasResumed = true
+                                tryDirectPremiumApi(client, index, text, voiceCode, escapedText, speedFactor, pitchFactor, continuation)
+                            }
+                        }
+                    } catch (e: Exception) {
+                        Log.w("TTS", "Error reading Web Proxy response, trying direct Premium API: ${e.message}")
+                        if (!hasResumed) {
+                            hasResumed = true
+                            tryDirectPremiumApi(client, index, text, voiceCode, escapedText, speedFactor, pitchFactor, continuation)
+                        }
+                    }
+                }
+            }
+        })
+
+        continuation.invokeOnCancellation {
+            // Cancel call if job cancelled
+        }
+    }
+
+    private fun fallbackToKeylessApi(index: Int, text: String, voiceCode: String, continuation: kotlinx.coroutines.CancellableContinuation<Boolean>) {
         val client = OkHttpClient.Builder()
             .connectTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
             .readTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
@@ -1619,12 +1874,11 @@ class TextToSpeechService : Service(), TextToSpeech.OnInitListener {
             else -> "vi-VN-Wavenet-A"
         }
 
-        // Keyless API v2 uses 0.5 as normal speed/pitch. Bounds are [0.1, 1.0]
-        val speedFactor = (speed * 0.5f).coerceIn(0.1f, 1.0f)
-        val pitchFactor = (pitch * 0.5f).coerceIn(0.1f, 1.0f)
+        val keylessSpeed = (speed * 0.5f).coerceIn(0.1f, 1.0f)
+        val keylessPitch = (pitch * 0.5f).coerceIn(0.1f, 1.0f)
 
-        val speedStr = String.format(Locale.US, "%.2f", speedFactor)
-        val pitchStr = String.format(Locale.US, "%.2f", pitchFactor)
+        val speedStr = String.format(Locale.US, "%.2f", keylessSpeed)
+        val pitchStr = String.format(Locale.US, "%.2f", keylessPitch)
 
         val encodedText = try {
             java.net.URLEncoder.encode(text, "UTF-8")
@@ -1633,7 +1887,6 @@ class TextToSpeechService : Service(), TextToSpeech.OnInitListener {
         }
 
         val apiKey = appPrefs.ttsGoogleApiKey.ifBlank { "AIzaSyA33f9cSqKdR-V4XNkZNZ_rh_dbT1VQJFo" }
-
         val url = "https://www.google.com/speech-api/v2/synthesize" +
                 "?client=android-tts/com.apps.google:1.1.0" +
                 "&lang=vi-VN" +
@@ -1655,7 +1908,7 @@ class TextToSpeechService : Service(), TextToSpeech.OnInitListener {
 
         client.newCall(request).enqueue(object : okhttp3.Callback {
             override fun onFailure(call: okhttp3.Call, e: java.io.IOException) {
-                Log.e("TTS", "Google Cloud keyless API failure: ${e.message}", e)
+                Log.e("TTS", "Fallback keyless Google Cloud API failure: ${e.message}", e)
                 downloadedFiles[index] = "FAILED"
                 if (!hasResumed) {
                     hasResumed = true
@@ -1666,7 +1919,7 @@ class TextToSpeechService : Service(), TextToSpeech.OnInitListener {
             override fun onResponse(call: okhttp3.Call, response: Response) {
                 response.use { resp ->
                     if (!resp.isSuccessful) {
-                        Log.e("TTS", "Google Cloud keyless API error response: code=${resp.code}")
+                        Log.e("TTS", "Fallback keyless Google Cloud API error response: code=${resp.code}")
                         downloadedFiles[index] = "FAILED"
                         if (!hasResumed) {
                             hasResumed = true
@@ -1681,13 +1934,13 @@ class TextToSpeechService : Service(), TextToSpeech.OnInitListener {
                             val cacheFile = File(cacheDir, "tts_sentence_$index.mp3")
                             cacheFile.writeBytes(audioBytes)
                             downloadedFiles[index] = cacheFile.absolutePath
-                            Log.d("TTS", "Successfully downloaded Google Cloud keyless sentence $index: ${cacheFile.length()} bytes")
+                            Log.d("TTS", "Successfully downloaded keyless Google Cloud sentence $index: ${cacheFile.length()} bytes")
                             if (!hasResumed) {
                                 hasResumed = true
                                 continuation.resume(true)
                             }
                         } else {
-                            Log.e("TTS", "Empty audio response from Google Cloud keyless API")
+                            Log.e("TTS", "Empty audio response from keyless Google Cloud API")
                             downloadedFiles[index] = "FAILED"
                             if (!hasResumed) {
                                 hasResumed = true
@@ -1695,7 +1948,7 @@ class TextToSpeechService : Service(), TextToSpeech.OnInitListener {
                             }
                         }
                     } catch (e: Exception) {
-                        Log.e("TTS", "Error processing Google Cloud keyless audio response: ${e.message}", e)
+                        Log.e("TTS", "Error processing keyless Google Cloud audio: ${e.message}", e)
                         downloadedFiles[index] = "FAILED"
                         if (!hasResumed) {
                             hasResumed = true
@@ -1705,11 +1958,8 @@ class TextToSpeechService : Service(), TextToSpeech.OnInitListener {
                 }
             }
         })
-
-        continuation.invokeOnCancellation {
-            // Cancel call if job cancelled
-        }
     }
+
 
     private fun preprocessTextForTts(text: String): String {
         var result = text

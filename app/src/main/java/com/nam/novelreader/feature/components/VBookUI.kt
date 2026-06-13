@@ -420,7 +420,12 @@ fun VBookSettingsDivider() {
     )
 }
 
-
+// Percent-encode non-ASCII chars (e.g. Vietnamese slugs) so OkHttp accepts the URL as a header value.
+private fun String.toAsciiUrl(): String = try {
+    java.net.URI(this).toASCIIString()
+} catch (_: Exception) {
+    this.filter { it.code < 128 }
+}
 
 @androidx.compose.runtime.Composable
 fun buildNovelImageRequest(novel: com.nam.novelreader.domain.model.Novel): coil.request.ImageRequest {
@@ -435,7 +440,7 @@ fun buildNovelImageRequest(novel: com.nam.novelreader.domain.model.Novel): coil.
             builder.addHeader("X-Extension-Id", novel.extensionId)
         }
         if (novel.url.isNotBlank()) {
-            builder.addHeader("Referer", novel.url)
+            builder.addHeader("Referer", novel.url.toAsciiUrl())
         }
         builder.build()
     }
@@ -454,7 +459,7 @@ fun buildNovelImageRequest(novel: com.nam.novelreader.data.local.entity.NovelEnt
             builder.addHeader("X-Extension-Id", novel.extensionId)
         }
         if (novel.url.isNotBlank()) {
-            builder.addHeader("Referer", novel.url)
+            builder.addHeader("Referer", novel.url.toAsciiUrl())
         }
         builder.build()
     }
@@ -473,7 +478,7 @@ fun buildNovelImageRequest(recentNovel: com.nam.novelreader.data.local.dao.Recen
             builder.addHeader("X-Extension-Id", recentNovel.extensionId)
         }
         if (!recentNovel.novelUrl.isNullOrBlank()) {
-            builder.addHeader("Referer", recentNovel.novelUrl)
+            builder.addHeader("Referer", recentNovel.novelUrl.toAsciiUrl())
         }
         builder.build()
     }

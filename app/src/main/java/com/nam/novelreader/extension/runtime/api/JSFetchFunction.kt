@@ -156,8 +156,9 @@ object JSFetchFunction {
                 headersBuilder.add("User-Agent", defaultUa)
             }
 
-            // Không thêm X-Extension-Id — VBook gốc không thêm (API reject header lạ → 422)
-
+            // Thêm X-Extension-Id để AppModule nhận diện và định tuyến qua OkHttp bypass Cronet
+            headersBuilder.set("X-Extension-Id", extensionId)
+            
             val request = Request.Builder()
                 .url(urlBuilder.build())
                 .headers(headersBuilder.build())

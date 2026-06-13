@@ -973,11 +973,36 @@ fun ExtensionDetailSheetContent(
     var searchQuery by remember { mutableStateOf("") }
     val keyboardController = LocalSoftwareKeyboardController.current
 
-    val filteredExtensions = remember(searchQuery, installedExtensions) {
-        if (searchQuery.isBlank()) {
+    var selectedFilter by remember { mutableStateOf("Tất cả") }
+    val filters = listOf("Tất cả", "Truyện chữ", "Truyện chữ Trung", "Truyện tranh", "Phim")
+
+    val typeFilteredExtensions = remember(installedExtensions, selectedFilter) {
+        if (selectedFilter == "Tất cả") {
             installedExtensions
         } else {
-            installedExtensions.filter {
+            installedExtensions.filter { ext ->
+                val type = (ext.type ?: "").lowercase(java.util.Locale.ROOT)
+                val localeStr = (ext.locale ?: "").lowercase(java.util.Locale.ROOT)
+                val isChinese = type.contains("chinese") || localeStr.startsWith("zh") || localeStr.startsWith("cn") || localeStr == "chi" || localeStr == "zho"
+                val isNovel = type.contains("novel") || type.contains("text")
+                val isComic = type.contains("comic") || type.contains("manga") || type.contains("image")
+                val isVideo = type.contains("video") || type.contains("movie") || type.contains("anime")
+                when (selectedFilter) {
+                    "Truyện chữ" -> isNovel && !isChinese
+                    "Truyện chữ Trung" -> isNovel && isChinese
+                    "Truyện tranh" -> isComic
+                    "Phim" -> isVideo
+                    else -> true
+                }
+            }
+        }
+    }
+
+    val filteredExtensions = remember(searchQuery, typeFilteredExtensions) {
+        if (searchQuery.isBlank()) {
+            typeFilteredExtensions
+        } else {
+            typeFilteredExtensions.filter {
                 it.name.contains(searchQuery, ignoreCase = true) ||
                 it.source.contains(searchQuery, ignoreCase = true)
             }
@@ -1000,6 +1025,39 @@ fun ExtensionDetailSheetContent(
             .background(themeCard)
     ) {
         Spacer(modifier = Modifier.height(12.dp))
+
+        // Hàng Filter Chips ngang để phân loại tiện ích
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState())
+                .padding(horizontal = 12.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            filters.forEach { filter ->
+                FilterChip(
+                    selected = selectedFilter == filter,
+                    onClick = { selectedFilter = filter },
+                    label = { Text(filter, fontSize = 12.sp) },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = themePrimary.copy(alpha = 0.15f),
+                        selectedLabelColor = themePrimary,
+                        containerColor = themeBg.copy(alpha = 0.05f),
+                        labelColor = themeSubText
+                    ),
+                    border = FilterChipDefaults.filterChipBorder(
+                        enabled = true,
+                        selected = selectedFilter == filter,
+                        borderColor = themeSubText.copy(alpha = 0.1f),
+                        selectedBorderColor = themePrimary.copy(alpha = 0.3f),
+                        borderWidth = 1.dp,
+                        selectedBorderWidth = 1.dp
+                    )
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(4.dp))
 
         // List Section
         LazyColumn(

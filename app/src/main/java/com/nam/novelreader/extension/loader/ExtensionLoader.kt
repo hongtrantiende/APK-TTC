@@ -92,8 +92,8 @@ class ExtensionLoader @Inject constructor(
                         path = "file:///android_asset/extensions/$folderName",
                         icon = if (hasIcon) "file:///android_asset/extensions/$folderName/icon.png" else "",
                         description = meta.description,
-                        type = meta.type,
-                        locale = meta.locale,
+                        type = getNormalizedType(meta.name, meta.source, meta.type),
+                        locale = getNormalizedLocale(meta.name, meta.source, meta.locale),
                     )
                 } catch (e: Exception) {
                     Log.w(TAG, "Skipped extension folder: $folderName — ${e.message}")
@@ -237,6 +237,7 @@ class ExtensionLoader @Inject constructor(
 
             // 5. Lưu vào database
             val normalizedType = getNormalizedType(info.name, info.source, info.type)
+            val normalizedLocale = getNormalizedLocale(info.name, info.source, info.locale)
             extensionDao.insert(
                 ExtensionEntity(
                     id = extId,
@@ -245,7 +246,7 @@ class ExtensionLoader @Inject constructor(
                     version = info.version.toInt(),
                     source = info.source,
                     type = normalizedType,
-                    locale = info.locale,
+                    locale = normalizedLocale,
                     description = info.description,
                     localPath = extDir.absolutePath,
                     iconPath = iconPath,
@@ -412,13 +413,74 @@ class ExtensionLoader @Inject constructor(
             val installed = extensionDao.getEnabledExtensions()
             for (ext in installed) {
                 val newType = getNormalizedType(ext.name, ext.source, ext.type)
-                if (newType != ext.type) {
-                    extensionDao.insert(ext.copy(type = newType))
-                    Log.d(TAG, "Auto-fixed type for installed extension: ${ext.name} [${ext.type} -> $newType]")
+                val newLocale = getNormalizedLocale(ext.name, ext.source, ext.locale)
+                if (newType != ext.type || newLocale != ext.locale) {
+                    extensionDao.insert(ext.copy(type = newType, locale = newLocale))
+                    Log.d(TAG, "Auto-fixed extension: ${ext.name} [type: ${ext.type} -> $newType, locale: ${ext.locale} -> $newLocale]")
                 }
             }
         } catch (e: Throwable) {
             Log.e(TAG, "Failed to auto-fix extension types: ${e.message}", e)
+        }
+    }
+
+    private fun getNormalizedLocale(name: String, source: String, currentLocale: String): String {
+        val cleanName = name.lowercase(java.util.Locale.ROOT)
+        val cleanSource = source.lowercase(java.util.Locale.ROOT)
+        val hasChineseChar = name.any { it.code in 0x4E00..0x9FFF }
+        
+        val isChinese = currentLocale.startsWith("zh", ignoreCase = true) || 
+                        currentLocale.startsWith("cn", ignoreCase = true) ||
+                        currentLocale.equals("chi", ignoreCase = true) ||
+                        currentLocale.equals("zho", ignoreCase = true) ||
+                        hasChineseChar ||
+                        cleanSource.contains(".cn") ||
+                        cleanSource.contains("69shu") ||
+                        cleanSource.contains("biquge") ||
+                        cleanSource.contains("qimao") ||
+                        cleanSource.contains("sfacg") ||
+                        cleanSource.contains("faloo") ||
+                        cleanSource.contains("tadu") ||
+                        cleanSource.contains("piaotian") ||
+                        cleanSource.contains("uukanshu") ||
+                        cleanSource.contains("hetushu") ||
+                        cleanSource.contains("wenku8") ||
+                        cleanSource.contains("bixiange") ||
+                        cleanSource.contains("uuks") ||
+                        cleanSource.contains("shuku") ||
+                        cleanSource.contains("sjks") ||
+                        cleanSource.contains("po18") ||
+                        cleanSource.contains("twkan") ||
+                        cleanSource.contains("ranwen") ||
+                        cleanSource.contains("bqg") ||
+                        cleanSource.contains("fanqie") ||
+                        cleanSource.contains("zhihu") ||
+                        cleanSource.contains("qq.com") ||
+                        cleanSource.contains("ixunshu") ||
+                        cleanSource.contains("gongzicp") ||
+                        cleanSource.contains("shubl") ||
+                        cleanSource.contains("20xs") ||
+                        cleanSource.contains("trxs") ||
+                        cleanSource.contains("baozimh") ||
+                        cleanSource.contains("wnacg") ||
+                        cleanSource.contains("dmxs") ||
+                        cleanSource.contains("xbanxia") ||
+                        cleanSource.contains("czbooks") ||
+                        cleanSource.contains("xianqihaotianmi") ||
+                        cleanSource.contains("tushumi")
+
+        val isVietnameseTranslate = cleanSource.contains("sangtacviet") || 
+                                    cleanSource.contains("14.225.254.182") || 
+                                    cleanName.contains("stv") ||
+                                    cleanSource.contains("metruyencv") || 
+                                    cleanName.contains("mtc") ||
+                                    cleanSource.contains("truyen35") ||
+                                    cleanName.contains("truyện 35")
+
+        return if (isChinese && !isVietnameseTranslate) {
+            "zh_CN"
+        } else {
+            currentLocale
         }
     }
 
