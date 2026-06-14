@@ -433,9 +433,12 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             val result = withContext(Dispatchers.IO) {
                 try {
-                    val novels = novelDao.getLibraryNovelsSync()
+                    val allNovels = novelDao.getLibraryNovelsSync()
+                    val novels = allNovels.filter { novel ->
+                        chapterDao.getChaptersForNovelSync(novel.url).any { it.isDownloaded && (!it.content.isNullOrBlank() || !it.images.isNullOrBlank()) }
+                    }
                     if (novels.isEmpty()) {
-                        return@withContext Result.failure(Exception("Không có truyện nào trong thư viện để đồng bộ!"))
+                        return@withContext Result.failure(Exception("Không có truyện nào có chương đã tải để đồng bộ!"))
                     }
                     
                     var successCount = 0
@@ -549,9 +552,7 @@ class HomeViewModel @Inject constructor(
                                             addedToLibraryAt = System.currentTimeMillis()
                                         )
                                         
-                                        novelDao.insert(novelEntity)
-                                        
-                                        val contentMap = mutableMapOf<String, String>()
+                        val contentMap = mutableMapOf<String, String>()
                                         for (i in 0 until scenesJson.length()) {
                                             val scene = scenesJson.getJSONObject(i)
                                             val chapterId = scene.getString("chapterId")
@@ -568,6 +569,30 @@ class HomeViewModel @Inject constructor(
                                             val chNovelUrl = chJson.optString("novelUrl").ifBlank { url }
                                             val content = contentMap[chId] ?: ""
                                             
+                                            val contentType = chJson.optString("contentType", "novel")
+                                            val imagesJsonArray = chJson.optJSONArray("images")
+                                            var images: String? = null
+                                            if (imagesJsonArray != null) {
+                                                images = imagesJsonArray.toString()
+                                            }
+                                            
+                                            var finalContentType = contentType
+                                            var finalImages = images
+                                            if (finalImages.isNullOrBlank() && content.isNotBlank()) {
+                                                val urls = mutableListOf<String>()
+                                                val matcher = java.util.regex.Pattern.compile("!\\s*\\[\\s*\\]\\s*\\((.*?)\\)").matcher(content)
+                                                while (matcher.find()) {
+                                                    val imgUrl = matcher.group(1)
+                                                    if (!imgUrl.isNullOrBlank()) {
+                                                        urls.add(imgUrl)
+                                                    }
+                                                }
+                                                if (urls.isNotEmpty()) {
+                                                    finalImages = org.json.JSONArray(urls).toString()
+                                                    finalContentType = "comic"
+                                                }
+                                            }
+                                            
                                             chapterEntities.add(
                                                 ChapterEntity(
                                                     url = chUrl,
@@ -575,6 +600,8 @@ class HomeViewModel @Inject constructor(
                                                     title = title,
                                                     index = order,
                                                     content = content,
+                                                    contentType = finalContentType,
+                                                    images = finalImages,
                                                     isDownloaded = true,
                                                     downloadedAt = System.currentTimeMillis()
                                                 )
