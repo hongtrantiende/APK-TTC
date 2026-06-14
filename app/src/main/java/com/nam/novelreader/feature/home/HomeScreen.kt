@@ -85,6 +85,7 @@ class HomeViewModel @Inject constructor(
     private val repository: NovelRepository,
     private val chapterDao: ChapterDao,
     private val extensionDao: ExtensionDao,
+    val extensionLoader: com.nam.novelreader.extension.loader.ExtensionLoader,
 ) : ViewModel() {
     init {
         viewModelScope.launch(Dispatchers.IO) {
@@ -118,6 +119,8 @@ class HomeViewModel @Inject constructor(
     val allHistory: Flow<List<com.nam.novelreader.data.local.entity.ReadingHistoryEntity>> = readingHistoryDao.getRecentHistory(500)
 
     val downloadTasks: Flow<List<com.nam.novelreader.data.local.entity.DownloadTaskEntity>> = repository.getAllDownloadTasks()
+    
+    val downloadedCounts: Flow<List<com.nam.novelreader.data.local.dao.NovelDownloadedCount>> = chapterDao.getDownloadedCounts()
 
     fun clearHistory() {
         viewModelScope.launch {
@@ -262,6 +265,154 @@ class HomeViewModel @Inject constructor(
         }
     }
 
+    fun uploadNovelToWarehouse(
+        context: android.content.Context, 
+        novelUrl: String, 
+        googleDriveBackupManager: com.nam.novelreader.data.network.GoogleDriveBackupManager, 
+        onProgress: (Boolean) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            onProgress(true)
+            val result = withContext(Dispatchers.IO) {
+                try {
+                    val novel = novelDao.getNovelByUrl(novelUrl) ?: return@withContext Result.failure(Exception("Không tìm thấy truyện trong DB"))
+                    val chapters = chapterDao.getChaptersForNovelSync(novelUrl).filter { it.isDownloaded && (!it.content.isNullOrBlank() || !it.images.isNullOrBlank()) }
+                    if (chapters.isEmpty()) {
+                        return@withContext Result.failure(Exception("Không có chương truyện nào được tải offline!"))
+                    }
+                    googleDriveBackupManager.uploadNovelToWarehouse(novel, chapters)
+                } catch (e: Exception) {
+                    Result.failure(e)
+                }
+            }
+            onProgress(false)
+            withContext(Dispatchers.Main) {
+                if (result.isSuccess) {
+                    android.widget.Toast.makeText(context, "Đã đồng bộ lên Kho chung thành công!", android.widget.Toast.LENGTH_SHORT).show()
+                } else {
+                    android.widget.Toast.makeText(context, "Lỗi đồng bộ Kho chung: ${result.exceptionOrNull()?.message}", android.widget.Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    }
+
+    fun importNovelFromBackupJson(
+        jsonStr: String,
+        onResult: (Result<Unit>) -> Unit
+    ) {
+        viewModelScope.launch {
+            val result = withContext(Dispatchers.IO) {
+                try {
+                    val jsonObj = org.json.JSONObject(jsonStr)
+                    val novelJson = jsonObj.getJSONObject("novel")
+                    val chaptersJson = jsonObj.getJSONArray("chapters")
+                    val scenesJson = jsonObj.getJSONArray("scenes")
+                    
+                    val url = novelJson.optString("url").ifBlank {
+                        novelJson.optString("id")
+                    }
+                    val extensionId = novelJson.optString("extensionId", "")
+                    
+                    val genresList = mutableListOf<String>()
+                    val genresJson = novelJson.optJSONArray("genres")
+                    if (genresJson != null) {
+                        for (i in 0 until genresJson.length()) {
+                            genresList.add(genresJson.getString(i))
+                        }
+                    }
+                    
+                    val novelEntity = NovelEntity(
+                        url = url,
+                        title = novelJson.getString("title"),
+                        author = novelJson.optString("author", ""),
+                        cover = novelJson.optString("cover", ""),
+                        description = novelJson.optString("synopsis", ""),
+                        genres = genresList.toString(),
+                        status = novelJson.optString("status", ""),
+                        type = novelJson.optString("type", "novel"),
+                        extensionId = extensionId,
+                        totalChapters = chaptersJson.length(),
+                        isInLibrary = true,
+                        lastReadAt = System.currentTimeMillis(),
+                        addedToLibraryAt = System.currentTimeMillis()
+                    )
+                    
+                    novelDao.insert(novelEntity)
+                    
+                    val contentMap = mutableMapOf<String, String>()
+                    for (i in 0 until scenesJson.length()) {
+                        val scene = scenesJson.getJSONObject(i)
+                        val chapterId = scene.getString("chapterId")
+                        val content = scene.optString("content", "")
+                        contentMap[chapterId] = content
+                    }
+                    
+                    val chapterEntities = mutableListOf<ChapterEntity>()
+                    for (i in 0 until chaptersJson.length()) {
+                        val chJson = chaptersJson.getJSONObject(i)
+                        val chId = chJson.getString("id")
+                        val title = chJson.getString("title")
+                        val order = chJson.getInt("order")
+                        
+                        val chUrl = chJson.optString("url").ifBlank { chId }
+                        val chNovelUrl = chJson.optString("novelUrl").ifBlank { url }
+                        
+                        val content = contentMap[chId] ?: ""
+                        
+                        // Đọc contentType và images trực tiếp từ JSON
+                        val contentType = chJson.optString("contentType", "novel")
+                        val imagesJsonArray = chJson.optJSONArray("images")
+                        var images: String? = null
+                        if (imagesJsonArray != null) {
+                            images = imagesJsonArray.toString()
+                        }
+                        
+                        // Fallback thông minh: Tự động trích xuất ảnh nếu content chứa markdown link
+                        var finalContentType = contentType
+                        var finalImages = images
+                        if (finalImages.isNullOrBlank() && content.isNotBlank()) {
+                            val urls = mutableListOf<String>()
+                            val matcher = java.util.regex.Pattern.compile("!\\s*\\[\\s*\\]\\s*\\((.*?)\\)").matcher(content)
+                            while (matcher.find()) {
+                                val imgUrl = matcher.group(1)
+                                if (!imgUrl.isNullOrBlank()) {
+                                    urls.add(imgUrl)
+                                }
+                            }
+                            if (urls.isNotEmpty()) {
+                                finalImages = org.json.JSONArray(urls).toString()
+                                finalContentType = "comic"
+                            }
+                        }
+                        
+                        chapterEntities.add(
+                            ChapterEntity(
+                                url = chUrl,
+                                novelUrl = chNovelUrl,
+                                title = title,
+                                index = order,
+                                content = content,
+                                contentType = finalContentType,
+                                images = finalImages,
+                                isDownloaded = true,
+                                downloadedAt = System.currentTimeMillis()
+                            )
+                        )
+                    }
+                    
+                    if (chapterEntities.isNotEmpty()) {
+                        chapterDao.insertAll(chapterEntities)
+                    }
+                    
+                    Result.success(Unit)
+                } catch (e: Exception) {
+                    Result.failure(e)
+                }
+            }
+            onResult(result)
+        }
+    }
+
     fun updateNovelMetadata(novel: NovelEntity, newTitle: String, newAuthor: String, newCover: String) {
         viewModelScope.launch {
             val updatedNovel = novel.copy(
@@ -272,6 +423,205 @@ class HomeViewModel @Inject constructor(
             novelDao.update(updatedNovel)
         }
     }
+
+    fun uploadAllNovelsToWarehouse(
+        context: android.content.Context,
+        googleDriveBackupManager: com.nam.novelreader.data.network.GoogleDriveBackupManager,
+        onProgress: (String) -> Unit,
+        onFinish: (Int, Int) -> Unit
+    ) {
+        viewModelScope.launch {
+            val result = withContext(Dispatchers.IO) {
+                try {
+                    val novels = novelDao.getLibraryNovelsSync()
+                    if (novels.isEmpty()) {
+                        return@withContext Result.failure(Exception("Không có truyện nào trong thư viện để đồng bộ!"))
+                    }
+                    
+                    var successCount = 0
+                    var failCount = 0
+                    
+                    novels.forEachIndexed { index, novel ->
+                        val progressMsg = "Đang đồng bộ (${index + 1}/${novels.size}): ${novel.title}"
+                        withContext(Dispatchers.Main) {
+                            onProgress(progressMsg)
+                        }
+                        
+                        try {
+                            val chapters = chapterDao.getChaptersForNovelSync(novel.url)
+                                .filter { it.isDownloaded && (!it.content.isNullOrBlank() || !it.images.isNullOrBlank()) }
+                            
+                            if (chapters.isNotEmpty()) {
+                                val uploadRes = googleDriveBackupManager.uploadNovelToWarehouse(novel, chapters)
+                                if (uploadRes.isSuccess) {
+                                    successCount++
+                                } else {
+                                    failCount++
+                                    android.util.Log.e("HomeViewModel", "Lỗi upload truyện ${novel.title}: ${uploadRes.exceptionOrNull()?.message}")
+                                }
+                            }
+                        } catch (e: Exception) {
+                            failCount++
+                            android.util.Log.e("HomeViewModel", "Lỗi xử lý truyện ${novel.title}: ${e.message}")
+                        }
+                    }
+                    Result.success(Pair(successCount, failCount))
+                } catch (e: Exception) {
+                    Result.failure(e)
+                }
+            }
+            
+            withContext(Dispatchers.Main) {
+                if (result.isSuccess) {
+                    val counts = result.getOrNull() ?: Pair(0, 0)
+                    onFinish(counts.first, counts.second)
+                } else {
+                    Toast.makeText(context, "Lỗi đồng bộ hàng loạt: ${result.exceptionOrNull()?.message}", Toast.LENGTH_LONG).show()
+                    onFinish(0, 0)
+                }
+            }
+        }
+    }
+
+    fun downloadAllNovelsFromWarehouse(
+        context: android.content.Context,
+        googleDriveBackupManager: com.nam.novelreader.data.network.GoogleDriveBackupManager,
+        onProgress: (String) -> Unit,
+        onFinish: (Int, Int) -> Unit
+    ) {
+        viewModelScope.launch {
+            val result = withContext(Dispatchers.IO) {
+                try {
+                    val listRes = googleDriveBackupManager.listUserNovels()
+                    if (!listRes.isSuccess) {
+                        return@withContext Result.failure(listRes.exceptionOrNull() ?: Exception("Không thể lấy danh sách truyện trên Drive"))
+                    }
+                    val driveNovels = listRes.getOrNull() ?: emptyList()
+                    if (driveNovels.isEmpty()) {
+                        return@withContext Result.failure(Exception("Không tìm thấy tệp truyện nào trên Drive."))
+                    }
+                    
+                    var successCount = 0
+                    var failCount = 0
+                    
+                    driveNovels.forEachIndexed { index, (fileId, fileName) ->
+                        val displayName = fileName.substringBeforeLast(".json")
+                        val progressMsg = "Đang tải (${index + 1}/${driveNovels.size}): $displayName"
+                        withContext(Dispatchers.Main) {
+                            onProgress(progressMsg)
+                        }
+                        
+                        try {
+                            val downloadRes = googleDriveBackupManager.downloadFileContent(fileId)
+                            if (downloadRes.isSuccess) {
+                                val jsonStr = downloadRes.getOrNull() ?: ""
+                                
+                                val importRes = withContext(Dispatchers.IO) {
+                                    try {
+                                        val jsonObj = org.json.JSONObject(jsonStr)
+                                        val novelJson = jsonObj.getJSONObject("novel")
+                                        val chaptersJson = jsonObj.getJSONArray("chapters")
+                                        val scenesJson = jsonObj.getJSONArray("scenes")
+                                        
+                                        val url = novelJson.optString("url").ifBlank { novelJson.optString("id") }
+                                        val extensionId = novelJson.optString("extensionId", "")
+                                        val genresList = mutableListOf<String>()
+                                        val genresJson = novelJson.optJSONArray("genres")
+                                        if (genresJson != null) {
+                                            for (i in 0 until genresJson.length()) {
+                                                genresList.add(genresJson.getString(i))
+                                            }
+                                        }
+                                        
+                                        val novelEntity = NovelEntity(
+                                            url = url,
+                                            title = novelJson.getString("title"),
+                                            author = novelJson.optString("author", ""),
+                                            cover = novelJson.optString("cover", ""),
+                                            description = novelJson.optString("synopsis", ""),
+                                            genres = genresList.toString(),
+                                            status = novelJson.optString("status", ""),
+                                            type = novelJson.optString("type", "novel"),
+                                            extensionId = extensionId,
+                                            totalChapters = chaptersJson.length(),
+                                            isInLibrary = true,
+                                            lastReadAt = System.currentTimeMillis(),
+                                            addedToLibraryAt = System.currentTimeMillis()
+                                        )
+                                        
+                                        novelDao.insert(novelEntity)
+                                        
+                                        val contentMap = mutableMapOf<String, String>()
+                                        for (i in 0 until scenesJson.length()) {
+                                            val scene = scenesJson.getJSONObject(i)
+                                            val chapterId = scene.getString("chapterId")
+                                            contentMap[chapterId] = scene.optString("content", "")
+                                        }
+                                        
+                                        val chapterEntities = mutableListOf<ChapterEntity>()
+                                        for (i in 0 until chaptersJson.length()) {
+                                            val chJson = chaptersJson.getJSONObject(i)
+                                            val chId = chJson.getString("id")
+                                            val title = chJson.getString("title")
+                                            val order = chJson.getInt("order")
+                                            val chUrl = chJson.optString("url").ifBlank { chId }
+                                            val chNovelUrl = chJson.optString("novelUrl").ifBlank { url }
+                                            val content = contentMap[chId] ?: ""
+                                            
+                                            chapterEntities.add(
+                                                ChapterEntity(
+                                                    url = chUrl,
+                                                    novelUrl = chNovelUrl,
+                                                    title = title,
+                                                    index = order,
+                                                    content = content,
+                                                    isDownloaded = true,
+                                                    downloadedAt = System.currentTimeMillis()
+                                                )
+                                            )
+                                        }
+                                        if (chapterEntities.isNotEmpty()) {
+                                            chapterDao.insertAll(chapterEntities)
+                                        }
+                                        Result.success(Unit)
+                                    } catch (e: Exception) {
+                                        Result.failure(e)
+                                    }
+                                }
+                                
+                                if (importRes.isSuccess) {
+                                    successCount++
+                                } else {
+                                    failCount++
+                                    android.util.Log.e("HomeViewModel", "Lỗi import truyện $displayName: ${importRes.exceptionOrNull()?.message}")
+                                }
+                            } else {
+                                failCount++
+                                android.util.Log.e("HomeViewModel", "Lỗi tải truyện $displayName: ${downloadRes.exceptionOrNull()?.message}")
+                            }
+                        } catch (e: Exception) {
+                            failCount++
+                            android.util.Log.e("HomeViewModel", "Lỗi tải hàng loạt truyện $displayName: ${e.message}")
+                        }
+                    }
+                    Result.success(Pair(successCount, failCount))
+                } catch (e: Exception) {
+                    Result.failure(e)
+                }
+            }
+            
+            withContext(Dispatchers.Main) {
+                if (result.isSuccess) {
+                    val counts = result.getOrNull() ?: Pair(0, 0)
+                    onFinish(counts.first, counts.second)
+                } else {
+                    Toast.makeText(context, "Lỗi nhập hàng loạt: ${result.exceptionOrNull()?.message}", Toast.LENGTH_LONG).show()
+                    onFinish(0, 0)
+                }
+            }
+        }
+    }
+
 
     private fun parseLocalEpub(inputStream: java.io.InputStream): Pair<String, List<Pair<String, String>>> {
         val chapters = mutableListOf<Pair<String, String>>()
@@ -588,15 +938,17 @@ fun HomeScreen(
     val googleDriveBackupManager = remember { entryPoint.googleDriveBackupManager() }
     
     var isVip by remember { mutableStateOf(appPrefs.isVip()) }
-    DisposableEffect(appPrefs.prefs) {
-        val listener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+    val vipListener = remember {
+        android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
             if (key == "vip_expiry_timestamp") {
                 isVip = appPrefs.isVip()
             }
         }
-        appPrefs.prefs.registerOnSharedPreferenceChangeListener(listener)
+    }
+    DisposableEffect(appPrefs.prefs, vipListener) {
+        appPrefs.prefs.registerOnSharedPreferenceChangeListener(vipListener)
         onDispose {
-            appPrefs.prefs.unregisterOnSharedPreferenceChangeListener(listener)
+            appPrefs.prefs.unregisterOnSharedPreferenceChangeListener(vipListener)
         }
     }
 
@@ -609,6 +961,13 @@ fun HomeScreen(
     var showDevModeDialog by remember { mutableStateOf(false) }
     var showCloudSyncDialog by remember { mutableStateOf(false) }
     var isCloudSyncing by remember { mutableStateOf(false) }
+    var syncProgressMessage by remember { mutableStateOf("Đang đồng bộ dữ liệu...") }
+    var showSyncDownloadedDialog by remember { mutableStateOf(false) }
+    var driveNovels by remember { mutableStateOf<List<Pair<String, String>>>(emptyList()) }
+    var isLoadingDriveNovels by remember { mutableStateOf(false) }
+    var isSyncingNovelId by remember { mutableStateOf<String?>(null) }
+    var isBulkDownloading by remember { mutableStateOf(false) }
+    var bulkDownloadProgress by remember { mutableStateOf("") }
 
     val filePickerLauncher = rememberLauncherForActivityResult(
         contract = androidx.activity.result.contract.ActivityResultContracts.GetContent()
@@ -633,18 +992,32 @@ fun HomeScreen(
     var displayName by remember { mutableStateOf(prefs.getString("user_display_name", "") ?: "") }
     var email by remember { mutableStateOf(appPrefs.supabaseUserEmail) }
 
-    DisposableEffect(prefs) {
-        val listener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+    var followedUrls by remember {
+        mutableStateOf(appPrefs.followedNovels.map { it.split("|").getOrNull(1) ?: "" }.filter { it.isNotEmpty() }.toSet())
+    }
+
+    var followedNovelsRaw by remember {
+        mutableStateOf(appPrefs.followedNovels)
+    }
+
+    val prefsListener = remember {
+        android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
             if (key == "user_avatar_path" || key == "supabase_is_logged_in" || key == "user_display_name" || key == "supabase_user_email") {
                 userAvatarPath = appPrefs.userAvatarPath
                 isLoggedIn = appPrefs.supabaseIsLoggedIn
                 displayName = prefs.getString("user_display_name", "") ?: ""
                 email = appPrefs.supabaseUserEmail
             }
+            if (key == "followed_novels") {
+                followedUrls = appPrefs.followedNovels.map { it.split("|").getOrNull(1) ?: "" }.filter { it.isNotEmpty() }.toSet()
+                followedNovelsRaw = appPrefs.followedNovels
+            }
         }
-        prefs.registerOnSharedPreferenceChangeListener(listener)
+    }
+    DisposableEffect(prefs, prefsListener) {
+        prefs.registerOnSharedPreferenceChangeListener(prefsListener)
         onDispose {
-            prefs.unregisterOnSharedPreferenceChangeListener(listener)
+            prefs.unregisterOnSharedPreferenceChangeListener(prefsListener)
         }
     }
 
@@ -671,12 +1044,14 @@ fun HomeScreen(
         urls
     }
     
+    val downloadedCounts by viewModel.downloadedCounts.collectAsStateWithLifecycle(initialValue = emptyList())
+    val downloadedCountMap = remember(downloadedCounts) {
+        downloadedCounts.associate { it.novelUrl to it.count }
+    }
+    
     val pagerState = rememberPagerState(initialPage = 0, pageCount = { 6 })
     val selectedFilter by remember { derivedStateOf { pagerState.currentPage } }
     var selectedSubFilter by remember { mutableIntStateOf(0) } // Theo dõi sub: 0 = Đang theo dõi, 1 = Chưa theo dõi
-    var followedUrls by remember {
-        mutableStateOf(prefs.getStringSet("followed_novel_urls", emptySet()) ?: emptySet())
-    }
     var selectedNovelForAction by remember { mutableStateOf<NovelEntity?>(null) }
 
     var showBottomSheet by remember { mutableStateOf(false) }
@@ -760,8 +1135,21 @@ fun HomeScreen(
     }
 
     // Phân loại nhóm theo dõi
-    val followedNovels = remember(sortedLibrary, followedUrls) {
-        sortedLibrary.filter { followedUrls.contains(it.url) }
+    val followedNovels = remember(allNovels, followedNovelsRaw) {
+        val allNovelsMap = allNovels.associateBy { it.url }
+        followedNovelsRaw.mapNotNull { followStr ->
+            val parts = followStr.split("|")
+            val extId = parts.getOrNull(0) ?: return@mapNotNull null
+            val url = parts.getOrNull(1) ?: return@mapNotNull null
+            val title = parts.getOrNull(2) ?: ""
+            
+            allNovelsMap[url] ?: NovelEntity(
+                url = url,
+                title = title,
+                extensionId = extId,
+                isInLibrary = false
+            )
+        }
     }
     val unfollowedNovels = remember(sortedLibrary, followedUrls) {
         sortedLibrary.filter { !followedUrls.contains(it.url) }
@@ -822,6 +1210,11 @@ fun HomeScreen(
                     // Filter
                     IconButton(onClick = { showBottomSheet = true }, modifier = Modifier.size(36.dp)) {
                         Icon(Icons.Filled.FilterList, contentDescription = "Bộ lọc", tint = com.nam.novelreader.feature.components.VBookTheme.textColor(), modifier = Modifier.size(20.dp))
+                    }
+                    
+                    // Cloud Sync
+                    IconButton(onClick = { showCloudSyncDialog = true }, modifier = Modifier.size(36.dp)) {
+                        Icon(Icons.Filled.CloudSync, contentDescription = "Đồng bộ đám mây", tint = com.nam.novelreader.feature.components.VBookTheme.textColor(), modifier = Modifier.size(20.dp))
                     }
                     
                     // Avatar
@@ -1133,6 +1526,8 @@ fun HomeScreen(
                                             showTotal = showTotalChapters,
                                             isDownloaded = downloadedNovelUrls.contains(novel.url),
                                             currentReadChapter = readProgressMap[novel.url] ?: 0,
+                                            isDownloadedTab = false,
+                                            downloadedCount = downloadedCountMap[novel.url] ?: 0,
                                             onClick = {
                                                 navController.navigate(Routes.detail(novel.extensionId, novel.url))
                                             },
@@ -1155,6 +1550,8 @@ fun HomeScreen(
                                             showTotal = showTotalChapters,
                                             isDownloaded = downloadedNovelUrls.contains(novel.url),
                                             currentReadChapter = readProgressMap[novel.url] ?: 0,
+                                            isDownloadedTab = false,
+                                            downloadedCount = downloadedCountMap[novel.url] ?: 0,
                                             onClick = {
                                                 navController.navigate(Routes.detail(novel.extensionId, novel.url))
                                             },
@@ -1250,6 +1647,8 @@ fun HomeScreen(
                                         showTotal = showTotalChapters,
                                         isDownloaded = downloadedNovelUrls.contains(novel.url),
                                         currentReadChapter = readProgressMap[novel.url] ?: 0,
+                                        isDownloadedTab = true,
+                                        downloadedCount = downloadedCountMap[novel.url] ?: 0,
                                         onClick = {
                                             navController.navigate(Routes.detail(novel.extensionId, novel.url))
                                         },
@@ -1272,6 +1671,8 @@ fun HomeScreen(
                                         showTotal = showTotalChapters,
                                         isDownloaded = downloadedNovelUrls.contains(novel.url),
                                         currentReadChapter = readProgressMap[novel.url] ?: 0,
+                                        isDownloadedTab = true,
+                                        downloadedCount = downloadedCountMap[novel.url] ?: 0,
                                         onClick = {
                                             navController.navigate(Routes.detail(novel.extensionId, novel.url))
                                         },
@@ -1348,6 +1749,8 @@ fun HomeScreen(
                                         showTotal = showTotalChapters,
                                         isDownloaded = downloadedNovelUrls.contains(novel.url),
                                         currentReadChapter = readProgressMap[novel.url] ?: 0,
+                                        isDownloadedTab = false,
+                                        downloadedCount = downloadedCountMap[novel.url] ?: 0,
                                         onClick = {
                                             navController.navigate(Routes.detail(novel.extensionId, novel.url))
                                         },
@@ -1370,6 +1773,8 @@ fun HomeScreen(
                                         showTotal = showTotalChapters,
                                         isDownloaded = downloadedNovelUrls.contains(novel.url),
                                         currentReadChapter = readProgressMap[novel.url] ?: 0,
+                                        isDownloadedTab = false,
+                                        downloadedCount = downloadedCountMap[novel.url] ?: 0,
                                         onClick = {
                                             navController.navigate(Routes.detail(novel.extensionId, novel.url))
                                         },
@@ -1629,10 +2034,7 @@ fun HomeScreen(
                                         novel = novel,
                                         isFollowed = true,
                                         onToggleFollow = {
-                                            val updated = followedUrls.toMutableSet()
-                                            updated.remove(novel.url)
-                                            followedUrls = updated
-                                            prefs.edit().putStringSet("followed_novel_urls", updated).apply()
+                                            appPrefs.unfollowNovel(novel.url)
                                         },
                                         onClick = {
                                             navController.navigate(Routes.detail(novel.extensionId, novel.url))
@@ -1663,10 +2065,7 @@ fun HomeScreen(
                                         novel = novel,
                                         isFollowed = false,
                                         onToggleFollow = {
-                                            val updated = followedUrls.toMutableSet()
-                                            updated.add(novel.url)
-                                            followedUrls = updated
-                                            prefs.edit().putStringSet("followed_novel_urls", updated).apply()
+                                            appPrefs.followNovel(novel.extensionId, novel.url, novel.title)
                                         },
                                         onClick = {
                                             navController.navigate(Routes.detail(novel.extensionId, novel.url))
@@ -2267,6 +2666,31 @@ fun HomeScreen(
                                     }
                                 }
                             )
+                            ListItem(
+                                headlineContent = { 
+                                    Text(
+                                        "Tải lên Kho chung (Drive)", 
+                                        color = if (isDownloaded) com.nam.novelreader.feature.components.VBookTheme.textColor() else com.nam.novelreader.feature.components.VBookTheme.textColor().copy(alpha = 0.5f)
+                                    ) 
+                                },
+                                leadingContent = { 
+                                    Icon(
+                                        Icons.Default.CloudUpload, 
+                                        contentDescription = null, 
+                                        tint = if (isDownloaded) SecondaryAccent else SecondaryAccent.copy(alpha = 0.5f)
+                                    ) 
+                                },
+                                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                                modifier = Modifier.clickable {
+                                    if (isDownloaded) {
+                                        viewModel.uploadNovelToWarehouse(context, novel.url, googleDriveBackupManager)
+                                        showExportMenu = false
+                                        selectedNovelForAction = null
+                                    } else {
+                                        Toast.makeText(context, "Chỉ truyện đã tải offline xong mới có thể đồng bộ lên Kho chung!", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            )
                         }
                     },
                     confirmButton = {
@@ -2303,7 +2727,7 @@ fun HomeScreen(
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 CircularProgressIndicator(color = PrimaryAccent)
                                 Spacer(modifier = Modifier.height(12.dp))
-                                Text("Đang đồng bộ dữ liệu...", color = GreyText, fontSize = 13.sp)
+                                Text(syncProgressMessage, color = GreyText, fontSize = 13.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(horizontal = 16.dp))
                             }
                         }
                     } else {
@@ -2384,10 +2808,26 @@ fun HomeScreen(
                                             val jsonStr = exportToJson(novelsList)
                                             val result = googleDriveBackupManager.backupLibrary(jsonStr)
                                             
+                                            if (result.isSuccess) {
+                                                // Tiến hành sao lưu các extension đã cài đặt
+                                                try {
+                                                    val installedExts = db.extensionDao().getEnabledExtensions()
+                                                    for (ext in installedExts) {
+                                                        val extDir = java.io.File(ext.localPath)
+                                                        if (extDir.exists()) {
+                                                            val zipBytes = googleDriveBackupManager.zipDirectory(extDir)
+                                                            googleDriveBackupManager.uploadUserExtension(ext.id, zipBytes)
+                                                        }
+                                                    }
+                                                } catch (e: Exception) {
+                                                    android.util.Log.e("CloudSync", "Lỗi sao lưu tiện ích: ${e.message}")
+                                                }
+                                            }
+                                            
                                             withContext(Dispatchers.Main) {
                                                 isCloudSyncing = false
                                                 if (result.isSuccess) {
-                                                    Toast.makeText(context, "Đã sao lưu lên Kho chung thành công!", Toast.LENGTH_LONG).show()
+                                                    Toast.makeText(context, "Đã sao lưu tủ sách và tiện ích lên Kho chung!", Toast.LENGTH_LONG).show()
                                                     showCloudSyncDialog = false
                                                 } else {
                                                     Toast.makeText(context, "Sao lưu Kho chung lỗi: ${result.exceptionOrNull()?.message}", Toast.LENGTH_LONG).show()
@@ -2414,6 +2854,27 @@ fun HomeScreen(
                                     isCloudSyncing = true
                                     scope.launch(Dispatchers.IO) {
                                         val result = googleDriveBackupManager.restoreLibrary()
+                                        if (result.isSuccess) {
+                                            // Khôi phục các extension đã sao lưu từ Drive
+                                            try {
+                                                val extResult = googleDriveBackupManager.listUserExtensions()
+                                                if (extResult.isSuccess) {
+                                                    val extIds = extResult.getOrNull() ?: emptyList()
+                                                    for (extId in extIds) {
+                                                        val zipRes = googleDriveBackupManager.downloadUserExtension(extId)
+                                                        if (zipRes.isSuccess) {
+                                                            val zipBytes = zipRes.getOrNull()
+                                                            if (zipBytes != null) {
+                                                                viewModel.extensionLoader.installExtensionFromZip(extId, zipBytes)
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            } catch (e: Exception) {
+                                                android.util.Log.e("CloudSync", "Lỗi khôi phục tiện ích: ${e.message}")
+                                            }
+                                        }
+                                        
                                         withContext(Dispatchers.Main) {
                                             if (result.isSuccess) {
                                                 val jsonStr = result.getOrNull() ?: ""
@@ -2430,7 +2891,7 @@ fun HomeScreen(
                                                         withContext(Dispatchers.Main) {
                                                             isCloudSyncing = false
                                                             showCloudSyncDialog = false
-                                                            Toast.makeText(context, "Khôi phục thành công ${parsedNovels.size} truyện từ Kho chung!", Toast.LENGTH_LONG).show()
+                                                            Toast.makeText(context, "Khôi phục thành công ${parsedNovels.size} truyện và các tiện ích!", Toast.LENGTH_LONG).show()
                                                         }
                                                     } catch (e: Exception) {
                                                         withContext(Dispatchers.Main) {
@@ -2454,12 +2915,218 @@ fun HomeScreen(
                                 Text("Nhập về kho", color = Color.White, fontSize = 13.sp)
                             }
                         }
+                        
+                        Button(
+                            onClick = {
+                                syncProgressMessage = "Đang chuẩn bị thư viện..."
+                                isCloudSyncing = true
+                                viewModel.uploadAllNovelsToWarehouse(
+                                    context = context,
+                                    googleDriveBackupManager = googleDriveBackupManager,
+                                    onProgress = { progress ->
+                                        syncProgressMessage = progress
+                                    },
+                                    onFinish = { success, fail ->
+                                        isCloudSyncing = false
+                                        showCloudSyncDialog = false
+                                        Toast.makeText(context, "Đồng bộ lên Drive xong: Thành công $success, Thất bại $fail bộ truyện", Toast.LENGTH_LONG).show()
+                                    }
+                                )
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(containerColor = SecondaryAccent)
+                        ) {
+                            Icon(Icons.Filled.CloudUpload, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Lưu nhanh tất cả truyện lên Drive", color = Color.White, fontSize = 13.sp)
+                        }
+
+                        Button(
+                            onClick = {
+                                showCloudSyncDialog = false
+                                showSyncDownloadedDialog = true
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(containerColor = SecondaryAccent)
+                        ) {
+                            Icon(Icons.Filled.Sync, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Đồng bộ truyện đã tải từ Drive", color = Color.White, fontSize = 13.sp)
+                        }
                         TextButton(
                             onClick = { showCloudSyncDialog = false },
                             modifier = Modifier.align(Alignment.End)
                         ) {
                             Text("Đóng", color = GreyText)
                         }
+                    }
+                }
+            }
+        )
+    }
+
+    if (showSyncDownloadedDialog) {
+        LaunchedEffect(Unit) {
+            isLoadingDriveNovels = true
+            scope.launch(Dispatchers.IO) {
+                val result = googleDriveBackupManager.listUserNovels()
+                withContext(Dispatchers.Main) {
+                    isLoadingDriveNovels = false
+                    if (result.isSuccess) {
+                        driveNovels = result.getOrNull() ?: emptyList()
+                    } else {
+                        Toast.makeText(context, "Không thể lấy danh sách truyện trên Drive: ${result.exceptionOrNull()?.message}", Toast.LENGTH_LONG).show()
+                    }
+                }
+            }
+        }
+
+        AlertDialog(
+            onDismissRequest = { 
+                if (isSyncingNovelId == null && !isBulkDownloading) showSyncDownloadedDialog = false 
+            },
+            containerColor = CardBg,
+            title = {
+                Text(
+                    text = "Đồng bộ truyện từ Drive",
+                    color = com.nam.novelreader.feature.components.VBookTheme.textColor(),
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 300.dp)
+                ) {
+                    if (isBulkDownloading) {
+                        Box(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                CircularProgressIndicator(color = PrimaryAccent)
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Text(bulkDownloadProgress, color = GreyText, fontSize = 13.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(horizontal = 16.dp))
+                            }
+                        }
+                    } else if (isLoadingDriveNovels) {
+                        Box(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(color = PrimaryAccent)
+                        }
+                    } else if (driveNovels.isEmpty()) {
+                        Box(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("Không tìm thấy tệp truyện đã tải nào trên Drive.", color = GreyText, fontSize = 14.sp)
+                        }
+                    } else {
+                        androidx.compose.foundation.lazy.LazyColumn(
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            items(driveNovels) { (fileId, fileName) ->
+                                val displayName = fileName.substringBeforeLast(".json")
+                                val isSyncing = isSyncingNovelId == fileId
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(Color.Black.copy(0.1f), RoundedCornerShape(8.dp))
+                                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        text = displayName,
+                                        color = com.nam.novelreader.feature.components.VBookTheme.textColor(),
+                                        fontSize = 14.sp,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    if (isSyncing) {
+                                        CircularProgressIndicator(
+                                            color = PrimaryAccent,
+                                            modifier = Modifier.size(20.dp),
+                                            strokeWidth = 2.dp
+                                        )
+                                    } else {
+                                        IconButton(
+                                            onClick = {
+                                                isSyncingNovelId = fileId
+                                                scope.launch(Dispatchers.IO) {
+                                                    val downloadRes = googleDriveBackupManager.downloadFileContent(fileId)
+                                                    withContext(Dispatchers.Main) {
+                                                        if (downloadRes.isSuccess) {
+                                                            val jsonStr = downloadRes.getOrNull() ?: ""
+                                                            viewModel.importNovelFromBackupJson(jsonStr) { result ->
+                                                                isSyncingNovelId = null
+                                                                if (result.isSuccess) {
+                                                                    Toast.makeText(context, "Đã nạp truyện offline thành công!", Toast.LENGTH_SHORT).show()
+                                                                } else {
+                                                                    Toast.makeText(context, "Lỗi nạp truyện: ${result.exceptionOrNull()?.message}", Toast.LENGTH_LONG).show()
+                                                                }
+                                                            }
+                                                        } else {
+                                                            isSyncingNovelId = null
+                                                            Toast.makeText(context, "Lỗi tải tệp: ${downloadRes.exceptionOrNull()?.message}", Toast.LENGTH_LONG).show()
+                                                        }
+                                                    }
+                                                }
+                                            },
+                                            enabled = isSyncingNovelId == null
+                                        ) {
+                                            Icon(
+                                                Icons.Filled.CloudDownload,
+                                                contentDescription = null,
+                                                tint = PrimaryAccent
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)
+                ) {
+                    if (!isBulkDownloading && !isLoadingDriveNovels && driveNovels.isNotEmpty()) {
+                        Button(
+                            onClick = {
+                                isBulkDownloading = true
+                                bulkDownloadProgress = "Đang quét danh sách..."
+                                viewModel.downloadAllNovelsFromWarehouse(
+                                    context = context,
+                                    googleDriveBackupManager = googleDriveBackupManager,
+                                    onProgress = { progress ->
+                                        bulkDownloadProgress = progress
+                                    },
+                                    onFinish = { success, fail ->
+                                        isBulkDownloading = false
+                                        showSyncDownloadedDialog = false
+                                        Toast.makeText(context, "Khôi phục hàng loạt xong: Thành công $success, Thất bại $fail bộ truyện", Toast.LENGTH_LONG).show()
+                                    }
+                                )
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = PrimaryAccent),
+                            enabled = isSyncingNovelId == null
+                        ) {
+                            Icon(Icons.Filled.CloudDownload, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Nhập nhanh tất cả", color = Color.White, fontSize = 13.sp)
+                        }
+                    }
+                    TextButton(
+                        onClick = { showSyncDownloadedDialog = false },
+                        enabled = isSyncingNovelId == null && !isBulkDownloading
+                    ) {
+                        Text("Đóng", color = GreyText)
                     }
                 }
             }
@@ -2941,9 +3608,12 @@ fun LibraryGridCard(
     showTotal: Boolean,
     isDownloaded: Boolean = false,
     currentReadChapter: Int = 0,
+    isDownloadedTab: Boolean = false,
+    downloadedCount: Int = 0,
     onClick: () -> Unit,
     onLongClick: () -> Unit
 ) {
+    val isCompleted = novel.status.equals("Hoàn thành", true) || novel.status.equals("Hoàn tất", true) || novel.status.equals("Full", true)
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -2974,8 +3644,10 @@ fun LibraryGridCard(
                     .background(Color.Black.copy(0.6f), RoundedCornerShape(topStart = 6.dp))
                     .padding(horizontal = 4.dp, vertical = 2.dp)
             ) {
-                val badgeText = if (isDownloaded) {
-                    "Đã tải"
+                val badgeText = if (isCompleted) {
+                    "Hoàn thành"
+                } else if (isDownloadedTab) {
+                    "Tải: $downloadedCount"
                 } else if (novel.totalChapters > 0) {
                     "${novel.totalChapters} Chương"
                 } else {
@@ -2996,12 +3668,14 @@ fun LibraryGridCard(
         )
         Spacer(modifier = Modifier.height(2.dp))
         // Tên tác giả / Tiến độ (1 dòng)
-        val subText = if (currentReadChapter > 0) {
-            "Đã đọc: $currentReadChapter"
-        } else if (novel.author.isNotBlank()) {
-            novel.author
+        val subText = if (isDownloadedTab) {
+            "Đã đọc: $currentReadChapter | Tải: $downloadedCount"
         } else {
-            novel.extensionId
+            if (novel.totalChapters > 0) {
+                "Đã đọc: $currentReadChapter/${novel.totalChapters}"
+            } else {
+                "Đã đọc: $currentReadChapter"
+            }
         }
         Text(
             subText,
@@ -3023,6 +3697,8 @@ fun LibraryListCard(
     showTotal: Boolean,
     isDownloaded: Boolean = false,
     currentReadChapter: Int = 0,
+    isDownloadedTab: Boolean = false,
+    downloadedCount: Int = 0,
     onClick: () -> Unit,
     onLongClick: () -> Unit
 ) {
@@ -3061,7 +3737,10 @@ fun LibraryListCard(
                 overflow = TextOverflow.Ellipsis
             )
             Spacer(modifier = Modifier.height(4.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
                 val isCompleted = novel.status.equals("Hoàn thành", true) || novel.status.equals("Hoàn tất", true) || novel.status.equals("Full", true)
                 if (isCompleted) {
                     Icon(
@@ -3070,41 +3749,36 @@ fun LibraryListCard(
                         tint = Color(0xFF67B787), // Màu xanh lá cây
                         modifier = Modifier.size(14.dp)
                     )
-                    Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        "Hoàn tất",
+                        "Hoàn thành",
                         color = Color(0xFF67B787),
-                        fontSize = 12.sp
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium
                     )
                 } else {
                     Text(
-                        novel.status.ifBlank { "Đang ra" },
+                        novel.status.ifBlank { "Đang cập nhật" },
                         color = PrimaryAccent,
                         fontSize = 12.sp
                     )
                 }
 
-                if (isDownloaded) {
-                    Text(" • ", color = DividerColor)
-                    Icon(
-                        Icons.Filled.Check,
-                        contentDescription = null,
-                        tint = Color(0xFF67B787),
-                        modifier = Modifier.size(14.dp)
-                    )
-                    Spacer(modifier = Modifier.width(2.dp))
-                    Text(
-                        "Đã tải",
-                        color = Color(0xFF67B787),
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                Text("•", color = DividerColor)
+
+                val progressText = if (isDownloadedTab) {
+                    "Đã đọc: $currentReadChapter | Tải: $downloadedCount"
+                } else {
+                    if (novel.totalChapters > 0) {
+                        "Đã đọc: $currentReadChapter/${novel.totalChapters}"
+                    } else {
+                        "Đã đọc: $currentReadChapter"
+                    }
                 }
-                
-                if (showTotal && novel.totalChapters > 0) {
-                    Text(" • ", color = DividerColor)
-                    Text("$currentReadChapter/${novel.totalChapters}", color = GreyText, fontSize = 12.sp)
-                }
+                Text(
+                    text = progressText,
+                    color = GreyText,
+                    fontSize = 12.sp
+                )
             }
         }
         

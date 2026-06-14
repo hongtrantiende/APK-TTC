@@ -75,7 +75,8 @@ class ExtensionLoader @Inject constructor(
                     val pluginJsonStr = appContext.assets
                         .open("extensions/$folderName/plugin.json")
                         .bufferedReader().use { it.readText() }
-                    val pluginJson = json.decodeFromString<PluginJson>(pluginJsonStr)
+                    val rawJson = pluginJsonStr.trim().removePrefix("\uFEFF")
+                    val pluginJson = json.decodeFromString<PluginJson>(rawJson)
                     val meta = pluginJson.metadata
 
                     // Kiểm tra xem folder có icon.png không
@@ -152,7 +153,8 @@ class ExtensionLoader @Inject constructor(
                 if (!pluginJsonFile.exists()) {
                     throw ExtensionException("plugin.json not found in asset extension folder: ${info.name}")
                 }
-                pluginJson = json.decodeFromString<PluginJson>(pluginJsonFile.readText())
+                val rawJson = pluginJsonFile.readText().trim().removePrefix("\uFEFF")
+                pluginJson = json.decodeFromString<PluginJson>(rawJson)
 
                 val iconFile = File(extDir, "icon.png")
                 if (iconFile.exists()) {
@@ -198,7 +200,8 @@ class ExtensionLoader @Inject constructor(
                 if (!pluginJsonFile.exists()) {
                     throw ExtensionException("plugin.json not found in extension: ${info.name}")
                 }
-                pluginJson = json.decodeFromString<PluginJson>(pluginJsonFile.readText())
+                val rawJson = pluginJsonFile.readText().trim().removePrefix("\uFEFF")
+                pluginJson = json.decodeFromString<PluginJson>(rawJson)
 
                 // 4. Load icon nếu có
                 if (info.icon.isNotBlank()) {
@@ -281,7 +284,8 @@ class ExtensionLoader @Inject constructor(
                 val pluginJsonFile = File(extDir, "plugin.json")
                 if (!pluginJsonFile.exists()) return@withContext null
 
-                val pluginJson = json.decodeFromString<PluginJson>(pluginJsonFile.readText())
+                val rawJson = pluginJsonFile.readText().trim().removePrefix("\uFEFF")
+                val pluginJson = json.decodeFromString<PluginJson>(rawJson)
                 val loaded = LoadedExtension(pluginJson, extDir)
                 cache[extensionId] = loaded
                 loaded
